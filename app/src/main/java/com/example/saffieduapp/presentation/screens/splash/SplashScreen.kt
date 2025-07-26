@@ -19,22 +19,51 @@ import kotlinx.coroutines.delay
 
 @Composable
 fun SplashScreen(navController: NavHostController) {
-    var showWhiteCircle by remember { mutableStateOf(false) }
 
-    val scale = remember { Animatable(0.1f) }
+    val scaleCircle = remember { Animatable(0.1f) }
+
+    val scaleLogo = remember { Animatable(0f) }
 
     LaunchedEffect(Unit) {
-        scale.animateTo(
+
+        val circleAnimationDuration = 700
+
+
+        scaleCircle.animateTo(
             targetValue = 55f,
             animationSpec = tween(
-                durationMillis = 1500,
+                durationMillis = circleAnimationDuration,
                 easing = FastOutSlowInEasing
             )
         )
-        delay(200)
-        showWhiteCircle = true
-        delay(11500)
-        navController.navigate("login") {
+
+
+        delay(150)
+
+
+        val logoAnimationDuration = 700
+
+
+        scaleLogo.animateTo(
+            targetValue = 1f,
+            animationSpec = tween(
+                durationMillis = logoAnimationDuration,
+                easing = FastOutSlowInEasing
+            )
+        )
+
+
+        val totalSplashDuration = 2000
+        val remainingDelay = totalSplashDuration - circleAnimationDuration - 150 - logoAnimationDuration
+
+        if (remainingDelay > 0) {
+            delay(remainingDelay.toLong())
+        } else {
+
+            delay(50)
+        }
+
+        navController.navigate("onboarding") {
             popUpTo("splash") { inclusive = true }
         }
     }
@@ -48,26 +77,21 @@ fun SplashScreen(navController: NavHostController) {
 
         Box(
             modifier = Modifier
-                .size(20.dp) // 👈 أكبر قليلاً من 20dp
-                .scale(scale.value)
+                .size(20.dp)
+                .scale(scaleCircle.value)
                 .clip(CircleShape)
                 .background(AppPrimary)
         )
 
-        if (showWhiteCircle) {
-            Box(
+
+        if (scaleLogo.value > 0f) {
+            Image(
+                painter = painterResource(id = R.drawable.logo_saffi),
+                contentDescription = "Logo",
                 modifier = Modifier
-                    .size(227.dp)
-                    .clip(CircleShape)
-                    .background(Color.White),
-                contentAlignment = Alignment.Center
-            ) {
-                Image(
-                    painter = painterResource(id = R.drawable.logo_saffi),
-                    contentDescription = "Logo",
-                    modifier = Modifier.size(width = 134.dp , height = 144.dp)
-                )
-            }
+                    .size(width = 134.dp, height = 144.dp)
+                    .scale(scaleLogo.value)
+            )
         }
     }
 }
