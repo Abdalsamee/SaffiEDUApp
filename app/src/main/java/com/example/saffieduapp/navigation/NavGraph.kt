@@ -5,6 +5,8 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import com.example.saffieduapp.presentation.screens.splash.SplashScreen
+import com.example.saffieduapp.presentation.screens.onboarding.OnboardingScreen
+// import com.example.saffieduapp.presentation.screens.login.LoginScreen // ← لاحقًا
 
 @Composable
 fun AppNavGraph(navController: NavHostController) {
@@ -16,8 +18,10 @@ fun AppNavGraph(navController: NavHostController) {
             SplashScreen(navController)
         }
 
-        // composable("login") {
-        //     LoginScreen(navController)
-        // }
+        composable("onboarding") {
+            OnboardingScreen(navController)
+        }
+
+
     }
 }
