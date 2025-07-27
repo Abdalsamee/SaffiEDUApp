@@ -30,7 +30,7 @@ fun OnboardingPage(page: OnboardingPageData) {
             verticalArrangement = Arrangement.SpaceBetween,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // ✅ عرض الصورة فقط (داخل الشكل المنحني الثابت مسبقًا)
+            //  عرض الصورة فقط (داخل الشكل المنحني الثابت مسبقًا)
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -42,7 +42,7 @@ fun OnboardingPage(page: OnboardingPageData) {
                 )
             }
 
-            // ✅ النصوص
+            //  النصوص
             Column(
                 modifier = Modifier
                     .fillMaxWidth()

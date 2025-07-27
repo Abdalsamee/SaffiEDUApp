@@ -4,24 +4,27 @@ import androidx.compose.runtime.Composable
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
-import com.example.saffieduapp.presentation.screens.splash.SplashScreen
+import com.example.saffieduapp.presentation.screens.login.LoginScreen
 import com.example.saffieduapp.presentation.screens.onboarding.OnboardingScreen
-// import com.example.saffieduapp.presentation.screens.login.LoginScreen // ← لاحقًا
+import com.example.saffieduapp.presentation.screens.splash.SplashScreen
 
 @Composable
 fun AppNavGraph(navController: NavHostController) {
     NavHost(
         navController = navController,
-        startDestination = "splash"
+        startDestination = Routes.SPLASH_SCREEN
     ) {
-        composable("splash") {
+        composable(Routes.SPLASH_SCREEN) {
             SplashScreen(navController)
         }
 
-        composable("onboarding") {
+        composable(Routes.ONBOARDING_SCREEN) {
             OnboardingScreen(navController)
         }
 
 
+        composable(Routes.LOGIN_SCREEN) {
+            LoginScreen()
+        }
     }
 }
