@@ -21,10 +21,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import com.example.saffieduapp.R
+import com.example.saffieduapp.navigation.Routes
 import com.example.saffieduapp.presentation.screens.onboarding.components.CustomCurvedShapeBox
 import com.example.saffieduapp.presentation.screens.onboarding.components.CurvedImageOnly
+import com.example.saffieduapp.presentation.screens.unboarding.OnboardingViewModel
 import com.example.saffieduapp.presentation.screens.unboarding.model.onboardingPages
 import com.example.saffieduapp.ui.theme.AppPrimary
 import com.example.saffieduapp.ui.theme.AppTextPrimary
@@ -34,7 +37,10 @@ import kotlinx.coroutines.launch
 @SuppressLint("UnusedBoxWithConstraintsScope")
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
-fun OnboardingScreen(navController: NavHostController) {
+fun OnboardingScreen(
+    navController: NavHostController,
+    viewModel: OnboardingViewModel = hiltViewModel()
+) {
     val pagerState = rememberPagerState { onboardingPages.size }
     val scope = rememberCoroutineScope()
     val isLastPage = pagerState.currentPage == onboardingPages.lastIndex
@@ -60,8 +66,9 @@ fun OnboardingScreen(navController: NavHostController) {
                 },
                 actions = {
                     TextButton(onClick = {
-                        navController.navigate("login") {
-                            popUpTo("onboarding") { inclusive = true }
+                        viewModel.onFinishClick()
+                        navController.navigate(Routes.LOGIN_SCREEN) {
+                            popUpTo(Routes.ONBOARDING_SCREEN) { inclusive = true }
                         }
                     }) {
                         Text(text = "تخطي", color = AppTextPrimary, fontSize = 15.sp)
@@ -77,7 +84,7 @@ fun OnboardingScreen(navController: NavHostController) {
                 .padding(paddingValues)
         ) {
 
-            // ✅ الشكل المنحني الثابت بالخلف
+            //  الشكل المنحني الثابت بالخلف
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -91,7 +98,7 @@ fun OnboardingScreen(navController: NavHostController) {
                 )
             }
 
-            // ✅ النصوص المتغيرة فقط
+            //  النصوص المتغيرة فقط
             HorizontalPager(
                 state = pagerState,
                 modifier = Modifier
@@ -125,7 +132,7 @@ fun OnboardingScreen(navController: NavHostController) {
                 }
             }
 
-            // ✅ النقاط السفلية وزر "التالي"
+            //  النقاط السفلية وزر "التالي"
             Column(
                 modifier = Modifier
                     .padding(vertical = 16.dp),
@@ -164,12 +171,13 @@ fun OnboardingScreen(navController: NavHostController) {
                         )
                     }
                 }
-                    Spacer(modifier = Modifier.size(20.dp))
+                Spacer(modifier = Modifier.size(20.dp))
                 Button(
                     onClick = {
                         if (isLastPage) {
-                            navController.navigate("login") {
-                                popUpTo("onboarding") { inclusive = true }
+                            viewModel.onFinishClick()
+                            navController.navigate(Routes.LOGIN_SCREEN) {
+                                popUpTo(Routes.ONBOARDING_SCREEN) { inclusive = true }
                             }
                         } else {
                             scope.launch {

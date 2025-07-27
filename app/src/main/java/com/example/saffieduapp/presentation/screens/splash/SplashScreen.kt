@@ -12,59 +12,51 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.*
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import com.example.saffieduapp.R
 import com.example.saffieduapp.ui.theme.AppPrimary
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
 
 @Composable
-fun SplashScreen(navController: NavHostController) {
+fun SplashScreen(
+    navController: NavHostController,
+
+    viewModel: SplashViewModel = hiltViewModel()
+) {
+
+    val startDestination by viewModel.startDestination.collectAsState()
 
     val scaleCircle = remember { Animatable(0.1f) }
-
     val scaleLogo = remember { Animatable(0f) }
 
+
     LaunchedEffect(Unit) {
-
         val circleAnimationDuration = 700
-
-
         scaleCircle.animateTo(
             targetValue = 55f,
-            animationSpec = tween(
-                durationMillis = circleAnimationDuration,
-                easing = FastOutSlowInEasing
-            )
+            animationSpec = tween(durationMillis = circleAnimationDuration, easing = FastOutSlowInEasing)
         )
-
 
         delay(150)
 
-
         val logoAnimationDuration = 700
-
-
         scaleLogo.animateTo(
             targetValue = 1f,
-            animationSpec = tween(
-                durationMillis = logoAnimationDuration,
-                easing = FastOutSlowInEasing
-            )
+            animationSpec = tween(durationMillis = logoAnimationDuration, easing = FastOutSlowInEasing)
         )
 
 
-        val totalSplashDuration = 2000
-        val remainingDelay = totalSplashDuration - circleAnimationDuration - 150 - logoAnimationDuration
+        val destination = snapshotFlow { startDestination }
+            .filterNotNull()
+            .first()
 
-        if (remainingDelay > 0) {
-            delay(remainingDelay.toLong())
-        } else {
 
-            delay(50)
-        }
+        navController.navigate(destination) {
 
-        navController.navigate("onboarding") {
-            popUpTo("splash") { inclusive = true }
+            popUpTo(navController.graph.startDestinationId) { inclusive = true }
         }
     }
 
@@ -74,7 +66,6 @@ fun SplashScreen(navController: NavHostController) {
             .background(Color.White),
         contentAlignment = Alignment.Center
     ) {
-
         Box(
             modifier = Modifier
                 .size(20.dp)
@@ -82,7 +73,6 @@ fun SplashScreen(navController: NavHostController) {
                 .clip(CircleShape)
                 .background(AppPrimary)
         )
-
 
         if (scaleLogo.value > 0f) {
             Image(
