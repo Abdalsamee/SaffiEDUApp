@@ -6,14 +6,14 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.*
-import androidx.compose.ui.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.unit.*
+import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.navigation.NavHostController
 import com.example.saffieduapp.R
 import com.example.saffieduapp.ui.theme.AppPrimary
 import kotlinx.coroutines.delay
@@ -22,18 +22,16 @@ import kotlinx.coroutines.flow.first
 
 @Composable
 fun SplashScreen(
-    navController: NavHostController,
-
+    // 1. تم حذف الـ NavController من هنا
+    onNavigate: (String) -> Unit,
     viewModel: SplashViewModel = hiltViewModel()
 ) {
-
     val startDestination by viewModel.startDestination.collectAsState()
-
     val scaleCircle = remember { Animatable(0.1f) }
     val scaleLogo = remember { Animatable(0f) }
 
-
     LaunchedEffect(Unit) {
+        // Animation logic remains the same
         val circleAnimationDuration = 700
         scaleCircle.animateTo(
             targetValue = 55f,
@@ -48,18 +46,15 @@ fun SplashScreen(
             animationSpec = tween(durationMillis = logoAnimationDuration, easing = FastOutSlowInEasing)
         )
 
-
         val destination = snapshotFlow { startDestination }
             .filterNotNull()
             .first()
 
-
-        navController.navigate(destination) {
-
-            popUpTo(navController.graph.startDestinationId) { inclusive = true }
-        }
+        // 2. تم استبدال navController.navigate بـ onNavigate
+        onNavigate(destination)
     }
 
+    // UI Box remains the same
     Box(
         modifier = Modifier
             .fillMaxSize()

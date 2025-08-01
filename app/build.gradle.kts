@@ -75,6 +75,11 @@ dependencies {
 
 // يمكنك تعريف hilt-navigation-compose في ملف toml أيضاً أو تركه كما هو
     implementation("androidx.hilt:hilt-navigation-compose:1.2.0")
+ //Coil
+    implementation("io.coil-kt:coil-compose:2.6.0")
+    // status bar
+    implementation("com.google.accompanist:accompanist-systemuicontroller:0.30.1")
+
     // Testing
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
