@@ -1,5 +1,6 @@
 package com.example.saffieduapp.presentation.screens.login
 
+import android.annotation.SuppressLint
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -17,169 +18,111 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.foundation.layout.imePadding
 import com.example.saffieduapp.R
 import com.example.saffieduapp.presentation.components.PrimaryButton
+import com.example.saffieduapp.presentation.screens.login.components.LoginTextField
 import com.example.saffieduapp.ui.theme.*
 
-@OptIn(ExperimentalMaterial3Api::class)
+@SuppressLint("UnusedBoxWithConstraintsScope")
 @Composable
 fun LoginScreen(
     viewModel: LoginViewModel = viewModel()
 ) {
     val state = viewModel.uiState.collectAsState().value
 
-    Box(
+    BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
             .background(AppPrimary)
     ) {
-        Column(
-            modifier = Modifier.fillMaxSize()
-        ) {
-            Spacer(modifier = Modifier.height(30.dp))
+        val screenHeight = maxHeight
+        val screenWidth = maxWidth
+        val logoSize = (screenHeight * 0.20f).coerceIn(100.dp, 180.dp)
 
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+        ) {
+            Spacer(modifier = Modifier.height(screenHeight * 0.05f))
+
+            // ✅ الشعار
             Image(
                 painter = painterResource(id = R.drawable.logo_new__4___4_),
                 contentDescription = "Logo",
                 modifier = Modifier
-                    .size(156.dp)
+                    .size(logoSize)
                     .align(Alignment.CenterHorizontally)
             )
 
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(screenHeight * 0.05f))
 
+            // ✅ صندوق الحقول
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f)
-                    .clip(RoundedCornerShape(topEnd = 120.dp))
+                    .clip(RoundedCornerShape(topEnd = screenWidth * 0.25f))
                     .background(AppBackground)
             ) {
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(horizontal = 32.dp, vertical = 24.dp)
+                        .imePadding() // يمنع تصغير المحتوى عند ظهور الكيبورد
+                        .padding(
+                            horizontal = screenWidth * 0.06f,
+                            vertical = screenHeight * 0.02f
+                        )
                         .verticalScroll(rememberScrollState()),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    // العنوان الرئيسي
+                    // ✅ العنوان
                     Text(
                         text = "تسجيل الدخول",
-                        style = MaterialTheme.typography.displayLarge,
+                        style = MaterialTheme.typography.displayLarge.copy(
+                            fontSize = (screenWidth.value * 0.07).sp
+                        ),
                         color = AppTextPrimary,
-                        modifier = Modifier.padding(bottom = 24.dp)
+                        modifier = Modifier.padding(bottom = screenHeight * 0.03f)
                     )
 
-                    // حقل رقم الهوية
-                    OutlinedTextField(
+                    // ✅ حقل رقم الهوية
+                    LoginTextField(
                         value = state.id,
                         onValueChange = { viewModel.onEvent(LoginEvent.IdChanged(it)) },
+                        label = "رقم الهوية",
+                        placeholder = "123XXXXXXXX",
+                        icon = R.drawable.id_user_1,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(64.dp),
-                        placeholder = {
-                            Text(
-                                "123XXXXXXXX",
-                                textAlign = TextAlign.End,
-                                color = AppTextSecondary,
-                                style = MaterialTheme.typography.bodyLarge
-                            )
-                        },
-                        label = {
-                            Text(
-                                "رقم الهوية",
-                                textAlign = TextAlign.End,
-                                color = AppTextSecondary,
-                                style = MaterialTheme.typography.labelLarge
-                            )
-                        },
-                        trailingIcon = {
-                            Icon(
-                                painter = painterResource(id = R.drawable.id_user_1),
-                                contentDescription = "رقم الهوية"
-                            )
-                        },
-                        singleLine = true,
-                        shape = RoundedCornerShape(16.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = AppTextSecondary,
-                            unfocusedBorderColor = AppTextSecondary,
-                            cursorColor = AppTextPrimary
-                        ),
-                        textStyle = MaterialTheme.typography.bodyLarge.copy(
-                            textAlign = TextAlign.End,
-                            color = AppTextPrimary
-                        )
+                            .heightIn(min = screenHeight * 0.065f)
                     )
 
-                    Spacer(modifier = Modifier.height(20.dp))
+                    Spacer(modifier = Modifier.height(screenHeight * 0.025f))
 
-                    // حقل كلمة المرور
-                    OutlinedTextField(
+                    // ✅ حقل كلمة المرور
+                    LoginTextField(
                         value = state.password,
                         onValueChange = { viewModel.onEvent(LoginEvent.PasswordChanged(it)) },
+                        label = "كلمة المرور",
+                        placeholder = "********",
+                        isPassword = true,
+                        isPasswordVisible = state.isPasswordVisible,
+                        onToggleVisibility = { viewModel.onEvent(LoginEvent.TogglePasswordVisibility) },
+                        icon = R.drawable.notvisipel,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(64.dp),
-                        placeholder = {
-                            Text(
-                                "********",
-                                textAlign = TextAlign.End,
-                                color = AppTextSecondary,
-                                style = MaterialTheme.typography.bodyLarge
-                            )
-                        },
-                        label = {
-                            Text(
-                                "كلمة المرور",
-                                textAlign = TextAlign.End,
-                                color = AppTextSecondary,
-                                style = MaterialTheme.typography.labelLarge
-                            )
-                        },
-                        trailingIcon = {
-                            IconButton(onClick = { viewModel.onEvent(LoginEvent.TogglePasswordVisibility) }) {
-                                Icon(
-                                    painter = painterResource(
-                                        id = if (state.isPasswordVisible)
-                                            R.drawable.visepel
-                                        else
-                                            R.drawable.notvisipel
-                                    ),
-                                    contentDescription = if (state.isPasswordVisible)
-                                        "إخفاء كلمة المرور"
-                                    else
-                                        "عرض كلمة المرور"
-                                )
-                            }
-                        },
-                        singleLine = true,
-                        shape = RoundedCornerShape(16.dp),
-                        visualTransformation = if (state.isPasswordVisible)
-                            VisualTransformation.None
-                        else
-                            PasswordVisualTransformation(),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = AppTextSecondary,
-                            unfocusedBorderColor = AppTextSecondary,
-                            cursorColor = AppTextPrimary
-                        ),
-                        textStyle = MaterialTheme.typography.bodyLarge.copy(
-                            textAlign = TextAlign.End,
-                            color = AppTextPrimary
-                        )
+                            .heightIn(min = screenHeight * 0.065f)
                     )
 
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(screenHeight * 0.02f))
 
-                    // تذكرني و هل نسيت كلمة المرور
+                    // ✅ النصوص السفلية
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically
@@ -204,27 +147,29 @@ fun LoginScreen(
                         Text(
                             text = "هل نسيت كلمة المرور؟",
                             color = AppTextPrimary,
-                            modifier = Modifier.clickable { /* نفذ الانتقال هنا */ },
+                            modifier = Modifier.clickable { },
                             style = MaterialTheme.typography.bodyMedium,
                             textAlign = TextAlign.End
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(20.dp))
+                    Spacer(modifier = Modifier.height(screenHeight * 0.03f))
 
+                    // ✅ زر الدخول
                     PrimaryButton(
                         text = "ابدأ",
-                        onClick = { viewModel.onEvent(LoginEvent.LoginClicked) }
+                        onClick = { viewModel.onEvent(LoginEvent.LoginClicked) },
+                        modifier = Modifier.fillMaxWidth()
                     )
 
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(screenHeight * 0.02f))
 
+                    // ✅ رابط التسجيل
                     ClickableText(
                         text = buildAnnotatedString {
                             withStyle(
                                 style = SpanStyle(
                                     color = AppTextSecondary,
-                                    fontWeight = FontWeight.W500,
                                     fontSize = MaterialTheme.typography.bodyLarge.fontSize
                                 )
                             ) {
@@ -234,7 +179,6 @@ fun LoginScreen(
                             withStyle(
                                 style = SpanStyle(
                                     color = AppTextPrimary,
-                                    fontWeight = FontWeight.W600,
                                     fontSize = MaterialTheme.typography.bodyLarge.fontSize
                                 )
                             ) {
@@ -243,7 +187,7 @@ fun LoginScreen(
                             pop()
                         },
                         onClick = { offset ->
-                            // تنفيذ الانتقال لصفحة الاشتراك
+                            // TODO: الانتقال لصفحة التسجيل
                         },
                         modifier = Modifier
                             .align(Alignment.CenterHorizontally)

@@ -1,15 +1,19 @@
 package com.example.saffieduapp.navigation
 
-import SignUpScreen
+//import SignUpScreen
 import androidx.compose.runtime.Composable
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import com.example.saffieduapp.presentation.screens.login.LoginScreen
+//import com.example.saffieduapp.presentation.screens.login.LoginScreen
 //import com.example.saffieduapp.presentation.screens.login.LooginScreen
 //import com.example.saffieduapp.presentation.screens.login.LoginScreen
 import com.example.saffieduapp.presentation.screens.onboarding.OnboardingScreen
+import com.example.saffieduapp.presentation.screens.signup.SignUpScreen
+//import com.example.saffieduapp.presentation.screens.signup.SignUpScreen
 import com.example.saffieduapp.presentation.screens.splash.SplashScreen
+//import com.example.saffieduapp.ui.screens.SignUpScreen
 
 @Composable
 fun AppNavGraph(navController: NavHostController) {
@@ -27,8 +31,8 @@ fun AppNavGraph(navController: NavHostController) {
 
 
         composable(Routes.LOGIN_SCREEN) {
-            SignUpScreen()
-           // LoginScreen()
+            //SignUpScreen()
+            LoginScreen()
         }
     }
 }

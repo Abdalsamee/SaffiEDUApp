@@ -1,193 +1,211 @@
-package com.example.saffieduapp.ui.screens
+package com.example.saffieduapp.presentation.screens.signup
 
+import android.annotation.SuppressLint
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.ClickableText
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.input.VisualTransformation
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.sp
+import com.example.saffieduapp.R
+import com.example.saffieduapp.presentation.screens.login.components.LoginTextField
+import com.example.saffieduapp.ui.theme.*
 
+@SuppressLint("UnusedBoxWithConstraintsScope")
 @Composable
 fun SignUpScreen() {
-    val fullName = remember { mutableStateOf("") }
-    val phoneNumber = remember { mutableStateOf("") }
-    val email = remember { mutableStateOf("") }
-    val password = remember { mutableStateOf("") }
-    val confirmPassword = remember { mutableStateOf("") }
-    val grade = remember { mutableStateOf("") }
-    val agreedToTerms = remember { mutableStateOf(false) }
+    var fullName by remember { mutableStateOf("") }
+    var idNumber by remember { mutableStateOf("") }
+    var email by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+    var confirmPassword by remember { mutableStateOf("") }
+    var schoolLevel by remember { mutableStateOf("") }
+    var passwordVisible by remember { mutableStateOf(false) }
+    var confirmPasswordVisible by remember { mutableStateOf(false) }
 
-    Column(
+    BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.White)
+            .background(AppPrimary)
     ) {
-        // Header with background and title
+        val screenHeight = maxHeight
+        val screenWidth = maxWidth
+
+        // ✅ الهيدر
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(200.dp)
-                .background(color = Color(0xFF6200EE)) // purple_500
-                .clip(
-                    shape = RoundedCornerShape(bottomStart = 50.dp)
-                ),
-            contentAlignment = Alignment.TopCenter
+                .height(screenHeight * 0.28f)
+                .background(AppPrimary)
         ) {
-            Column(
+            IconButton(
+                onClick = { },
                 modifier = Modifier
-                    .padding(top = 50.dp)
-                    .fillMaxWidth(),
-                horizontalAlignment = Alignment.CenterHorizontally
+                    .align(Alignment.TopStart)
+                    .padding(top = screenHeight * 0.05f)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.ArrowForward,
+                    contentDescription = null,
+                    tint = Color.White
+                )
+            }
+
+            Text(
+                text = "اشترك",
+                fontSize = (screenWidth.value * 0.07).sp,
+                color = Color.White,
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(top = screenHeight * 0.05f)
+            )
+        }
+
+        // ✅ محتوى الشاشة
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(top = screenHeight * 0.22f)
+                .clip(RoundedCornerShape(topStart = screenWidth * 0.08f))
+                .background(Color.White)
+                .padding(horizontal = screenWidth * 0.06f, vertical = screenHeight * 0.02f),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = "إنشاء الحساب",
+                fontSize = (screenWidth.value * 0.05).sp,
+                fontWeight = FontWeight.Bold,
+                color = AppTextPrimary,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(0.1f),
+                textAlign = TextAlign.Center
+            )
+
+            // ✅ حقول الإدخال
+            LoginTextField(
+                value = fullName,
+                onValueChange = { fullName = it },
+                label = "الاسم الكامل",
+                placeholder = "الاسم الكامل",
+                icon = R.drawable.fullname,
+                modifier = Modifier.weight(0.11f)
+            )
+
+            LoginTextField(
+                value = idNumber,
+                onValueChange = { idNumber = it },
+                label = "رقم الهوية",
+                placeholder = "123000XXXX",
+                icon = R.drawable.id_user_1,
+                modifier = Modifier.weight(0.11f)
+            )
+
+            LoginTextField(
+                value = email,
+                onValueChange = { email = it },
+                label = "البريد الإلكتروني",
+                placeholder = "example@gmail.com",
+                icon = R.drawable.email,
+                modifier = Modifier.weight(0.11f)
+            )
+
+            LoginTextField(
+                value = password,
+                onValueChange = { password = it },
+                label = "كلمة السر",
+                placeholder = "********",
+                isPassword = true,
+                isPasswordVisible = passwordVisible,
+                onToggleVisibility = { passwordVisible = !passwordVisible },
+                icon = R.drawable.notvisipel,
+                modifier = Modifier.weight(0.11f)
+            )
+
+            LoginTextField(
+                value = confirmPassword,
+                onValueChange = { confirmPassword = it },
+                label = "تأكيد كلمة السر",
+                placeholder = "********",
+                isPassword = true,
+                isPasswordVisible = confirmPasswordVisible,
+                onToggleVisibility = { confirmPasswordVisible = !confirmPasswordVisible },
+                icon = R.drawable.confirmpassword,
+                modifier = Modifier.weight(0.11f)
+            )
+
+            LoginTextField(
+                value = schoolLevel,
+                onValueChange = { schoolLevel = it },
+                label = "اختر الصف الدراسي",
+                placeholder = "حدد صفك الدراسي",
+                icon = R.drawable.arrow_left,
+                modifier = Modifier.weight(0.11f)
+            )
+
+            Spacer(Modifier.weight(0.05f))
+
+            // ✅ زر الاشتراك
+            Button(
+                onClick = { },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(0.1f),
+                shape = RoundedCornerShape(screenWidth * 0.025f),
+                colors = ButtonDefaults.buttonColors(containerColor = AppPrimary)
             ) {
                 Text(
                     text = "اشترك",
-                    color = Color.White,
-                    fontSize = 24.sp
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Icon(
-                    imageVector = Icons.Default.ArrowForward,
-                    contentDescription = "رجوع",
-                    tint = Color.White,
-                    modifier = Modifier
-                        .align(Alignment.End)
-                        .padding(end = 16.dp)
+                    fontSize = (screenWidth.value * 0.045).sp,
+                    color = Color.White
                 )
             }
-        }
 
-        Spacer(modifier = Modifier.height(16.dp))
+            Spacer(Modifier.weight(0.05f))
 
-        Column(modifier = Modifier.padding(horizontal = 24.dp)) {
-            Text(
-                text = "إنشاء الحساب",
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.padding(bottom = 16.dp)
-            )
-
-            CustomOutlinedTextField(
-                value = fullName.value,
-                onValueChange = { fullName.value = it },
-                label = "الاسم الكامل",
-                placeholder = "الاسم الكامل",
-                icon = Icons.Default.Person
-            )
-
-            CustomOutlinedTextField(
-                value = phoneNumber.value,
-                onValueChange = { phoneNumber.value = it },
-                label = "رقم الهوية",
-                placeholder = "123000XXX",
-                icon = Icons.Default.DateRange,
-                keyboardType = KeyboardType.Number
-            )
-
-            CustomOutlinedTextField(
-                value = email.value,
-                onValueChange = { email.value = it },
-                label = "البريد الإلكتروني",
-                placeholder = "example@gmail.com",
-                icon = Icons.Default.Email,
-                keyboardType = KeyboardType.Email
-            )
-
-            CustomOutlinedTextField(
-                value = password.value,
-                onValueChange = { password.value = it },
-                label = "كلمة المرور",
-                placeholder = "********",
-                icon = Icons.Default.Lock,
-                isPassword = true
-            )
-
-            CustomOutlinedTextField(
-                value = confirmPassword.value,
-                onValueChange = { confirmPassword.value = it },
-                label = "تأكيد كلمة المرور",
-                placeholder = "********",
-                icon = Icons.Default.Lock,
-                isPassword = true
-            )
-
-            CustomOutlinedTextField(
-                value = grade.value,
-                onValueChange = { grade.value = it },
-                label = "اختر الصف الدراسي",
-                placeholder = "حدد صفك الدراسي",
-                icon = Icons.Default.Person
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Button(
-                onClick = { /* تنفيذ عملية التسجيل */ },
+            // ✅ الشروط ورابط تسجيل الدخول
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(50.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6200EE)) // purple_500
-            ) {
-                Text(text = "اشترك", color = Color.White)
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Row(
-                verticalAlignment = Alignment.CenterVertically
+                    .weight(0.08f)
             ) {
                 Checkbox(
-                    checked = agreedToTerms.value,
-                    onCheckedChange = { agreedToTerms.value = it }
+                    checked = false,
+                    onCheckedChange = {},
+                    enabled = false
                 )
                 Text(
-                    text = "أقر وأوافق على الشروط والأحكام",
-                    style = MaterialTheme.typography.bodySmall
+                    text = "لقد وافقت على الشروط و الأحكام",
+                    color = AppTextSecondary,
+                    fontSize = (screenWidth.value * 0.03).sp
+                )
+                Spacer(modifier = Modifier.weight(1f))
+                ClickableText(
+                    text = buildAnnotatedString {
+                        withStyle(style = SpanStyle(color = AppTextSecondary)) {
+                            append("هل لديك حساب؟ ")
+                        }
+                        withStyle(style = SpanStyle(color = AppPrimary)) {
+                            append("تسجيل الدخول")
+                        }
+                    },
+                    onClick = { /* TODO: الانتقال لشاشة تسجيل الدخول */ },
+                    modifier = Modifier.align(Alignment.CenterVertically)
                 )
             }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text(
-                text = "هل لديك حساب؟",
-                style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.align(Alignment.CenterHorizontally)
-            )
         }
     }
-}
-
-@Composable
-fun CustomOutlinedTextField(
-    value: String,
-    onValueChange: (String) -> Unit,
-    label: String,
-    placeholder: String,
-    icon: ImageVector,
-    isPassword: Boolean = false,
-    keyboardType: KeyboardType = KeyboardType.Text
-) {
-    OutlinedTextField(
-        value = value,
-        onValueChange = onValueChange,
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp),
-        label = { Text(label) },
-        placeholder = { Text(placeholder) },
-        leadingIcon = { Icon(imageVector = icon, contentDescription = null) },
-        visualTransformation = if (isPassword) PasswordVisualTransformation() else VisualTransformation.None,
-        singleLine = true,
-        keyboardOptions = KeyboardOptions(keyboardType = keyboardType)
-    )
 }
