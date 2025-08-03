@@ -1,39 +1,53 @@
-package com.example.saffieduapp.presentation.screens.signup
+package com.example.saffieduapp.presentation.screens.SignUpScreen
 
 import android.annotation.SuppressLint
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.ClickableText
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowForward
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.unit.dp
 import com.example.saffieduapp.R
-import com.example.saffieduapp.presentation.screens.login.components.LoginTextField
+import com.example.saffieduapp.presentation.components.PrimaryButton
+import com.example.saffieduapp.presentation.screens.SignUpScreen.components.SineUpAppBar
+import com.example.saffieduapp.presentation.screens.SignUpScreen.components.SineUpTextField
 import com.example.saffieduapp.ui.theme.*
+import com.google.accompanist.systemuicontroller.rememberSystemUiController
 
 @SuppressLint("UnusedBoxWithConstraintsScope")
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SignUpScreen() {
+fun SignUpScreen(
+    onBackClick: () -> Unit = {}
+) {
     var fullName by remember { mutableStateOf("") }
     var idNumber by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
-    var schoolLevel by remember { mutableStateOf("") }
-    var passwordVisible by remember { mutableStateOf(false) }
-    var confirmPasswordVisible by remember { mutableStateOf(false) }
+    var isPasswordVisible by remember { mutableStateOf(false) }
+    var isConfirmPasswordVisible by remember { mutableStateOf(false) }
+
+    val systemUiController = rememberSystemUiController()
+    val statusBarColor = AppPrimary
+
+    SideEffect {
+        systemUiController.setStatusBarColor(
+            color = statusBarColor,
+            darkIcons = false
+        )
+    }
 
     BoxWithConstraints(
         modifier = Modifier
@@ -42,169 +56,189 @@ fun SignUpScreen() {
     ) {
         val screenHeight = maxHeight
         val screenWidth = maxWidth
+        val fieldSpacing = screenHeight * 0.012f
 
-        // ✅ الهيدر
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(screenHeight * 0.28f)
-                .background(AppPrimary)
-        ) {
-            IconButton(
-                onClick = { },
-                modifier = Modifier
-                    .align(Alignment.TopStart)
-                    .padding(top = screenHeight * 0.05f)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.ArrowForward,
-                    contentDescription = null,
-                    tint = Color.White
-                )
-            }
-
-            Text(
-                text = "اشترك",
-                fontSize = (screenWidth.value * 0.07).sp,
-                color = Color.White,
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .padding(top = screenHeight * 0.05f)
-            )
-        }
-
-        // ✅ محتوى الشاشة
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(top = screenHeight * 0.22f)
-                .clip(RoundedCornerShape(topStart = screenWidth * 0.08f))
-                .background(Color.White)
-                .padding(horizontal = screenWidth * 0.06f, vertical = screenHeight * 0.02f),
-            horizontalAlignment = Alignment.CenterHorizontally
+            modifier = Modifier.fillMaxSize()
         ) {
-            Text(
-                text = "إنشاء الحساب",
-                fontSize = (screenWidth.value * 0.05).sp,
-                fontWeight = FontWeight.Bold,
-                color = AppTextPrimary,
+            SineUpAppBar(
+                onBackClick = onBackClick,
+                screenWidth = screenWidth
+            )
+
+            Spacer(modifier = Modifier.height(screenHeight * 0.015f))
+
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .weight(0.1f),
-                textAlign = TextAlign.Center
-            )
-
-            // ✅ حقول الإدخال
-            LoginTextField(
-                value = fullName,
-                onValueChange = { fullName = it },
-                label = "الاسم الكامل",
-                placeholder = "الاسم الكامل",
-                icon = R.drawable.fullname,
-                modifier = Modifier.weight(0.11f)
-            )
-
-            LoginTextField(
-                value = idNumber,
-                onValueChange = { idNumber = it },
-                label = "رقم الهوية",
-                placeholder = "123000XXXX",
-                icon = R.drawable.id_user_1,
-                modifier = Modifier.weight(0.11f)
-            )
-
-            LoginTextField(
-                value = email,
-                onValueChange = { email = it },
-                label = "البريد الإلكتروني",
-                placeholder = "example@gmail.com",
-                icon = R.drawable.email,
-                modifier = Modifier.weight(0.11f)
-            )
-
-            LoginTextField(
-                value = password,
-                onValueChange = { password = it },
-                label = "كلمة السر",
-                placeholder = "********",
-                isPassword = true,
-                isPasswordVisible = passwordVisible,
-                onToggleVisibility = { passwordVisible = !passwordVisible },
-                icon = R.drawable.notvisipel,
-                modifier = Modifier.weight(0.11f)
-            )
-
-            LoginTextField(
-                value = confirmPassword,
-                onValueChange = { confirmPassword = it },
-                label = "تأكيد كلمة السر",
-                placeholder = "********",
-                isPassword = true,
-                isPasswordVisible = confirmPasswordVisible,
-                onToggleVisibility = { confirmPasswordVisible = !confirmPasswordVisible },
-                icon = R.drawable.confirmpassword,
-                modifier = Modifier.weight(0.11f)
-            )
-
-            LoginTextField(
-                value = schoolLevel,
-                onValueChange = { schoolLevel = it },
-                label = "اختر الصف الدراسي",
-                placeholder = "حدد صفك الدراسي",
-                icon = R.drawable.arrow_left,
-                modifier = Modifier.weight(0.11f)
-            )
-
-            Spacer(Modifier.weight(0.05f))
-
-            // ✅ زر الاشتراك
-            Button(
-                onClick = { },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(0.1f),
-                shape = RoundedCornerShape(screenWidth * 0.025f),
-                colors = ButtonDefaults.buttonColors(containerColor = AppPrimary)
+                    .weight(1f)
+                    .clip(RoundedCornerShape(topEnd = screenWidth * 0.25f))
+                    .background(AppBackground)
             ) {
-                Text(
-                    text = "اشترك",
-                    fontSize = (screenWidth.value * 0.045).sp,
-                    color = Color.White
-                )
-            }
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .imePadding()
+                        .padding(
+                            horizontal = screenWidth * 0.06f,
+                            vertical = screenHeight * 0.02f
+                        )
+                        .verticalScroll(rememberScrollState()),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = "إنشاء الحساب",
+                        style = MaterialTheme.typography.displayLarge.copy(
+                            fontSize = (screenWidth.value * 0.07).sp
+                        ),
+                        color = AppTextPrimary,
+                        modifier = Modifier.padding(bottom = screenHeight * 0.02f)
+                    )
 
-            Spacer(Modifier.weight(0.05f))
+                    // الاسم الكامل
+                    SineUpTextField(
+                        value = fullName,
+                        onValueChange = { fullName = it },
+                        label = "الأسم الكامل",
+                        placeholder = "الأسم الكامل",
+                        icon = R.drawable.fullname,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = screenHeight * 0.065f)
+                    )
 
-            // ✅ الشروط ورابط تسجيل الدخول
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(0.08f)
-            ) {
-                Checkbox(
-                    checked = false,
-                    onCheckedChange = {},
-                    enabled = false
-                )
-                Text(
-                    text = "لقد وافقت على الشروط و الأحكام",
-                    color = AppTextSecondary,
-                    fontSize = (screenWidth.value * 0.03).sp
-                )
-                Spacer(modifier = Modifier.weight(1f))
-                ClickableText(
-                    text = buildAnnotatedString {
-                        withStyle(style = SpanStyle(color = AppTextSecondary)) {
-                            append("هل لديك حساب؟ ")
+                    Spacer(modifier = Modifier.height(fieldSpacing))
+
+                    // رقم الهوية
+                    SineUpTextField(
+                        value = idNumber,
+                        onValueChange = { idNumber = it },
+                        label = "رقم الهوية",
+                        placeholder = "123XXXXXXX",
+                        icon = R.drawable.id_user_1,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = screenHeight * 0.065f)
+                    )
+
+                    Spacer(modifier = Modifier.height(fieldSpacing))
+
+                    // البريد الإلكتروني
+                    SineUpTextField(
+                        value = email,
+                        onValueChange = { email = it },
+                        label = "البريد الالكتروني",
+                        placeholder = "example@gmail.com",
+                        icon = R.drawable.email,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = screenHeight * 0.065f)
+                    )
+
+                    Spacer(modifier = Modifier.height(fieldSpacing))
+
+                    // كلمة المرور
+                    SineUpTextField(
+                        value = password,
+                        onValueChange = { password = it },
+                        label = "كلمة المرور",
+                        placeholder = "**************",
+                        isPassword = true,
+                        isPasswordVisible = isPasswordVisible,
+                        onToggleVisibility = { isPasswordVisible = !isPasswordVisible },
+                        icon = R.drawable.notvisipel,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = screenHeight * 0.065f)
+                    )
+
+                    Spacer(modifier = Modifier.height(fieldSpacing))
+
+                    // تأكيد كلمة المرور
+                    SineUpTextField(
+                        value = confirmPassword,
+                        onValueChange = { confirmPassword = it },
+                        label = "تأكيد كلمة المرور",
+                        placeholder = "* * * * * * * *",
+                        isPassword = true,
+                        isPasswordVisible = isConfirmPasswordVisible,
+                        onToggleVisibility = { isConfirmPasswordVisible = !isConfirmPasswordVisible },
+                        icon = R.drawable.confirmpassword,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = screenHeight * 0.065f)
+                    )
+
+                    Spacer(modifier = Modifier.height(screenHeight * 0.02f))
+
+                    // زر الاشتراك
+                    PrimaryButton(
+                        text = "اشتراك",
+                        onClick = {
+                            // TODO: تنفيذ عملية الاشتراك
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Spacer(modifier = Modifier.height(screenHeight * 0.02f))
+
+                    // ✅ النصوص السفلية: Checkbox + النصوص
+                    var agreedToTerms by remember { mutableStateOf(false) }
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        Checkbox(
+                            checked = agreedToTerms,
+                            onCheckedChange = { agreedToTerms = it },
+                            colors = CheckboxDefaults.colors(
+                                checkedColor = AppPrimary
+                            )
+                        )
+
+                        val annotatedText = buildAnnotatedString {
+                            append("أقر وأوافـق على ")
+
+                            pushStringAnnotation(tag = "terms", annotation = "terms")
+                            withStyle(SpanStyle(color = AppPrimary)) {
+                                append("الشروط & الأحكام")
+                            }
+                            pop()
+
+                            append("    ")
+
+                            pushStringAnnotation(tag = "login", annotation = "login")
+                            withStyle(SpanStyle(color = AppTextPrimary)) {
+                                append("هل لديك حساب؟")
+                            }
+                            pop()
                         }
-                        withStyle(style = SpanStyle(color = AppPrimary)) {
-                            append("تسجيل الدخول")
-                        }
-                    },
-                    onClick = { /* TODO: الانتقال لشاشة تسجيل الدخول */ },
-                    modifier = Modifier.align(Alignment.CenterVertically)
-                )
+
+                        ClickableText(
+                            text = annotatedText,
+                            onClick = { offset ->
+                                annotatedText.getStringAnnotations("terms", offset, offset)
+                                    .firstOrNull()?.let {
+                                        // TODO: فتح صفحة الشروط
+                                    }
+
+                                annotatedText.getStringAnnotations("login", offset, offset)
+                                    .firstOrNull()?.let {
+                                        // TODO: الانتقال إلى شاشة تسجيل الدخول
+                                    }
+                            },
+                            style = MaterialTheme.typography.bodySmall.copy(
+                                fontSize = 12.sp,
+                                color = AppTextSecondary
+                            ),
+                            modifier = Modifier.padding(start = 4.dp)
+                        )
+                    }
+                }
             }
         }
     }

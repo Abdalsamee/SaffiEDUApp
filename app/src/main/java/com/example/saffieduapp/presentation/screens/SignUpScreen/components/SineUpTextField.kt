@@ -1,4 +1,4 @@
-package com.example.saffieduapp.presentation.screens.login.components
+package com.example.saffieduapp.presentation.screens.SignUpScreen.components
 
 import android.annotation.SuppressLint
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -30,7 +30,7 @@ import com.example.saffieduapp.ui.theme.Cairo
 @SuppressLint("UnusedBoxWithConstraintsScope")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun LoginTextField(
+fun SineUpTextField(
     value: String,
     onValueChange: (String) -> Unit,
     label: String,

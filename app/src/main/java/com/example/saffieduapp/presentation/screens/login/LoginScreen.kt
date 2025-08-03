@@ -11,10 +11,12 @@ import androidx.compose.foundation.text.ClickableText
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -28,6 +30,7 @@ import com.example.saffieduapp.R
 import com.example.saffieduapp.presentation.components.PrimaryButton
 import com.example.saffieduapp.presentation.screens.login.components.LoginTextField
 import com.example.saffieduapp.ui.theme.*
+import com.google.accompanist.systemuicontroller.rememberSystemUiController
 
 @SuppressLint("UnusedBoxWithConstraintsScope")
 @Composable
@@ -35,6 +38,17 @@ fun LoginScreen(
     viewModel: LoginViewModel = viewModel()
 ) {
     val state = viewModel.uiState.collectAsState().value
+
+    // ✅ التحكم في لون شريط الحالة
+    val systemUiController = rememberSystemUiController()
+    val statusBarColor =AppPrimary  // 🔵 جعل الستاتس بار أزرق
+
+    SideEffect {
+        systemUiController.setStatusBarColor(
+            color = statusBarColor,
+            darkIcons = false
+        )
+    }
 
     BoxWithConstraints(
         modifier = Modifier
@@ -73,7 +87,7 @@ fun LoginScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .imePadding() // يمنع تصغير المحتوى عند ظهور الكيبورد
+                        .imePadding()
                         .padding(
                             horizontal = screenWidth * 0.06f,
                             vertical = screenHeight * 0.02f
