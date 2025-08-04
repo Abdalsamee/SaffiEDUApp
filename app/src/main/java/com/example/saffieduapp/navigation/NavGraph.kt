@@ -14,6 +14,8 @@ import com.example.saffieduapp.presentation.screens.onboarding.OnboardingScreen
 //import com.example.saffieduapp.presentation.screens.signup.SignUpScreen
 //import com.example.saffieduapp.presentation.screens.signup.SignUpScreen
 import com.example.saffieduapp.presentation.screens.splash.SplashScreen
+import com.example.saffieduapp.presentation.screens.terms.TermsAndConditionsScreen
+
 //import com.example.saffieduapp.ui.screens.SignUpScreen
 
 @Composable
@@ -34,6 +36,7 @@ fun AppNavGraph(navController: NavHostController) {
         composable(Routes.LOGIN_SCREEN) {
             SignUpScreen()
             //LoginScreen()
+            //TermsAndConditionsScreen()
         }
     }
 }

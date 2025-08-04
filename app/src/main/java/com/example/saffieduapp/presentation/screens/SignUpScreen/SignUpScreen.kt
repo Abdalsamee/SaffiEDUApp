@@ -17,9 +17,9 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.unit.dp
 import com.example.saffieduapp.R
 import com.example.saffieduapp.presentation.components.PrimaryButton
+import com.example.saffieduapp.presentation.screens.SignUpScreen.components.ClassDropdown
 import com.example.saffieduapp.presentation.screens.SignUpScreen.components.SineUpAppBar
 import com.example.saffieduapp.presentation.screens.SignUpScreen.components.SineUpTextField
 import com.example.saffieduapp.ui.theme.*
@@ -31,6 +31,7 @@ import com.google.accompanist.systemuicontroller.rememberSystemUiController
 fun SignUpScreen(
     onBackClick: () -> Unit = {}
 ) {
+    val selectedClass = remember { mutableStateOf("") }
     var fullName by remember { mutableStateOf("") }
     var idNumber by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
@@ -171,6 +172,16 @@ fun SignUpScreen(
 
                     Spacer(modifier = Modifier.height(screenHeight * 0.02f))
 
+                    ClassDropdown(
+                        selectedClass = selectedClass.value,
+                        onClassSelected = { selectedClass.value = it },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = screenHeight * 0.07f) // بدل 56.dp بنسبة من الشاشة
+                    )
+
+                    Spacer(modifier = Modifier.height(screenHeight * 0.02f))
+
                     // زر الاشتراك
                     PrimaryButton(
                         text = "اشتراك",
@@ -182,37 +193,44 @@ fun SignUpScreen(
 
                     Spacer(modifier = Modifier.height(screenHeight * 0.02f))
 
-                    // ✅ النصوص السفلية: Checkbox + النصوص
+                    // النصوص السفلية: Checkbox + النصوص في سطر واحد
                     var agreedToTerms by remember { mutableStateOf(false) }
 
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 4.dp),
+                            .padding(horizontal = screenWidth * 0.015f),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.Center
                     ) {
                         Checkbox(
                             checked = agreedToTerms,
                             onCheckedChange = { agreedToTerms = it },
-                            colors = CheckboxDefaults.colors(
-                                checkedColor = AppPrimary
-                            )
+                            colors = CheckboxDefaults.colors(checkedColor = AppPrimary)
                         )
 
-                        val annotatedText = buildAnnotatedString {
-                            append("أقر وأوافـق على ")
+                        Spacer(modifier = Modifier.width(screenWidth * 0.015f))
 
+                        Text(
+                            text = "أقر وأوافق على",
+                            color = AppTextSecondary,
+                            fontFamily = Cairo,
+                            fontSize = (screenWidth.value * 0.03f).sp
+                        )
+
+                        Spacer(modifier = Modifier.width(screenWidth * 0.015f))
+
+                        val annotatedText = buildAnnotatedString {
                             pushStringAnnotation(tag = "terms", annotation = "terms")
-                            withStyle(SpanStyle(color = AppPrimary)) {
+                            withStyle(SpanStyle(color = AppTextPrimary, fontFamily = Cairo)) {
                                 append("الشروط & الأحكام")
                             }
                             pop()
 
-                            append("    ")
+                            append("   ")
 
                             pushStringAnnotation(tag = "login", annotation = "login")
-                            withStyle(SpanStyle(color = AppTextPrimary)) {
+                            withStyle(SpanStyle(color = AppTextPrimary, fontFamily = Cairo)) {
                                 append("هل لديك حساب؟")
                             }
                             pop()
@@ -223,7 +241,7 @@ fun SignUpScreen(
                             onClick = { offset ->
                                 annotatedText.getStringAnnotations("terms", offset, offset)
                                     .firstOrNull()?.let {
-                                        // TODO: فتح صفحة الشروط
+                                        // TODO: فتح صفحة الشروط & الأحكام
                                     }
 
                                 annotatedText.getStringAnnotations("login", offset, offset)
@@ -232,10 +250,10 @@ fun SignUpScreen(
                                     }
                             },
                             style = MaterialTheme.typography.bodySmall.copy(
-                                fontSize = 12.sp,
+                                fontSize = (screenWidth.value * 0.03f).sp,
+                                fontFamily = Cairo,
                                 color = AppTextSecondary
-                            ),
-                            modifier = Modifier.padding(start = 4.dp)
+                            )
                         )
                     }
                 }

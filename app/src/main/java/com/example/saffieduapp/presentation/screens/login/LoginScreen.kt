@@ -148,7 +148,7 @@ fun LoginScreen(
                             Checkbox(
                                 checked = state.rememberMe,
                                 onCheckedChange = { viewModel.onEvent(LoginEvent.RememberMeChanged(it)) },
-                                colors = CheckboxDefaults.colors(checkedColor = AppAccent)
+                                colors = CheckboxDefaults.colors(checkedColor = AppPrimary)
                             )
                             Text(
                                 text = "تذكرني",
