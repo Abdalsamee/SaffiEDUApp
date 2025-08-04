@@ -1,44 +1,162 @@
 package com.example.saffieduapp.presentation.screens.student.home.components
 
+
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.Card
-import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
+import com.example.saffieduapp.R
+import com.example.saffieduapp.presentation.screens.student.component.ProgressBarWithPercentage
 import com.example.saffieduapp.presentation.screens.student.home.FeaturedLessonUiModel
+import com.example.saffieduapp.ui.theme.AppSecondary
+
 
 @Composable
 fun FeaturedLessonCard(
     lesson: FeaturedLessonUiModel,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
 ) {
+
+
+
     Card(
-        modifier = modifier.width(220.dp) // تحديد عرض البطاقة
+        modifier = modifier.width(280.dp),
+        shape = RoundedCornerShape(12.dp),
+        onClick = onClick,
+        colors = CardDefaults.cardColors(
+            containerColor = AppSecondary
+        )
     ) {
         Column(
-            modifier = Modifier.padding(8.dp)
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp)
         ) {
-            // Box for image
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(100.dp),
-                contentAlignment = Alignment.Center
+            // 1. الجزء العلوي: الصورة والنصوص (محاذاة لليمين)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.Top,
+                horizontalArrangement = Arrangement.Start // <-- التعديل هنا
             ) {
-                // AsyncImage(model = lesson.imageUrl, ...)
-                Text(text = "صورة الدرس")
+                Box(
+                    modifier = Modifier.size(50.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    AsyncImage(
+                        model = lesson.imageUrl,
+                        contentDescription = lesson.title,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clip(RoundedCornerShape(8.dp)),
+                        contentScale = ContentScale.Crop,
+                        placeholder = painterResource(id = R.drawable.defultsubject),
+                        error = painterResource(id = R.drawable.defultsubject)
+                    )
+                    Icon(
+                        imageVector = Icons.Filled.PlayArrow,
+                        contentDescription = "Play Icon",
+                        tint = Color.White.copy(alpha = 0.8f),
+                        modifier = Modifier.size(30.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+                // عامود النصوص
+                Column(
+                    horizontalAlignment = Alignment.Start // محاذاة النصوص لليمين
+                ) {
+                    Text(
+                        text = lesson.title,
+                        fontWeight = FontWeight.Normal,
+                        fontSize = 16.sp,
+                        color = Color.Black
+                    )
+                    Text(
+                        text = lesson.subject,
+                        fontSize = 14.sp,
+                        color = Color.Black
+                    )
+                }
+
+
             }
+
             Spacer(modifier = Modifier.height(8.dp))
-            Text(text = lesson.title)
-            Text(text = lesson.subject)
-            Spacer(modifier = Modifier.height(4.dp))
-            LinearProgressIndicator(
-                progress = { lesson.progress / 100f }, // تحويل النسبة المئوية إلى float
+
+            // 2. مدة الفيديو (محاذاة لليمين)
+            Box(modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    text = lesson.duration,
+                    fontSize = 12.sp,
+                    color = Color.Black,
+                    modifier = Modifier.align(Alignment.CenterStart)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+            ProgressBarWithPercentage(
+                progress = lesson.progress,
                 modifier = Modifier.fillMaxWidth()
             )
+//            Row(
+//                modifier = Modifier
+//                    .fillMaxWidth()
+//                    .clip(RoundedCornerShape(50)) // ليصبح كامل مستدير
+//                    ,
+//                verticalAlignment = Alignment.CenterVertically,
+//                horizontalArrangement = Arrangement.spacedBy(8.dp)
+//            ) {
+//
+//                Box(
+//                    modifier = Modifier
+//                        .weight(1f)
+//                        .height(10.dp)
+//                        .clip(RoundedCornerShape(50))
+//                        .background(Color.White)
+//                ) {
+//                    Box(
+//                        modifier = Modifier
+//                            .fillMaxHeight()
+//                            .fillMaxWidth(lesson.progress / 100f)
+//                            .clip(RoundedCornerShape(50))
+//                            .background(
+//                                Brush.horizontalGradient(
+//                                    colors = listOf(
+//                                        Color.White,
+//                                        Color(0xFF0077B6),
+//
+//                                    )
+//                                )
+//                            )
+//                    )
+//                }
+//                Text(
+//                    text = "${lesson.progress} %",
+//                    color = Color.Black,
+//                    fontWeight = FontWeight.Bold,
+//                    fontSize = 16.sp,
+//                    modifier = Modifier.padding(start = 8.dp)
+//                )
+//            }
+
+
         }
     }
 }

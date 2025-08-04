@@ -22,32 +22,32 @@ fun MainAppScreen() {
         BottomNavItem(
             title = "الرئيسية",
             route = Routes.HOME_SCREEN,
-            selectedIcon = painterResource(id = R.drawable.homeselect),
-            unselectedIcon = painterResource(id = R.drawable.homenot)
+            icon = painterResource(id = R.drawable.homenot),
+
         ),
         BottomNavItem(
             title = "المواد",
-            route = Routes.SUBJECT_SCREEN, // مسار جديد
-            selectedIcon = painterResource(id = R.drawable.homeselect),
-            unselectedIcon = painterResource(id = R.drawable.homenot)
+            route = Routes.SUBJECT_SCREEN,
+            icon = painterResource(id = R.drawable.subject),
+
         ),
         BottomNavItem(
             title = "المهام",
             route = Routes.TASKS_SCREEN,
-            selectedIcon = painterResource(id = R.drawable.homeselect),
-            unselectedIcon = painterResource(id = R.drawable.homenot)
+           icon = painterResource(id = R.drawable.tasks),
+
         ),
         BottomNavItem(
             title = "الدردشة",
-            route = Routes.CHAT_SCREEN, // مسار جديد
-            selectedIcon = painterResource(id = R.drawable.homeselect),
-            unselectedIcon = painterResource(id = R.drawable.homenot)
+            route = Routes.CHAT_SCREEN,
+            icon = painterResource(id = R.drawable.chat),
+
         ),
         BottomNavItem(
             title = "الملف الشخصي",
             route = Routes.PROFILE_SCREEN,
-            selectedIcon = painterResource(id = R.drawable.homeselect),
-            unselectedIcon = painterResource(id = R.drawable.homenot)
+           icon = painterResource(id = R.drawable.user),
+
         )
     )
 

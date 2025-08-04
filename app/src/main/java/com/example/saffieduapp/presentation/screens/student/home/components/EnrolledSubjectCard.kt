@@ -19,20 +19,23 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.saffieduapp.R
 import com.example.saffieduapp.presentation.screens.student.home.EnrolledSubjectUiModel
+import com.example.saffieduapp.ui.theme.AppSecondary
 
 @Composable
 fun EnrolledSubjectCard(
     subject: EnrolledSubjectUiModel,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
 ) {
     Card(
         // 1. تحديد الأبعاد والشكل الخارجي للبطاقة
         modifier = modifier
             .width(150.dp)
             .height(180.dp),
+        onClick = onClick,
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(
-            containerColor = subject.cardColor
+            containerColor = AppSecondary
         )
     ) {
         // 2. استخدام Column لترتيب العناصر عمودياً
@@ -59,7 +62,7 @@ fun EnrolledSubjectCard(
                 )
                 Text(
                     text = subject.name,
-                    fontWeight = FontWeight.Bold,
+                    fontWeight = FontWeight.Normal,
                     fontSize = 12.sp,
                     color = Color.Black
                 )

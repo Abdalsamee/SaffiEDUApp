@@ -1,14 +1,17 @@
 package com.example.saffieduapp.presentation.components
 
-import androidx.compose.material3.Icon
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import com.example.saffieduapp.navigation.BottomNavItem
+import com.example.saffieduapp.ui.theme.AppPrimary
 
 @Composable
 fun AppBottomNavigationBar(
@@ -17,29 +20,67 @@ fun AppBottomNavigationBar(
 ) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
+    val noSelect = Color(0xFF7C7C7C)
 
-    NavigationBar {
+    NavigationBar(
+        containerColor = Color.White
+    ) {
         items.forEach { item ->
             NavigationBarItem(
                 selected = currentRoute == item.route,
                 onClick = {
                     navController.navigate(item.route) {
-                        popUpTo(navController.graph.startDestinationId) {
-                            saveState = true
-                        }
+                        popUpTo(navController.graph.startDestinationId) { saveState = true }
                         launchSingleTop = true
                         restoreState = true
                     }
                 },
                 icon = {
-                    // 3. التعديل هنا: استخدم painter بدلاً من imageVector
                     Icon(
-                        painter = if (currentRoute == item.route) item.selectedIcon else item.unselectedIcon,
-                        contentDescription = item.title
+                        painter = item.icon,
+                        contentDescription = item.title,
+                        modifier = Modifier.size(24.dp)
                     )
                 },
-                label = { Text(text = item.title) }
+                label = {
+                    // استخدام المكون الذكي الجديد
+                    AdaptiveLabel(
+                        longText = item.title,
+
+                        shortText = if (item.title == "الملف الشخصي") "ملفي" else item.title
+                    )
+                },
+                colors = NavigationBarItemDefaults.colors(
+                    selectedIconColor = AppPrimary,
+                    selectedTextColor = AppPrimary,
+                    unselectedIconColor = noSelect,
+                    unselectedTextColor = noSelect,
+                    indicatorColor = Color.Transparent
+                )
             )
         }
     }
+}
+
+@Composable
+private fun AdaptiveLabel(longText: String, shortText: String) {
+
+    var useShortText by remember { mutableStateOf(false) }
+
+
+    val textToShow = if (useShortText) shortText else longText
+
+    Text(
+        text = textToShow,
+        fontSize = 11.sp,
+        style = MaterialTheme.typography.bodyLarge
+        , softWrap = false,
+        maxLines = 1,
+        overflow = TextOverflow.Clip,
+        onTextLayout = { textLayoutResult ->
+            if (textLayoutResult.didOverflowWidth) {
+                useShortText = true
+            }
+        }
+    )
 }

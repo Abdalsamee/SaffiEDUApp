@@ -10,7 +10,8 @@ data class UrgentTaskUiModel(
     val subject: String,
     val dueDate: String,
     val imageUrl: String,
-    val cardColor: Color
+    //val cardColor: Color,
+    val startTime:String
 )
 
 data class EnrolledSubjectUiModel(
@@ -19,7 +20,7 @@ data class EnrolledSubjectUiModel(
     val teacherName: String,
     val rating: Float,
     val imageUrl: String,
-    val cardColor: Color,
+   // val cardColor: Color,
     val grade: String,
 )
 
@@ -27,15 +28,17 @@ data class FeaturedLessonUiModel(
     val id: String,
     val title: String,
     val subject: String,
+    val duration: String,
     val progress: Int,
     val imageUrl: String,
-    val cardColor: Color
+  //  val cardColor: Color
 )
 
 // --- State: هذا هو الكلاس الذي يمثل حالة الشاشة الكاملة ---
 
 data class HomeState(
     val isLoading: Boolean = true,
+    val isRefreshing: Boolean = false,
     val studentName: String = "",
     val studentGrade: String = "",
     val profileImageUrl: String = "",
