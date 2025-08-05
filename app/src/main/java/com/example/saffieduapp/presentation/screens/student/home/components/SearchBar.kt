@@ -29,9 +29,9 @@ fun SearchBar(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 8.dp)
-            .height(55.dp), // تحديد الارتفاع
+            .height(58.dp), // تحديد الارتفاع
         placeholder = { Text(text = "البحث",
-            fontSize = 15.sp,
+            fontSize = 14.sp,
 
             ) },
         leadingIcon = {

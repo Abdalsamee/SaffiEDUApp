@@ -41,18 +41,18 @@ fun HomeScreen(
             pullToRefreshState.endRefresh()
         }
 
-        // الهيدر الثابت
+
         HomeTopSection(
             studentName = state.studentName,
             studentGrade = state.studentGrade,
             profileImageUrl = state.profileImageUrl,
         )
 
-        // محتوى السكرول
+
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(top = 130.dp) // المسافة تحت الهيدر
+                .padding(top = 130.dp)
                 .nestedScroll(pullToRefreshState.nestedScrollConnection)
         ) {
             item {
@@ -78,14 +78,14 @@ fun HomeScreen(
             }
         }
 
-        // مؤشر التحديث (Pull to Refresh)
+
         PullToRefreshContainer(
             state = pullToRefreshState,
             modifier = Modifier.align(Alignment.TopCenter),
             contentColor = AppPrimary
         )
 
-        // مؤشر التحميل الأولي
+
         if (state.isLoading && !state.isRefreshing) {
             Box(
                 modifier = Modifier.fillMaxSize(),

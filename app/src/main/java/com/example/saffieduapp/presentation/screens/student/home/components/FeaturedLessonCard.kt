@@ -1,6 +1,7 @@
 package com.example.saffieduapp.presentation.screens.student.home.components
 
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -25,6 +26,7 @@ import coil.compose.AsyncImage
 import com.example.saffieduapp.R
 import com.example.saffieduapp.presentation.screens.student.component.ProgressBarWithPercentage
 import com.example.saffieduapp.presentation.screens.student.home.FeaturedLessonUiModel
+import com.example.saffieduapp.ui.theme.AppPrimary
 import com.example.saffieduapp.ui.theme.AppSecondary
 
 
@@ -100,14 +102,35 @@ fun FeaturedLessonCard(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // 2. مدة الفيديو (محاذاة لليمين)
-            Box(modifier = Modifier.fillMaxWidth()) {
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+
                 Text(
                     text = lesson.duration,
                     fontSize = 12.sp,
-                    color = Color.Black,
-                    modifier = Modifier.align(Alignment.CenterStart)
+                    color = Color.Black
                 )
+
+
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(AppPrimary)
+                        .padding(horizontal = 12.dp, vertical = 4.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "مشاهدة",
+                        color = Color.White,
+                        fontSize = 13.sp
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -115,48 +138,7 @@ fun FeaturedLessonCard(
                 progress = lesson.progress,
                 modifier = Modifier.fillMaxWidth()
             )
-//            Row(
-//                modifier = Modifier
-//                    .fillMaxWidth()
-//                    .clip(RoundedCornerShape(50)) // ليصبح كامل مستدير
-//                    ,
-//                verticalAlignment = Alignment.CenterVertically,
-//                horizontalArrangement = Arrangement.spacedBy(8.dp)
-//            ) {
-//
-//                Box(
-//                    modifier = Modifier
-//                        .weight(1f)
-//                        .height(10.dp)
-//                        .clip(RoundedCornerShape(50))
-//                        .background(Color.White)
-//                ) {
-//                    Box(
-//                        modifier = Modifier
-//                            .fillMaxHeight()
-//                            .fillMaxWidth(lesson.progress / 100f)
-//                            .clip(RoundedCornerShape(50))
-//                            .background(
-//                                Brush.horizontalGradient(
-//                                    colors = listOf(
-//                                        Color.White,
-//                                        Color(0xFF0077B6),
-//
-//                                    )
-//                                )
-//                            )
-//                    )
-//                }
-//                Text(
-//                    text = "${lesson.progress} %",
-//                    color = Color.Black,
-//                    fontWeight = FontWeight.Bold,
-//                    fontSize = 16.sp,
-//                    modifier = Modifier.padding(start = 8.dp)
-//                )
-//            }
-
-
+            
         }
     }
 }

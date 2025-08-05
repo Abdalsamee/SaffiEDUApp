@@ -38,7 +38,8 @@ fun UrgentTaskCard(
         shape = RoundedCornerShape(12.dp),
         onClick = onClick,
         colors = CardDefaults.cardColors(
-            containerColor = AppSecondary
+            containerColor = Color(0xFFFAD6B7)
+
         )
     ) {
         Row(

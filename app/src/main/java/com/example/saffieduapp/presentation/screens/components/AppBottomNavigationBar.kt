@@ -23,7 +23,8 @@ fun AppBottomNavigationBar(
     val noSelect = Color(0xFF7C7C7C)
 
     NavigationBar(
-        containerColor = Color.White
+        containerColor = Color.White,
+        tonalElevation = 0.dp
     ) {
         items.forEach { item ->
             NavigationBarItem(
