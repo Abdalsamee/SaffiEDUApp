@@ -17,19 +17,17 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.saffieduapp.R
-import com.example.saffieduapp.presentation.screens.student.home.UrgentTaskUiModel
+import com.example.saffieduapp.domain.model.UrgentTask // <-- ١. إضافة الاستدعاء الصحيح
 import com.example.saffieduapp.ui.theme.AppTextPrimary
 import com.example.saffieduapp.ui.theme.AppTextSecondary
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
-import com.example.saffieduapp.ui.theme.AppSecondary
-
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun UrgentTaskCard(
-    task: UrgentTaskUiModel,
+    task: UrgentTask, // <-- ٢. تم تصحيح النوع هنا
     modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
@@ -38,8 +36,7 @@ fun UrgentTaskCard(
         shape = RoundedCornerShape(12.dp),
         onClick = onClick,
         colors = CardDefaults.cardColors(
-            containerColor = Color(0xFFFAD6B7)
-
+            containerColor = Color(0xFFFAD6B7) // هذا هو اللون الثابت الذي حددته
         )
     ) {
         Row(
@@ -79,7 +76,7 @@ fun UrgentTaskCard(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
 
-                ) {
+                    ) {
                     Text(
                         text = "تاريخ الانتهاء: ${task.dueDate}",
                         fontSize = 10.sp,

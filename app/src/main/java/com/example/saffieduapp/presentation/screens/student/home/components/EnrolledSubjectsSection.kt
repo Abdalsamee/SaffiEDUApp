@@ -11,11 +11,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.saffieduapp.presentation.screens.student.home.EnrolledSubjectUiModel
+import com.example.saffieduapp.domain.model.Subject
+import com.example.saffieduapp.presentation.screens.student.components.HomeSubjectCard
+
 
 @Composable
 fun EnrolledSubjectsSection(
-    subjects: List<EnrolledSubjectUiModel>,
+    subjects: List<Subject>,
     modifier: Modifier = Modifier,
     onSubjectClick: (SubjectId: String) -> Unit
 ) {
@@ -74,8 +76,10 @@ fun EnrolledSubjectsSection(
                 horizontalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 items(subjects) { subject ->
-                    EnrolledSubjectCard(subject = subject ,onClick = { onSubjectClick(subject.id) })
-
+                    HomeSubjectCard( // <-- تم تغيير الاسم هنا
+                        subject = subject,
+                        onClick = { onSubjectClick(subject.id) }
+                    )
                 }
             }
         }

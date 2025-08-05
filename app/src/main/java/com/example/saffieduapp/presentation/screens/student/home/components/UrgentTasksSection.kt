@@ -9,11 +9,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.saffieduapp.presentation.screens.student.home.UrgentTaskUiModel
+import com.example.saffieduapp.domain.model.UrgentTask
 
 @Composable
 fun UrgentTasksSection(
-    tasks: List<UrgentTaskUiModel>,
+    tasks: List<UrgentTask>,
     modifier: Modifier = Modifier,
     onTaskClick: (taskId: String) -> Unit
 ) {

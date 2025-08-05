@@ -1,17 +1,16 @@
 package com.example.saffieduapp.navigation
 
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import com.example.saffieduapp.presentation.screens.student.chat.ChatScreen
 import com.example.saffieduapp.presentation.screens.student.home.HomeScreen
+import com.example.saffieduapp.presentation.screens.student.profile.ProfileScreen
+import com.example.saffieduapp.presentation.screens.student.subjects.SubjectScreen
 
-// Add imports for your other screens if they exist, or leave them for now
+import com.example.saffieduapp.presentation.screens.student.task.TasksScreen
 
 @Composable
 fun MainNavGraph(navController: NavHostController, modifier: Modifier = Modifier) {
@@ -21,41 +20,30 @@ fun MainNavGraph(navController: NavHostController, modifier: Modifier = Modifier
         route = "main_graph",
         modifier = modifier
     ) {
-        // 1. Home Screen (Already done)
         composable(Routes.HOME_SCREEN) {
             HomeScreen()
         }
 
-        // 2. Subjects Screen (Placeholder)
-        composable(Routes.SUBJECT_SCREEN) {
-            // Replace this with your actual SubjectsScreen later
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text(text = "Subjects Screen")
-            }
+        // ٢. تم استبدال الواجهة المؤقتة بالشاشة الحقيقية
+        composable(Routes.SUBJECTS_SCREEN) { // تأكد من أن اسم المسار صحيح
+            SubjectScreen()
         }
 
-        // 3. Tasks Screen (Placeholder)
+        // بقية الشاشات (لا تزال مؤقتة)
         composable(Routes.TASKS_SCREEN) {
-            // Replace this with your actual TasksScreen later
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text(text = "Tasks Screen")
-            }
+            PlaceholderScreen("Tasks Screen")
         }
-
-        // 4. Chat Screen (Placeholder)
         composable(Routes.CHAT_SCREEN) {
-            // Replace this with your actual ChatScreen later
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text(text = "Chat Screen")
-            }
+            PlaceholderScreen("Chat Screen")
         }
-
-        // 5. Profile Screen (Placeholder)
         composable(Routes.PROFILE_SCREEN) {
-            // Replace this with your actual ProfileScreen later
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text(text = "Profile Screen")
-            }
+            PlaceholderScreen("Profile Screen")
         }
     }
+}
+
+// يمكنك إبقاء هذا المكون المؤقت للشاشات الأخرى
+@Composable
+private fun PlaceholderScreen(screenName: String) {
+    // ...
 }

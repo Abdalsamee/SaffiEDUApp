@@ -8,7 +8,7 @@ object Routes {
 
     //Studnet section
     const val HOME_SCREEN = "home"
-    const val SUBJECT_SCREEN = "subject"
+    const val SUBJECTS_SCREEN = "subject"
     const val TASKS_SCREEN = "task"
     const val CHAT_SCREEN = "chat"
     const val PROFILE_SCREEN = "profile"

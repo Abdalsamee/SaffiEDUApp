@@ -27,7 +27,7 @@ fun MainAppScreen() {
         ),
         BottomNavItem(
             title = "المواد",
-            route = Routes.SUBJECT_SCREEN,
+            route = Routes.SUBJECTS_SCREEN,
             icon = painterResource(id = R.drawable.subject),
 
         ),

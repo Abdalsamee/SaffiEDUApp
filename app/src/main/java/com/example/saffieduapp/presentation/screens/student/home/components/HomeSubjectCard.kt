@@ -1,4 +1,4 @@
-package com.example.saffieduapp.presentation.screens.student.home.components
+package com.example.saffieduapp.presentation.screens.student.components // تم تغيير مسار الملف ليكون مشتركًا
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -18,33 +18,31 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.saffieduapp.R
-import com.example.saffieduapp.presentation.screens.student.home.EnrolledSubjectUiModel
-import com.example.saffieduapp.ui.theme.AppSecondary
+import com.example.saffieduapp.domain.model.Subject // <-- ١. استيراد الموديل الصحيح
+import com.example.saffieduapp.ui.theme.CardBackgroundColor
 
 @Composable
-fun EnrolledSubjectCard(
-    subject: EnrolledSubjectUiModel,
+fun HomeSubjectCard( // <-- ٢. تم تغيير اسم الدالة
+    subject: Subject, // <-- ٣. تم تغيير نوع الباراميتر
     modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
     Card(
-        // 1. تحديد الأبعاد والشكل الخارجي للبطاقة
         modifier = modifier
             .width(150.dp)
             .height(180.dp),
         onClick = onClick,
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(
-            containerColor = AppSecondary
+            containerColor = CardBackgroundColor // استخدام اللون الثابت
         )
     ) {
-        // 2. استخدام Column لترتيب العناصر عمودياً
+        // باقي الكود يبقى كما هو تمامًا لأنه يعتمد على خصائص موجودة في كلاس Subject
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(12.dp)
         ) {
-            // 3. الجزء العلوي: الصورة بجانب اسم المادة
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
@@ -66,12 +64,10 @@ fun EnrolledSubjectCard(
                     fontSize = 12.sp,
                     color = Color.Black
                 )
-
             }
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // 4. الجزء الأوسط: اسم المدرس والصف
             Column {
                 Text(
                     text = "أ. ${subject.teacherName}",
@@ -85,10 +81,8 @@ fun EnrolledSubjectCard(
                 )
             }
 
-            // هذا الـ Spacer سيأخذ كل المساحة المتبقية لدفع التقييم للأسفل
             Spacer(modifier = Modifier.weight(1f))
 
-            // 5. الجزء السفلي: التقييم
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
@@ -102,8 +96,7 @@ fun EnrolledSubjectCard(
                 Icon(
                     painter = painterResource(id = R.drawable.star),
                     contentDescription = "Rating",
-                    tint = Color(0xFFFFC107), // لون أصفر
-                    modifier = Modifier.size(18.dp)
+                    tint = Color(0xFFFFC107)
                 )
             }
         }
