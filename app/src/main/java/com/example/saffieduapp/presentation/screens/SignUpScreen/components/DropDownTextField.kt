@@ -1,14 +1,18 @@
-package com.example.saffieduapp.presentation.screens.SignUpScreen.components
+package com.example.saffieduapp.presentation.screens.signup
 
 import android.annotation.SuppressLint
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.sp
+import com.example.saffieduapp.R
 import com.example.saffieduapp.ui.theme.AppTextPrimary
 import com.example.saffieduapp.ui.theme.AppTextSecondary
 import com.example.saffieduapp.ui.theme.Cairo
@@ -16,62 +20,64 @@ import com.example.saffieduapp.ui.theme.Cairo
 @SuppressLint("UnusedBoxWithConstraintsScope")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ClassDropdown(
-    selectedClass: String,
-    onClassSelected: (String) -> Unit,
+fun GradeSelector(
     modifier: Modifier = Modifier
 ) {
-    val classOptions = listOf(
-        "الصف الأول", "الصف الثاني", "الصف الثالث",
-        "الصف الرابع", "الصف الخامس", "الصف السادس",
-        "الصف السابع", "الصف الثامن", "الصف التاسع",
-        "الصف العاشر", "الصف الحادي عشر", "الصف الثاني عشر"
+    var isExpanded by remember { mutableStateOf(false) }
+    var selectedGrade by remember { mutableStateOf("") }
+    val grades = listOf(
+        "الصف الأول", "الصف الثاني", "الصف الثالث", "الصف الرابع",
+        "الصف الخامس", "الصف السادس", "الصف السابع", "الصف الثامن",
+        "الصف التاسع", "الصف العاشر", "الصف الحادي عشر", "الصف الثاني عشر"
     )
-
-    var expanded by remember { mutableStateOf(false) }
 
     BoxWithConstraints(
         modifier = modifier.fillMaxWidth()
     ) {
+        // ✅ تحويل القيم إلى نسب
+        val fieldHeight = maxHeight * 0.08f
         val fontSize = (maxWidth.value * 0.04).sp
         val cornerRadius = maxWidth * 0.025f
-        val fieldHeight = maxHeight * 0.08f
 
         ExposedDropdownMenuBox(
-            expanded = expanded,
-            onExpandedChange = { expanded = !expanded },
+            expanded = isExpanded,
+            onExpandedChange = { isExpanded = it },
             modifier = Modifier.fillMaxWidth()
         ) {
             OutlinedTextField(
-                value = selectedClass,
+                value = selectedGrade,
                 onValueChange = {},
                 readOnly = true,
                 label = {
                     Text(
                         text = "اختر الصف الدراسي",
+                        textAlign = TextAlign.End,
                         color = AppTextSecondary,
                         fontSize = fontSize,
-                        textAlign = TextAlign.End,
                         style = TextStyle(fontFamily = Cairo)
                     )
                 },
                 placeholder = {
                     Text(
                         text = "حدد صفك الدراسي",
+                        textAlign = TextAlign.End,
                         color = AppTextSecondary,
                         fontSize = fontSize,
-                        textAlign = TextAlign.End,
                         style = TextStyle(fontFamily = Cairo)
                     )
                 },
                 trailingIcon = {
-                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
+                    Icon(
+                        painter = painterResource(id = R.drawable.arrow_left),
+                        contentDescription = "Expand",
+                        tint = AppTextSecondary
+                    )
                 },
-                shape = RoundedCornerShape(cornerRadius),
                 modifier = Modifier
                     .menuAnchor()
                     .fillMaxWidth()
                     .height(fieldHeight),
+                shape = RoundedCornerShape(cornerRadius),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = AppTextSecondary,
                     unfocusedBorderColor = AppTextSecondary,
@@ -79,33 +85,32 @@ fun ClassDropdown(
                     focusedLabelColor = AppTextSecondary,
                     unfocusedLabelColor = AppTextSecondary
                 ),
-                textStyle = TextStyle(
-                    fontSize = fontSize,
+                textStyle = LocalTextStyle.current.copy(
                     textAlign = TextAlign.End,
-                    fontFamily = Cairo,
-                    color = AppTextPrimary
-                )
+                    color = AppTextPrimary,
+                    fontSize = fontSize,
+                    fontFamily = Cairo
+                ),
+                singleLine = true
             )
 
             ExposedDropdownMenu(
-                expanded = expanded,
-                onDismissRequest = { expanded = false },
-                modifier = Modifier.fillMaxWidth()
+                expanded = isExpanded,
+                onDismissRequest = { isExpanded = false }
             ) {
-                classOptions.forEach { item ->
+                grades.forEach { grade ->
                     DropdownMenuItem(
                         text = {
                             Text(
-                                text = item,
+                                text = grade,
                                 fontSize = fontSize,
-                                textAlign = TextAlign.End,
                                 color = AppTextPrimary,
-                                style = TextStyle(fontFamily = Cairo)
+                                fontFamily = Cairo
                             )
                         },
                         onClick = {
-                            onClassSelected(item)
-                            expanded = false
+                            selectedGrade = grade
+                            isExpanded = false
                         }
                     )
                 }

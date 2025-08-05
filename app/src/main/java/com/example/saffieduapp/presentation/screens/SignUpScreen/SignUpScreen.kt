@@ -14,14 +14,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.unit.dp
 import com.example.saffieduapp.R
 import com.example.saffieduapp.presentation.components.PrimaryButton
-import com.example.saffieduapp.presentation.screens.SignUpScreen.components.ClassDropdown
 import com.example.saffieduapp.presentation.screens.SignUpScreen.components.SineUpAppBar
 import com.example.saffieduapp.presentation.screens.SignUpScreen.components.SineUpTextField
+import com.example.saffieduapp.presentation.screens.signup.GradeSelector
 import com.example.saffieduapp.ui.theme.*
 import com.google.accompanist.systemuicontroller.rememberSystemUiController
 
@@ -160,24 +162,22 @@ fun SignUpScreen(
                         value = confirmPassword,
                         onValueChange = { confirmPassword = it },
                         label = "تأكيد كلمة المرور",
-                        placeholder = "* * * * * * * *",
+                        placeholder = "**************",
                         isPassword = true,
                         isPasswordVisible = isConfirmPasswordVisible,
                         onToggleVisibility = { isConfirmPasswordVisible = !isConfirmPasswordVisible },
-                        icon = R.drawable.confirmpassword,
+                        icon = if (isConfirmPasswordVisible) R.drawable.visepel else R.drawable.notvisipel,
                         modifier = Modifier
                             .fillMaxWidth()
                             .heightIn(min = screenHeight * 0.065f)
                     )
 
+
                     Spacer(modifier = Modifier.height(screenHeight * 0.02f))
 
-                    ClassDropdown(
-                        selectedClass = selectedClass.value,
-                        onClassSelected = { selectedClass.value = it },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(min = screenHeight * 0.07f) // بدل 56.dp بنسبة من الشاشة
+                    // ✅ اختيار الصف
+                    GradeSelector(
+                        modifier = Modifier.fillMaxWidth()
                     )
 
                     Spacer(modifier = Modifier.height(screenHeight * 0.02f))
@@ -193,44 +193,37 @@ fun SignUpScreen(
 
                     Spacer(modifier = Modifier.height(screenHeight * 0.02f))
 
-                    // النصوص السفلية: Checkbox + النصوص في سطر واحد
+                    // ✅ النصوص السفلية
                     var agreedToTerms by remember { mutableStateOf(false) }
 
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = screenWidth * 0.015f),
+                            .padding(horizontal = 4.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.Center
                     ) {
                         Checkbox(
                             checked = agreedToTerms,
                             onCheckedChange = { agreedToTerms = it },
-                            colors = CheckboxDefaults.colors(checkedColor = AppPrimary)
+                            colors = CheckboxDefaults.colors(
+                                checkedColor = AppPrimary
+                            )
                         )
-
-                        Spacer(modifier = Modifier.width(screenWidth * 0.015f))
-
-                        Text(
-                            text = "أقر وأوافق على",
-                            color = AppTextSecondary,
-                            fontFamily = Cairo,
-                            fontSize = (screenWidth.value * 0.03f).sp
-                        )
-
-                        Spacer(modifier = Modifier.width(screenWidth * 0.015f))
 
                         val annotatedText = buildAnnotatedString {
+                            append("أقر وأوافـق على ")
+
                             pushStringAnnotation(tag = "terms", annotation = "terms")
-                            withStyle(SpanStyle(color = AppTextPrimary, fontFamily = Cairo)) {
+                            withStyle(SpanStyle(color = AppTextPrimary, fontFamily = Cairo, fontWeight = FontWeight.Medium)) {
                                 append("الشروط & الأحكام")
                             }
                             pop()
 
-                            append("   ")
+                            append("    ")
 
                             pushStringAnnotation(tag = "login", annotation = "login")
-                            withStyle(SpanStyle(color = AppTextPrimary, fontFamily = Cairo)) {
+                            withStyle(SpanStyle(color = AppTextPrimary, fontFamily = Cairo, fontWeight = FontWeight.Medium)) {
                                 append("هل لديك حساب؟")
                             }
                             pop()
@@ -241,7 +234,7 @@ fun SignUpScreen(
                             onClick = { offset ->
                                 annotatedText.getStringAnnotations("terms", offset, offset)
                                     .firstOrNull()?.let {
-                                        // TODO: فتح صفحة الشروط & الأحكام
+                                        // TODO: فتح صفحة الشروط
                                     }
 
                                 annotatedText.getStringAnnotations("login", offset, offset)
@@ -250,10 +243,12 @@ fun SignUpScreen(
                                     }
                             },
                             style = MaterialTheme.typography.bodySmall.copy(
-                                fontSize = (screenWidth.value * 0.03f).sp,
+                                fontSize = 12.sp,
+                                color = AppTextSecondary,
                                 fontFamily = Cairo,
-                                color = AppTextSecondary
-                            )
+                                fontWeight = FontWeight.Normal
+                            ),
+                            modifier = Modifier.padding(start = 4.dp)
                         )
                     }
                 }
