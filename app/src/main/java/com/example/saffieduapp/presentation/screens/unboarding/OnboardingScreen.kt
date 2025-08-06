@@ -6,7 +6,6 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
@@ -22,9 +21,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.navigation.NavHostController
 import com.example.saffieduapp.R
-import com.example.saffieduapp.navigation.Routes
 import com.example.saffieduapp.presentation.screens.onboarding.components.CustomCurvedShapeBox
 import com.example.saffieduapp.presentation.screens.onboarding.components.CurvedImageOnly
 import com.example.saffieduapp.presentation.screens.unboarding.OnboardingViewModel
@@ -38,7 +35,8 @@ import kotlinx.coroutines.launch
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun OnboardingScreen(
-    navController: NavHostController,
+    // 1. تم تغيير الـ NavController إلى دالة lambda
+    onNavigateToLogin: () -> Unit,
     viewModel: OnboardingViewModel = hiltViewModel()
 ) {
     val pagerState = rememberPagerState { onboardingPages.size }
@@ -66,10 +64,9 @@ fun OnboardingScreen(
                 },
                 actions = {
                     TextButton(onClick = {
+                        // 2. تم تحديث أمر الانتقال
                         viewModel.onFinishClick()
-                        navController.navigate(Routes.LOGIN_SCREEN) {
-                            popUpTo(Routes.ONBOARDING_SCREEN) { inclusive = true }
-                        }
+                        onNavigateToLogin()
                     }) {
                         Text(text = "تخطي", color = AppTextPrimary, fontSize = 15.sp)
                     }
@@ -83,8 +80,7 @@ fun OnboardingScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-
-            //  الشكل المنحني الثابت بالخلف
+            // ... (The rest of your UI code remains exactly the same)
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -92,13 +88,9 @@ fun OnboardingScreen(
                 contentAlignment = Alignment.TopCenter
             ) {
                 CustomCurvedShapeBox()
-
-                CurvedImageOnly(
-                    imageRes = onboardingPages[pagerState.currentPage].imageRes
-                )
+                CurvedImageOnly(imageRes = onboardingPages[pagerState.currentPage].imageRes)
             }
 
-            //  النصوص المتغيرة فقط
             HorizontalPager(
                 state = pagerState,
                 modifier = Modifier
@@ -117,9 +109,7 @@ fun OnboardingScreen(
                             fontWeight = FontWeight.Medium
                         )
                     )
-
                     Spacer(modifier = Modifier.height(12.dp))
-
                     Text(
                         text = onboardingPages[pageIndex].description,
                         style = Typography.bodyMedium,
@@ -127,12 +117,10 @@ fun OnboardingScreen(
                         fontWeight = FontWeight.Medium,
                         textAlign = TextAlign.Center,
                         modifier = Modifier.fillMaxWidth()
-
                     )
                 }
             }
 
-            //  النقاط السفلية وزر "التالي"
             Column(
                 modifier = Modifier
                     .padding(vertical = 16.dp),
@@ -146,19 +134,16 @@ fun OnboardingScreen(
                 ) {
                     repeat(onboardingPages.size) { index ->
                         val isSelected = pagerState.currentPage == index
-
                         val animatedWidth by animateDpAsState(
                             targetValue = if (isSelected) 30.dp else 9.dp,
                             animationSpec = tween(durationMillis = 300),
                             label = "indicatorWidthAnimation"
                         )
-
                         val animatedHeight by animateDpAsState(
                             targetValue = 9.dp,
                             animationSpec = tween(durationMillis = 300),
                             label = "indicatorHeightAnimation"
                         )
-
                         val color = if (isSelected) AppPrimary else Color.LightGray
                         val shape = if (isSelected) RoundedCornerShape(9.dp) else CircleShape
 
@@ -175,10 +160,9 @@ fun OnboardingScreen(
                 Button(
                     onClick = {
                         if (isLastPage) {
+                            // 3. تم تحديث أمر الانتقال هنا أيضاً
                             viewModel.onFinishClick()
-                            navController.navigate(Routes.LOGIN_SCREEN) {
-                                popUpTo(Routes.ONBOARDING_SCREEN) { inclusive = true }
-                            }
+                            onNavigateToLogin()
                         } else {
                             scope.launch {
                                 pagerState.animateScrollToPage(pagerState.currentPage + 1)
@@ -189,7 +173,6 @@ fun OnboardingScreen(
                         .fillMaxWidth()
                         .padding(horizontal = 24.dp)
                         .height(48.dp),
-
                     shape = RoundedCornerShape(10.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = AppPrimary)
                 ) {

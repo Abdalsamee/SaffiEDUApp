@@ -51,30 +51,33 @@ dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
-    implementation(platform(libs.androidx.compose.bom))
+    implementation(platform(libs.androidx.compose.bom)) // BOM يتحكم في الإصدارات
     implementation(libs.androidx.ui)
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
 
-    // Compose Navigation
+    // ✅ Compose Navigation
     implementation("androidx.navigation:navigation-compose:2.7.5")
 
-    // DataStore
+    // ✅ DataStore
     implementation("androidx.datastore:datastore-preferences:1.1.1")
 
-    // Lifecycle ViewModel
+    // ✅ Lifecycle ViewModel
     implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.9.1")
-    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.9.1")
 
     // Hilt
-// الكود الصحيح
     implementation(libs.hilt.android)
+    implementation(libs.androidx.foundation.layout.android)
+    implementation(libs.androidx.foundation.layout.android)
     kapt(libs.hilt.compiler)
     implementation(libs.dagger)
-
-// يمكنك تعريف hilt-navigation-compose في ملف toml أيضاً أو تركه كما هو
     implementation("androidx.hilt:hilt-navigation-compose:1.2.0")
+
+    // ✅ Coil
+    implementation("io.coil-kt:coil-compose:2.6.0")
+    implementation("io.coil-kt:coil-svg:2.6.0")
+
     // Testing
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
