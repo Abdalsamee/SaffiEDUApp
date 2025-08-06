@@ -3,72 +3,72 @@ package com.example.saffieduapp.presentation.screens.SignUpScreen.ViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.saffieduapp.presentation.screens.SignUpScreen.Events.SignUpEvent
-import com.example.saffieduapp.presentation.screens.SignUpScreen.model.SignUpUiState
+import com.example.saffieduapp.presentation.screens.SignUpScreen.model.SignUpState
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
-class SignUpViewModel: ViewModel() {
+@HiltViewModel
+class SignUpViewModel @Inject constructor() : ViewModel() {
 
-    private val _uiState = MutableStateFlow(SignUpUiState())
-    val uiState: StateFlow<SignUpUiState> = _uiState
+    private val _state = MutableStateFlow(SignUpState())
+    val state = _state.asStateFlow()
+
+    private val _eventFlow = MutableSharedFlow<UiEvent>()
+    val eventFlow = _eventFlow.asSharedFlow()
 
     fun onEvent(event: SignUpEvent) {
-        when(event) {
-            is SignUpEvent.IdChanged -> {
-                _uiState.value = _uiState.value.copy(id = event.id)
+        when (event) {
+            is SignUpEvent.FullNameChanged -> {
+                _state.value = _state.value.copy(fullName = event.fullName)
+            }
+            is SignUpEvent.IdNumberChanged -> {
+                _state.value = _state.value.copy(idNumber = event.idNumber)
             }
             is SignUpEvent.EmailChanged -> {
-                _uiState.value = _uiState.value.copy(email = event.email)
+                _state.value = _state.value.copy(email = event.email)
             }
             is SignUpEvent.PasswordChanged -> {
-                _uiState.value = _uiState.value.copy(password = event.password)
+                _state.value = _state.value.copy(password = event.password)
             }
             is SignUpEvent.ConfirmPasswordChanged -> {
-                _uiState.value = _uiState.value.copy(confirmPassword = event.confirmPassword)
+                _state.value = _state.value.copy(confirmPassword = event.confirmPassword)
             }
-            SignUpEvent.TogglePasswordVisibility -> {
-                _uiState.value = _uiState.value.copy(isPasswordVisible = !_uiState.value.isPasswordVisible)
+            is SignUpEvent.GradeChanged -> {
+                _state.value = _state.value.copy(selectedGrade = event.grade)
             }
-            SignUpEvent.ToggleConfirmPasswordVisibility -> {
-                _uiState.value = _uiState.value.copy(isConfirmPasswordVisible = !_uiState.value.isConfirmPasswordVisible)
+            is SignUpEvent.TermsAgreementChanged -> {
+                _state.value = _state.value.copy(agreedToTerms = event.agreed)
             }
-            is SignUpEvent.AgreedToTermsChanged -> {
-                _uiState.value = _uiState.value.copy(agreedToTerms = event.agreed)
+            is SignUpEvent.TogglePasswordVisibility -> {
+                _state.value = _state.value.copy(isPasswordVisible = !_state.value.isPasswordVisible)
             }
-            SignUpEvent.SignupClicked -> {
-                signup()
+            is SignUpEvent.ToggleConfirmPasswordVisibility -> {
+                _state.value = _state.value.copy(isConfirmPasswordVisible = !_state.value.isConfirmPasswordVisible)
+            }
+            is SignUpEvent.SignUpClicked -> {
+                signUpUser()
             }
         }
     }
 
-    private fun signup() {
-        val state = _uiState.value
-
-        // تحقق من صحة البيانات
-        if (state.id.isBlank() || state.email.isBlank() ||
-            state.password.isBlank() || state.confirmPassword.isBlank()) {
-            _uiState.value = state.copy(errorMessage = "يرجى تعبئة جميع الحقول")
-            return
-        }
-        if (state.password != state.confirmPassword) {
-            _uiState.value = state.copy(errorMessage = "كلمة المرور وتأكيدها غير متطابقين")
-            return
-        }
-        if (!state.agreedToTerms) {
-            _uiState.value = state.copy(errorMessage = "يجب الموافقة على الأحكام والشروط")
-            return
-        }
-
-        // بدء التحميل (محاكاة)
-        _uiState.value = state.copy(isLoading = true, errorMessage = null)
-
+    private fun signUpUser() {
         viewModelScope.launch {
-            // هنا يمكنك تنفيذ عملية الاشتراك (شبكة، قاعدة بيانات، إلخ)
+            // TODO: Add validation for all fields
+            _state.value = _state.value.copy(isLoading = true)
+            kotlinx.coroutines.delay(1500) // Simulate network call
 
-            // بعد النجاح
-            _uiState.value = _uiState.value.copy(isLoading = false)
-            // يمكن إضافة التنقل إلى شاشة أخرى
+            // On success
+            _state.value = _state.value.copy(isLoading = false)
+            _eventFlow.emit(UiEvent.SignUpSuccess)
         }
+    }
+
+    sealed class UiEvent {
+        data object SignUpSuccess : UiEvent()
     }
 }

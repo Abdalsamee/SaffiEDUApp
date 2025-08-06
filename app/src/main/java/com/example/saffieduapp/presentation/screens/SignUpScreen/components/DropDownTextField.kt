@@ -1,29 +1,25 @@
 package com.example.saffieduapp.presentation.screens.signup
 
-import android.annotation.SuppressLint
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.sp
-import com.example.saffieduapp.R
+import androidx.compose.ui.unit.dp
 import com.example.saffieduapp.ui.theme.AppTextPrimary
 import com.example.saffieduapp.ui.theme.AppTextSecondary
 import com.example.saffieduapp.ui.theme.Cairo
 
-@SuppressLint("UnusedBoxWithConstraintsScope")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun GradeSelector(
     modifier: Modifier = Modifier
 ) {
-    var isExpanded by remember { mutableStateOf(false) }
+    var expanded by remember { mutableStateOf(false) }
     var selectedGrade by remember { mutableStateOf("") }
     val grades = listOf(
         "الصف الأول", "الصف الثاني", "الصف الثالث", "الصف الرابع",
@@ -31,89 +27,77 @@ fun GradeSelector(
         "الصف التاسع", "الصف العاشر", "الصف الحادي عشر", "الصف الثاني عشر"
     )
 
-    BoxWithConstraints(
-        modifier = modifier.fillMaxWidth()
+    // الخطوة 1: استخدام ExposedDropdownMenuBox لإدارة القائمة المنسدلة
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = !expanded },
+        modifier = modifier
     ) {
-        // ✅ تحويل القيم إلى نسب
-        val fieldHeight = maxHeight * 0.08f
-        val fontSize = (maxWidth.value * 0.04).sp
-        val cornerRadius = maxWidth * 0.025f
+        // حقل النص الذي سيظهر دائماً
+        OutlinedTextField(
+            // الخطوة 2: ربط حقل النص بالقائمة باستخدام menuAnchor
+            modifier = Modifier
+                .fillMaxWidth()
+                .menuAnchor(), // هذا السطر مهم جداً لربط القائمة بالحقل
+            readOnly = true,
+            value = selectedGrade,
+            onValueChange = {},
+            label = {
+                Text(
+                    text = "اختر الصف الدراسي",
+                    style = TextStyle(fontFamily = Cairo, color = AppTextSecondary)
+                )
+            },
+            placeholder = {
+                Text(
+                    text = "حدد صفك الدراسي",
+                    style = TextStyle(fontFamily = Cairo, color = AppTextSecondary)
+                )
+            },
 
-        ExposedDropdownMenuBox(
-            expanded = isExpanded,
-            onExpandedChange = { isExpanded = it },
-            modifier = Modifier.fillMaxWidth()
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = AppTextSecondary,
+                unfocusedBorderColor = AppTextSecondary,
+                cursorColor = AppTextPrimary,
+                focusedLabelColor = AppTextSecondary,
+                unfocusedLabelColor = AppTextSecondary,
+            ),
+            textStyle = LocalTextStyle.current.copy(
+                textAlign = TextAlign.End,
+                color = AppTextPrimary,
+                fontFamily = Cairo
+            ),
+            singleLine = true
+        )
+
+        // الخطوة 3: تعريف القائمة المنسدلة التي ستظهر عند الضغط
+        ExposedDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+            modifier = Modifier
+                // الخطوة 4: تحديد أقصى ارتفاع للقائمة لجعلها قابلة للتمرير
+                .heightIn(max = 240.dp) // ارتفاع تقريبي لـ 5 عناصر
+                .verticalScroll(rememberScrollState())
         ) {
-            OutlinedTextField(
-                value = selectedGrade,
-                onValueChange = {},
-                readOnly = true,
-                label = {
-                    Text(
-                        text = "اختر الصف الدراسي",
-                        textAlign = TextAlign.End,
-                        color = AppTextSecondary,
-                        fontSize = fontSize,
-                        style = TextStyle(fontFamily = Cairo)
-                    )
-                },
-                placeholder = {
-                    Text(
-                        text = "حدد صفك الدراسي",
-                        textAlign = TextAlign.End,
-                        color = AppTextSecondary,
-                        fontSize = fontSize,
-                        style = TextStyle(fontFamily = Cairo)
-                    )
-                },
-                trailingIcon = {
-                    Icon(
-                        painter = painterResource(id = R.drawable.arrow_left),
-                        contentDescription = "Expand",
-                        tint = AppTextSecondary
-                    )
-                },
-                modifier = Modifier
-                    .menuAnchor()
-                    .fillMaxWidth()
-                    .height(fieldHeight),
-                shape = RoundedCornerShape(cornerRadius),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = AppTextSecondary,
-                    unfocusedBorderColor = AppTextSecondary,
-                    cursorColor = AppTextPrimary,
-                    focusedLabelColor = AppTextSecondary,
-                    unfocusedLabelColor = AppTextSecondary
-                ),
-                textStyle = LocalTextStyle.current.copy(
-                    textAlign = TextAlign.End,
-                    color = AppTextPrimary,
-                    fontSize = fontSize,
-                    fontFamily = Cairo
-                ),
-                singleLine = true
-            )
-
-            ExposedDropdownMenu(
-                expanded = isExpanded,
-                onDismissRequest = { isExpanded = false }
-            ) {
-                grades.forEach { grade ->
-                    DropdownMenuItem(
-                        text = {
-                            Text(
-                                text = grade,
-                                fontSize = fontSize,
+            grades.forEach { grade ->
+                DropdownMenuItem(
+                    text = {
+                        Text(
+                            text = grade,
+                            style = TextStyle(
+                                fontFamily = Cairo,
                                 color = AppTextPrimary,
-                                fontFamily = Cairo
-                            )
-                        },
-                        onClick = {
-                            selectedGrade = grade
-                            isExpanded = false
-                        }
-                    )
-                }
+                                textAlign = TextAlign.End
+                            ),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    },
+                    onClick = {
+                        selectedGrade = grade
+                        expanded = false
+                    },
+                    contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding
+                )
             }
         }
     }

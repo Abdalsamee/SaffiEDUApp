@@ -15,41 +15,40 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.withStyle
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.saffieduapp.R
 import com.example.saffieduapp.presentation.components.PrimaryButton
+import com.example.saffieduapp.presentation.screens.SignUpScreen.Events.SignUpEvent
+import com.example.saffieduapp.presentation.screens.SignUpScreen.ViewModel.SignUpViewModel
 import com.example.saffieduapp.presentation.screens.SignUpScreen.components.SineUpAppBar
 import com.example.saffieduapp.presentation.screens.SignUpScreen.components.SineUpTextField
 import com.example.saffieduapp.presentation.screens.signup.GradeSelector
 import com.example.saffieduapp.ui.theme.*
-import com.google.accompanist.systemuicontroller.rememberSystemUiController
+import kotlinx.coroutines.flow.collectLatest
 
 @SuppressLint("UnusedBoxWithConstraintsScope")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SignUpScreen(
-    onBackClick: () -> Unit = {}
+    onBackClick: () -> Unit,
+    onNavigateToLogin: () -> Unit,
+    onSignUpSuccess: () -> Unit,
+    viewModel: SignUpViewModel = hiltViewModel()
 ) {
-    val selectedClass = remember { mutableStateOf("") }
-    var fullName by remember { mutableStateOf("") }
-    var idNumber by remember { mutableStateOf("") }
-    var email by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
-    var confirmPassword by remember { mutableStateOf("") }
-    var isPasswordVisible by remember { mutableStateOf(false) }
-    var isConfirmPasswordVisible by remember { mutableStateOf(false) }
+    val state by viewModel.state.collectAsState()
 
-    val systemUiController = rememberSystemUiController()
-    val statusBarColor = AppPrimary
-
-    SideEffect {
-        systemUiController.setStatusBarColor(
-            color = statusBarColor,
-            darkIcons = false
-        )
+    // الاستماع لأحداث التنقل القادمة من الـ ViewModel
+    LaunchedEffect(key1 = true) {
+        viewModel.eventFlow.collectLatest { event ->
+            when (event) {
+                is SignUpViewModel.UiEvent.SignUpSuccess -> {
+                    onSignUpSuccess()
+                }
+            }
+        }
     }
 
     BoxWithConstraints(
@@ -61,9 +60,7 @@ fun SignUpScreen(
         val screenWidth = maxWidth
         val fieldSpacing = screenHeight * 0.012f
 
-        Column(
-            modifier = Modifier.fillMaxSize()
-        ) {
+        Column(modifier = Modifier.fillMaxSize()) {
             SineUpAppBar(
                 onBackClick = onBackClick,
                 screenWidth = screenWidth
@@ -87,7 +84,8 @@ fun SignUpScreen(
                             vertical = screenHeight * 0.02f
                         )
                         .verticalScroll(rememberScrollState()),
-                    horizontalAlignment = Alignment.CenterHorizontally
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Top
                 ) {
                     Text(
                         text = "إنشاء الحساب",
@@ -98,10 +96,10 @@ fun SignUpScreen(
                         modifier = Modifier.padding(bottom = screenHeight * 0.02f)
                     )
 
-                    // الاسم الكامل
+                    // تم ربط جميع الحقول بالـ ViewModel
                     SineUpTextField(
-                        value = fullName,
-                        onValueChange = { fullName = it },
+                        value = state.fullName,
+                        onValueChange = { viewModel.onEvent(SignUpEvent.FullNameChanged(it)) },
                         label = "الأسم الكامل",
                         placeholder = "الأسم الكامل",
                         icon = R.drawable.fullname,
@@ -112,10 +110,9 @@ fun SignUpScreen(
 
                     Spacer(modifier = Modifier.height(fieldSpacing))
 
-                    // رقم الهوية
                     SineUpTextField(
-                        value = idNumber,
-                        onValueChange = { idNumber = it },
+                        value = state.idNumber,
+                        onValueChange = { viewModel.onEvent(SignUpEvent.IdNumberChanged(it)) },
                         label = "رقم الهوية",
                         placeholder = "123XXXXXXX",
                         icon = R.drawable.id_user_1,
@@ -126,10 +123,9 @@ fun SignUpScreen(
 
                     Spacer(modifier = Modifier.height(fieldSpacing))
 
-                    // البريد الإلكتروني
                     SineUpTextField(
-                        value = email,
-                        onValueChange = { email = it },
+                        value = state.email,
+                        onValueChange = { viewModel.onEvent(SignUpEvent.EmailChanged(it)) },
                         label = "البريد الالكتروني",
                         placeholder = "example@gmail.com",
                         icon = R.drawable.email,
@@ -140,15 +136,14 @@ fun SignUpScreen(
 
                     Spacer(modifier = Modifier.height(fieldSpacing))
 
-                    // كلمة المرور
                     SineUpTextField(
-                        value = password,
-                        onValueChange = { password = it },
+                        value = state.password,
+                        onValueChange = { viewModel.onEvent(SignUpEvent.PasswordChanged(it)) },
                         label = "كلمة المرور",
                         placeholder = "**************",
                         isPassword = true,
-                        isPasswordVisible = isPasswordVisible,
-                        onToggleVisibility = { isPasswordVisible = !isPasswordVisible },
+                        isPasswordVisible = state.isPasswordVisible,
+                        onToggleVisibility = { viewModel.onEvent(SignUpEvent.TogglePasswordVisibility) },
                         icon = R.drawable.notvisipel,
                         modifier = Modifier
                             .fillMaxWidth()
@@ -157,44 +152,35 @@ fun SignUpScreen(
 
                     Spacer(modifier = Modifier.height(fieldSpacing))
 
-                    // تأكيد كلمة المرور
                     SineUpTextField(
-                        value = confirmPassword,
-                        onValueChange = { confirmPassword = it },
+                        value = state.confirmPassword,
+                        onValueChange = { viewModel.onEvent(SignUpEvent.ConfirmPasswordChanged(it)) },
                         label = "تأكيد كلمة المرور",
                         placeholder = "**************",
                         isPassword = true,
-                        isPasswordVisible = isConfirmPasswordVisible,
-                        onToggleVisibility = { isConfirmPasswordVisible = !isConfirmPasswordVisible },
-                        icon = if (isConfirmPasswordVisible) R.drawable.visepel else R.drawable.notvisipel,
+                        isPasswordVisible = state.isConfirmPasswordVisible,
+                        onToggleVisibility = { viewModel.onEvent(SignUpEvent.ToggleConfirmPasswordVisibility) },
+                        icon = if (state.isConfirmPasswordVisible) R.drawable.visepel else R.drawable.notvisipel,
                         modifier = Modifier
                             .fillMaxWidth()
                             .heightIn(min = screenHeight * 0.065f)
                     )
 
-
                     Spacer(modifier = Modifier.height(screenHeight * 0.02f))
 
-                    // ✅ اختيار الصف
                     GradeSelector(
                         modifier = Modifier.fillMaxWidth()
                     )
 
                     Spacer(modifier = Modifier.height(screenHeight * 0.02f))
 
-                    // زر الاشتراك
                     PrimaryButton(
                         text = "اشتراك",
-                        onClick = {
-                            // TODO: تنفيذ عملية الاشتراك
-                        },
+                        onClick = { viewModel.onEvent(SignUpEvent.SignUpClicked) },
                         modifier = Modifier.fillMaxWidth()
                     )
 
                     Spacer(modifier = Modifier.height(screenHeight * 0.02f))
-
-                    // ✅ النصوص السفلية
-                    var agreedToTerms by remember { mutableStateOf(false) }
 
                     Row(
                         modifier = Modifier
@@ -204,24 +190,22 @@ fun SignUpScreen(
                         horizontalArrangement = Arrangement.Center
                     ) {
                         Checkbox(
-                            checked = agreedToTerms,
-                            onCheckedChange = { agreedToTerms = it },
+                            checked = state.agreedToTerms,
+                            onCheckedChange = { viewModel.onEvent(SignUpEvent.TermsAgreementChanged(it)) },
                             colors = CheckboxDefaults.colors(
-                                checkedColor = AppPrimary
+                                checkedColor = AppPrimary,
+                                checkmarkColor = AppTextPrimary
                             )
                         )
 
                         val annotatedText = buildAnnotatedString {
                             append("أقر وأوافـق على ")
-
                             pushStringAnnotation(tag = "terms", annotation = "terms")
                             withStyle(SpanStyle(color = AppTextPrimary, fontFamily = Cairo, fontWeight = FontWeight.Medium)) {
                                 append("الشروط & الأحكام")
                             }
                             pop()
-
                             append("    ")
-
                             pushStringAnnotation(tag = "login", annotation = "login")
                             withStyle(SpanStyle(color = AppTextPrimary, fontFamily = Cairo, fontWeight = FontWeight.Medium)) {
                                 append("هل لديك حساب؟")
@@ -233,14 +217,9 @@ fun SignUpScreen(
                             text = annotatedText,
                             onClick = { offset ->
                                 annotatedText.getStringAnnotations("terms", offset, offset)
-                                    .firstOrNull()?.let {
-                                        // TODO: فتح صفحة الشروط
-                                    }
-
+                                    .firstOrNull()?.let { /* TODO: افتح الشروط */ }
                                 annotatedText.getStringAnnotations("login", offset, offset)
-                                    .firstOrNull()?.let {
-                                        // TODO: الانتقال إلى شاشة تسجيل الدخول
-                                    }
+                                    .firstOrNull()?.let { onNavigateToLogin() }
                             },
                             style = MaterialTheme.typography.bodySmall.copy(
                                 fontSize = 12.sp,

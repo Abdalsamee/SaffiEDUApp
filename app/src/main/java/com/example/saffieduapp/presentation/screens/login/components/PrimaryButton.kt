@@ -29,7 +29,7 @@ fun PrimaryButton(
     // ✅ تحويل القيم إلى نسب
     val horizontalPadding = screenWidth * 0.10f   // 85dp ≈ 23% من العرض
     val buttonWidth = screenWidth - (horizontalPadding * 1)
-    val buttonHeight = screenHeight * 0.09f       // 58dp ≈ 7% من الارتفاع
+    val buttonHeight = screenHeight * 0.07f       // 58dp ≈ 7% من الارتفاع
     val cornerRadius = screenWidth * 0.06f        // 20dp ≈ 5% من العرض
 
     Button(

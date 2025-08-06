@@ -2,14 +2,30 @@ package com.example.saffieduapp.presentation.screens.login
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
-class LoginViewModel : ViewModel() {
+// ١. إضافة Hilt للسماح بحقن التبعيات لاحقًا
+@HiltViewModel
+class LoginViewModel @Inject constructor() : ViewModel() {
 
     private val _uiState = MutableStateFlow(LoginUiState())
-    val uiState: StateFlow<LoginUiState> = _uiState
+    val uiState = _uiState.asStateFlow()
+
+    // ٢. تعريف الأحداث التي تحدث لمرة واحدة (مثل التنقل)
+    sealed class UiEvent {
+        data object LoginSuccess : UiEvent()
+    }
+
+    // ٣. إنشاء مجرى خاص بهذه الأحداث
+    private val _eventFlow = MutableSharedFlow<UiEvent>()
+    val eventFlow = _eventFlow.asSharedFlow()
+
 
     fun onEvent(event: LoginEvent) {
         when (event) {
@@ -36,8 +52,6 @@ class LoginViewModel : ViewModel() {
     private fun loginUser() {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
-
-            // ⏳ محاكاة عملية تسجيل الدخول
             kotlinx.coroutines.delay(1500)
 
             if (_uiState.value.id.isEmpty() || _uiState.value.password.isEmpty()) {
@@ -46,9 +60,10 @@ class LoginViewModel : ViewModel() {
                     errorMessage = "يرجى إدخال جميع البيانات"
                 )
             } else {
-                // ✅ نجاح تسجيل الدخول
                 _uiState.value = _uiState.value.copy(isLoading = false)
-                // هنا يمكن الانتقال للصفحة التالية
+
+                // ٤. إرسال حدث النجاح إلى الواجهة لتنفيذ الانتقال
+                _eventFlow.emit(UiEvent.LoginSuccess)
             }
         }
     }
