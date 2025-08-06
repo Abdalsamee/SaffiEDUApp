@@ -1,67 +1,217 @@
 package com.example.saffieduapp.presentation.screens.login
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import android.annotation.SuppressLint
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.ClickableText
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
-//// هذه واجهة افتراضية بسيطة انشئتها فقط لرؤية الانتقال من السبلاش اليها
+import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.example.saffieduapp.R
+import com.example.saffieduapp.presentation.components.PrimaryButton
+import com.example.saffieduapp.presentation.screens.login.components.LoginTextField
+import com.example.saffieduapp.ui.theme.*
+import kotlinx.coroutines.flow.collectLatest
+
+@SuppressLint("UnusedBoxWithConstraintsScope")
 @Composable
 fun LoginScreen(
-    onLoginClick: (email: String, password: String) -> Unit = { _, _ -> }
+    onLoginSuccess: () -> Unit,
+    onNavigateToSignUp: () -> Unit,
+    viewModel: LoginViewModel = hiltViewModel()
 ) {
-    var email by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
+    val state by viewModel.uiState.collectAsState()
 
-    Box(
+    LaunchedEffect(key1 = true) {
+        viewModel.eventFlow.collectLatest { event ->
+            when(event) {
+                is LoginViewModel.UiEvent.LoginSuccess -> {
+                    onLoginSuccess()
+                }
+            }
+        }
+    }
+
+    BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
-            .padding(24.dp),
-        contentAlignment = Alignment.Center
+            .background(AppPrimary)
     ) {
+        val screenHeight = maxHeight
+        val screenWidth = maxWidth
+        val logoSize = (screenHeight * 0.20f).coerceIn(100.dp, 180.dp)
+
         Column(
-            modifier = Modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+            modifier = Modifier.fillMaxSize()
         ) {
-            Text(text = "تسجيل الدخول", style = MaterialTheme.typography.headlineSmall)
+            Spacer(modifier = Modifier.height(screenHeight * 0.05f))
 
-            OutlinedTextField(
-                value = email,
-                onValueChange = { email = it },
-                label = { Text("البريد الإلكتروني") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth()
+            Image(
+                painter = painterResource(id = R.drawable.logo_new__4___4_),
+                contentDescription = "Logo",
+                modifier = Modifier
+                    .size(logoSize)
+                    .align(Alignment.CenterHorizontally)
             )
 
-            OutlinedTextField(
-                value = password,
-                onValueChange = { password = it },
-                label = { Text("كلمة المرور") },
-                singleLine = true,
-                visualTransformation = PasswordVisualTransformation(),
-                modifier = Modifier.fillMaxWidth()
-            )
+            Spacer(modifier = Modifier.height(screenHeight * 0.05f))
 
-            Button(
-                onClick = { onLoginClick(email, password) },
-                modifier = Modifier.fillMaxWidth()
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .clip(RoundedCornerShape(topEnd = screenWidth * 0.25f))
+                    .background(AppBackground)
             ) {
-                Text("تسجيل الدخول")
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .imePadding()
+                        .padding(
+                            horizontal = screenWidth * 0.06f,
+                            vertical = screenHeight * 0.02f
+                        )
+                        .verticalScroll(rememberScrollState()),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = "تسجيل الدخول",
+                        style = MaterialTheme.typography.displayLarge.copy(
+                            fontSize = (screenWidth.value * 0.07).sp
+                        ),
+                        color = AppTextPrimary,
+                        modifier = Modifier.padding(bottom = screenHeight * 0.03f)
+                    )
+
+                    LoginTextField(
+                        value = state.id,
+                        onValueChange = { viewModel.onEvent(LoginEvent.IdChanged(it)) },
+                        label = "رقم الهوية",
+                        placeholder = "123XXXXXXXX",
+                        icon = R.drawable.id_user_1,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = screenHeight * 0.065f)
+                    )
+
+                    Spacer(modifier = Modifier.height(screenHeight * 0.025f))
+
+                    LoginTextField(
+                        value = state.password,
+                        onValueChange = { viewModel.onEvent(LoginEvent.PasswordChanged(it)) },
+                        label = "كلمة المرور",
+                        placeholder = "********",
+                        isPassword = true,
+                        isPasswordVisible = state.isPasswordVisible,
+                        onToggleVisibility = { viewModel.onEvent(LoginEvent.TogglePasswordVisibility) },
+                        icon = R.drawable.notvisipel,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = screenHeight * 0.065f)
+                    )
+
+                    Spacer(modifier = Modifier.height(screenHeight * 0.02f))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(
+                            modifier = Modifier.weight(1f),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Checkbox(
+                                checked = state.rememberMe,
+                                onCheckedChange = { viewModel.onEvent(LoginEvent.RememberMeChanged(it)) },
+                                colors = CheckboxDefaults.colors(checkedColor = AppPrimary , checkmarkColor = Color.White)
+                            )
+                            Text(
+                                text = "تذكرني",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = AppTextSecondary,
+                                textAlign = TextAlign.Start
+                            )
+                        }
+
+                        Text(
+                            text = "هل نسيت كلمة المرور؟",
+                            color = AppTextPrimary,
+                            modifier = Modifier.clickable { },
+                            style = MaterialTheme.typography.bodyMedium,
+                            textAlign = TextAlign.End
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(screenHeight * 0.03f))
+
+                    PrimaryButton(
+                        text = "ابدأ",
+                        onClick = { viewModel.onEvent(LoginEvent.LoginClicked) },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Spacer(modifier = Modifier.height(screenHeight * 0.02f))
+
+                    // --- بداية التصحيح ---
+
+                    // ١. نُعرّف النص في متغير أولاً
+                    val annotatedText = buildAnnotatedString {
+                        withStyle(
+                            style = SpanStyle(
+                                color = AppTextSecondary,
+                                fontSize = MaterialTheme.typography.bodyLarge.fontSize
+                            )
+                        ) {
+                            append("ليس لديك حساب؟ ")
+                        }
+                        pushStringAnnotation(tag = "signup", annotation = "signup")
+                        withStyle(
+                            style = SpanStyle(
+                                color = AppTextPrimary,
+                                fontSize = MaterialTheme.typography.bodyLarge.fontSize
+                            )
+                        ) {
+                            append("اشترك")
+                        }
+                        pop()
+                    }
+
+                    ClickableText(
+                        // ٢. نستخدم المتغير هنا لعرض النص
+                        text = annotatedText,
+                        onClick = { offset ->
+                            // ٣. ونستخدم **نفس المتغير** هنا للتحقق من النقرة
+                            annotatedText.getStringAnnotations(tag = "signup", start = offset, end = offset)
+                                .firstOrNull()?.let {
+                                    // إذا تم النقر على الجزء الصحيح، نفذ الانتقال
+                                    onNavigateToSignUp()
+                                }
+                        },
+                        modifier = Modifier
+                            .align(Alignment.CenterHorizontally)
+                            .fillMaxWidth(),
+                        style = MaterialTheme.typography.bodyLarge.copy(
+                            textAlign = TextAlign.Center
+                        )
+                    )
+                    // --- نهاية التصحيح ---
+                }
             }
         }
     }

@@ -1,0 +1,8 @@
+package com.example.saffieduapp.presentation.screens.student.subjects
+
+import com.example.saffieduapp.domain.model.Subject
+
+data class SubjectsState(
+    val isLoading: Boolean = true,
+    val subject: List<Subject> = emptyList()
+)
