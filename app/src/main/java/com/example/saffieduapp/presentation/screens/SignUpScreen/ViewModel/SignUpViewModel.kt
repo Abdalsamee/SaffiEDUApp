@@ -77,6 +77,25 @@ class SignUpViewModel @Inject constructor(
             return
         }
 
+        // التحقق من رقم الهوية: فقط أرقام وطوله 9 خانات
+        val idRegex = Regex("^[0-9]{9}$")
+        if (!idRegex.matches(currentState.idNumber)) {
+            showError("رقم الهوية يجب أن يكون 9 أرقام فقط")
+            return
+        }
+
+        // التحقق من صحة البريد الإلكتروني
+        val emailRegex = Regex("^[A-Za-z](.*)([@]{1})(.+)(\\.)(.+)")
+        if (!emailRegex.matches(currentState.email)) {
+            showError("البريد الإلكتروني غير صالح")
+            return
+        }
+
+        // التحقق من قوة كلمة المرور (على الأقل 6 أحرف)
+        if (currentState.password.length < 6) {
+            showError("كلمة المرور يجب أن تكون 6 أحرف على الأقل")
+            return
+        }
         // تحقق من تطابق كلمتي المرور
         if (currentState.password != currentState.confirmPassword) {
             showError("كلمتا المرور غير متطابقتين")
