@@ -2,9 +2,11 @@ package com.example.saffieduapp.presentation.screens.SignUpScreen.ViewModel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.saffieduapp.presentation.screens.FireBase.AuthRepository
 import com.example.saffieduapp.presentation.screens.SignUpScreen.Events.SignUpEvent
 import com.example.saffieduapp.presentation.screens.SignUpScreen.model.SignUpState
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -13,7 +15,9 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
-class SignUpViewModel @Inject constructor() : ViewModel() {
+class SignUpViewModel @Inject constructor(
+    private val authRepository: AuthRepository
+) : ViewModel() {
 
     private val _state = MutableStateFlow(SignUpState())
     val state = _state.asStateFlow()
@@ -51,20 +55,78 @@ class SignUpViewModel @Inject constructor() : ViewModel() {
                 _state.value = _state.value.copy(isConfirmPasswordVisible = !_state.value.isConfirmPasswordVisible)
             }
             is SignUpEvent.SignUpClicked -> {
-                signUpUser()
+                viewModelScope.launch {
+                    signUpUser()
+                }
             }
         }
     }
 
-    private fun signUpUser() {
-        viewModelScope.launch {
-            // TODO: Add validation for all fields
-            _state.value = _state.value.copy(isLoading = true)
-            kotlinx.coroutines.delay(1500) // Simulate network call
+    private suspend fun signUpUser() {
+        val currentState = _state.value
 
-            // On success
+        // التحقق من الحقول الفارغة
+        if (currentState.fullName.isBlank() ||
+            currentState.idNumber.isBlank() ||
+            currentState.email.isBlank() ||
+            currentState.password.isBlank() ||
+            currentState.confirmPassword.isBlank() ||
+            currentState.selectedGrade.isBlank()
+        ) {
+            showError("يرجى ملء جميع الحقول")
+            return
+        }
+
+        // تحقق من تطابق كلمتي المرور
+        if (currentState.password != currentState.confirmPassword) {
+            showError("كلمتا المرور غير متطابقتين")
+            return
+        }
+
+        // تحقق من الموافقة على الشروط
+        if (!currentState.agreedToTerms) {
+            showError("يجب الموافقة على الشروط والأحكام")
+            return
+        }
+
+        // بداية التحميل
+        _state.value = _state.value.copy(isLoading = true, signUpError = null)
+
+        try {
+            // التحقق من رقم الهوية
+            val exists = authRepository.isIdNumberExists(currentState.idNumber)
+            if (exists) {
+                _state.value = _state.value.copy(isLoading = false)
+                showError("رقم الهوية مستخدم مسبقًا")
+                return
+            }
+
+            // محاولة التسجيل
+            authRepository.registerUser(
+                idNumber = currentState.idNumber,
+                fullName = currentState.fullName,
+                email = currentState.email,
+                password = currentState.password,
+                grade = currentState.selectedGrade
+            )
+
             _state.value = _state.value.copy(isLoading = false)
             _eventFlow.emit(UiEvent.SignUpSuccess)
+
+        } catch (e: Exception) {
+            _state.value = _state.value.copy(isLoading = false)
+            showError("فشل التسجيل: ${e.message}")
+        }
+    }
+
+
+    private fun showError(message: String) {
+        _state.value = _state.value.copy(isLoading = false, signUpError = message)
+
+        // إخفاء الرسالة بعد 3 ثوانٍ (اختياري)
+        viewModelScope.launch {
+            delay(3000)
+            _state.value = _state.value.copy(signUpError = null)
         }
     }
 

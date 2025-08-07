@@ -1,6 +1,9 @@
+@file:Suppress("DEPRECATION")
+
 package com.example.saffieduapp.presentation.screens.SignUpScreen
 
 import android.annotation.SuppressLint
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -12,6 +15,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -39,12 +43,14 @@ fun SignUpScreen(
     viewModel: SignUpViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
+    val context = LocalContext.current
 
     // الاستماع لأحداث التنقل القادمة من الـ ViewModel
     LaunchedEffect(key1 = true) {
         viewModel.eventFlow.collectLatest { event ->
             when (event) {
                 is SignUpViewModel.UiEvent.SignUpSuccess -> {
+                    Toast.makeText(context, "تم التسجيل بنجاح!", Toast.LENGTH_SHORT).show()
                     onSignUpSuccess()
                 }
             }
@@ -166,10 +172,14 @@ fun SignUpScreen(
                             .heightIn(min = screenHeight * 0.065f)
                     )
 
-                    Spacer(modifier = Modifier.height(screenHeight * 0.02f))
 
+                    Spacer(modifier = Modifier.height(screenHeight * 0.02f))
                     GradeSelector(
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
+                        selectedGrade = state.selectedGrade,       // قيمة الصف الدراسي المختارة من الحالة
+                        onGradeSelected = { grade ->
+                            viewModel.onEvent(SignUpEvent.GradeChanged(grade))  // حدث تحديث الصف الدراسي في ViewModel
+                        }
                     )
 
                     Spacer(modifier = Modifier.height(screenHeight * 0.02f))
@@ -179,6 +189,15 @@ fun SignUpScreen(
                         onClick = { viewModel.onEvent(SignUpEvent.SignUpClicked) },
                         modifier = Modifier.fillMaxWidth()
                     )
+
+                    if (state.signUpError != null) {
+                        Text(
+                            text = state.signUpError!!,
+                            color = MaterialTheme.colorScheme.error,
+                            fontSize = 14.sp,
+                            modifier = Modifier.padding(top = 8.dp)
+                        )
+                    }
 
                     Spacer(modifier = Modifier.height(screenHeight * 0.02f))
 
