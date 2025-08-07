@@ -1,4 +1,4 @@
-package com.example.saffieduapp.presentation.screens.FireBase
+package com.example.saffieduapp.data.local.preferences.FireBase
 
 
 import android.annotation.SuppressLint

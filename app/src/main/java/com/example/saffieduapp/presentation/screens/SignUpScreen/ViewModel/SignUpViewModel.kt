@@ -2,7 +2,7 @@ package com.example.saffieduapp.presentation.screens.SignUpScreen.ViewModel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.saffieduapp.presentation.screens.FireBase.AuthRepository
+import com.example.saffieduapp.data.local.preferences.FireBase.AuthRepository
 import com.example.saffieduapp.presentation.screens.SignUpScreen.Events.SignUpEvent
 import com.example.saffieduapp.presentation.screens.SignUpScreen.model.SignUpState
 import dagger.hilt.android.lifecycle.HiltViewModel

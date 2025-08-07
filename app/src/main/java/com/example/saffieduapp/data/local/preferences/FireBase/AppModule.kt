@@ -1,4 +1,4 @@
-package com.example.saffieduapp.presentation.screens.FireBase
+package com.example.saffieduapp.data.local.preferences.FireBase
 
 import com.google.firebase.firestore.FirebaseFirestore
 import dagger.Module
