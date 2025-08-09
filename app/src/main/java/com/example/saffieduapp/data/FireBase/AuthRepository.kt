@@ -1,14 +1,14 @@
-package com.example.saffieduapp.data.local.preferences.FireBase
+package com.example.saffieduapp.data.FireBase
 
 
-import android.annotation.SuppressLint
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.auth.User
-import javax.inject.Inject
 import kotlinx.coroutines.tasks.await
+import javax.inject.Inject
 
 class AuthRepository @Inject constructor(
-    private val firestore: FirebaseFirestore
+    private val firestore: FirebaseFirestore,
+    private val auth: FirebaseAuth
 ) {
     suspend fun isIdNumberExists(idNumber: String): Boolean {
         val result = firestore.collection("users")
@@ -18,17 +18,20 @@ class AuthRepository @Inject constructor(
         return result.exists()
     }
 
-    suspend fun registerUser(
+    // دالة لإنشاء حساب في Firebase Authentication
+    suspend fun createUserWithEmailAndPassword(email: String, password: String) {
+        auth.createUserWithEmailAndPassword(email, password).await()
+    }
+
+    suspend fun registerUserData(
         idNumber: String,
         fullName: String,
         email: String,
-        password: String,
         grade: String
     ) {
         val userData = hashMapOf(
             "fullName" to fullName,
             "email" to email,
-            "password" to password,
             "grade" to grade
         )
         firestore.collection("users")
@@ -36,5 +39,4 @@ class AuthRepository @Inject constructor(
             .set(userData)
             .await()
     }
-
 }

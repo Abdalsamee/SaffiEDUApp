@@ -4,6 +4,8 @@ import android.content.Context
 import com.example.saffieduapp.data.local.preferences.OnboardingPreferences
 import com.example.saffieduapp.domain.use_case.onboarding.GetOnboardingCompletedUseCase
 import com.example.saffieduapp.domain.use_case.onboarding.SetOnboardingCompletedUseCase
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -35,4 +37,11 @@ object AppModule {
 
         return SetOnboardingCompletedUseCase(preferences)
     }
+    @Provides
+    @Singleton
+    fun provideFirebaseAuth(): FirebaseAuth = FirebaseAuth.getInstance()
+
+    @Provides
+    @Singleton
+    fun provideFirebaseFirestore(): FirebaseFirestore = FirebaseFirestore.getInstance()
 }

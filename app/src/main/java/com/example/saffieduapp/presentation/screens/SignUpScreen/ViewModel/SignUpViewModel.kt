@@ -2,7 +2,7 @@ package com.example.saffieduapp.presentation.screens.SignUpScreen.ViewModel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.saffieduapp.data.local.preferences.FireBase.AuthRepository
+import com.example.saffieduapp.data.FireBase.AuthRepository
 import com.example.saffieduapp.presentation.screens.SignUpScreen.Events.SignUpEvent
 import com.example.saffieduapp.presentation.screens.SignUpScreen.model.SignUpState
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -119,13 +119,17 @@ class SignUpViewModel @Inject constructor(
                 showError("رقم الهوية مستخدم مسبقًا")
                 return
             }
-
+            // إنشاء حساب في Firebase Authentication (بريد وكلمة مرور)
+            authRepository.createUserWithEmailAndPassword(
+                email = currentState.email,
+                password = currentState.password
+            )
             // محاولة التسجيل
-            authRepository.registerUser(
+            // تخزين باقي بيانات المستخدم في Firestore بدون كلمة المرور
+            authRepository.registerUserData(
                 idNumber = currentState.idNumber,
                 fullName = currentState.fullName,
                 email = currentState.email,
-                password = currentState.password,
                 grade = currentState.selectedGrade
             )
 
