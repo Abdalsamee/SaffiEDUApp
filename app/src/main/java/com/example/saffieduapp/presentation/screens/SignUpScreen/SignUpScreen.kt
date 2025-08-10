@@ -31,6 +31,7 @@ import com.example.saffieduapp.presentation.screens.SignUpScreen.components.Sine
 import com.example.saffieduapp.presentation.screens.SignUpScreen.components.SineUpTextField
 import com.example.saffieduapp.presentation.screens.signup.GradeSelector
 import com.example.saffieduapp.ui.theme.*
+import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.flow.collectLatest
 
 @SuppressLint("UnusedBoxWithConstraintsScope")
@@ -39,20 +40,39 @@ import kotlinx.coroutines.flow.collectLatest
 fun SignUpScreen(
     onBackClick: () -> Unit,
     onNavigateToLogin: () -> Unit,
-    onSignUpSuccess: () -> Unit,
     viewModel: SignUpViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
     val context = LocalContext.current
 
+    val auth = FirebaseAuth.getInstance()
+
     // الاستماع لأحداث التنقل القادمة من الـ ViewModel
     LaunchedEffect(key1 = true) {
         viewModel.eventFlow.collectLatest { event ->
             when (event) {
-                is SignUpViewModel.UiEvent.SignUpSuccess -> {
-                    Toast.makeText(context, "تم التسجيل بنجاح!", Toast.LENGTH_SHORT).show()
-                    onSignUpSuccess()
+                is SignUpViewModel.UiEvent.SignUpSuccessWithVerification -> {
+                    auth.currentUser?.sendEmailVerification()?.addOnCompleteListener { task ->
+                        if (task.isSuccessful) {
+                            Toast.makeText(
+                                context,
+                                "تم إرسال رابط التفعيل إلى بريدك الإلكتروني. يرجى التحقق قبل تسجيل الدخول.",
+                                Toast.LENGTH_LONG
+                            ).show()
+                            auth.signOut()
+                            onNavigateToLogin()
+                        } else {
+                            Toast.makeText(
+                                context,
+                                "حدث خطأ أثناء إرسال رابط التفعيل.",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                    }
                 }
+
+                is SignUpViewModel.UiEvent.ShowMessage ->
+                    Toast.makeText(context, event.message, Toast.LENGTH_LONG).show()
             }
         }
     }
@@ -102,7 +122,6 @@ fun SignUpScreen(
                         modifier = Modifier.padding(bottom = screenHeight * 0.02f)
                     )
 
-                    // تم ربط جميع الحقول بالـ ViewModel
                     SineUpTextField(
                         value = state.fullName,
                         onValueChange = { viewModel.onEvent(SignUpEvent.FullNameChanged(it)) },
@@ -172,13 +191,13 @@ fun SignUpScreen(
                             .heightIn(min = screenHeight * 0.065f)
                     )
 
-
                     Spacer(modifier = Modifier.height(screenHeight * 0.02f))
+
                     GradeSelector(
                         modifier = Modifier.fillMaxWidth(),
-                        selectedGrade = state.selectedGrade,       // قيمة الصف الدراسي المختارة من الحالة
+                        selectedGrade = state.selectedGrade,
                         onGradeSelected = { grade ->
-                            viewModel.onEvent(SignUpEvent.GradeChanged(grade))  // حدث تحديث الصف الدراسي في ViewModel
+                            viewModel.onEvent(SignUpEvent.GradeChanged(grade))
                         }
                     )
 
@@ -236,7 +255,7 @@ fun SignUpScreen(
                             text = annotatedText,
                             onClick = { offset ->
                                 annotatedText.getStringAnnotations("terms", offset, offset)
-                                    .firstOrNull()?.let { /* TODO: افتح الشروط */ }
+                                    .firstOrNull()?.let { /* افتح الشروط */ }
                                 annotatedText.getStringAnnotations("login", offset, offset)
                                     .firstOrNull()?.let { onNavigateToLogin() }
                             },

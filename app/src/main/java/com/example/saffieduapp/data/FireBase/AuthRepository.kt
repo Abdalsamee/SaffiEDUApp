@@ -18,11 +18,14 @@ class AuthRepository @Inject constructor(
         return result.exists()
     }
 
-    // دالة لإنشاء حساب في Firebase Authentication
+
+    // إنشاء حساب في Firebase Authentication + إرسال بريد التحقق
     suspend fun createUserWithEmailAndPassword(email: String, password: String) {
-        auth.createUserWithEmailAndPassword(email, password).await()
+        val authResult = auth.createUserWithEmailAndPassword(email, password).await()
+        authResult.user?.sendEmailVerification()?.await()
     }
 
+    // تخزين بيانات المستخدم في Firestore (بدون كلمة المرور)
     suspend fun registerUserData(
         idNumber: String,
         fullName: String,

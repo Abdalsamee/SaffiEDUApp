@@ -59,13 +59,6 @@ fun NavGraphBuilder.authNavGraph(navController: NavController) {
                         // نحذف شاشة التسجيل الجديدة من المكدس لمنع العودة إليها بالخطأ
                         popUpTo(Routes.SIGNUP_SCREEN) { inclusive = true }
                     }
-                },onSignUpSuccess = {
-                    // انتقل إلى الشاشة الرئيسية واحذف كل شاشات المصادقة
-                    navController.navigate("main_graph") {
-                        popUpTo("auth_graph") {
-                            inclusive = true
-                        }
-                    }
                 }
             )
         }
