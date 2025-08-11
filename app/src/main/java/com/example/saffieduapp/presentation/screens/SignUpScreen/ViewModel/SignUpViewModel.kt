@@ -106,9 +106,6 @@ class SignUpViewModel @Inject constructor(
                 password = currentState.password
             )
 
-            // إرسال بريد التحقق
-            firebaseAuth.currentUser?.sendEmailVerification()?.await()
-
             // حفظ باقي البيانات في Firestore بدون كلمة السر
             authRepository.registerUserData(
                 idNumber = currentState.idNumber,

@@ -1,13 +1,13 @@
 {
   "project_info": {
-    "project_number": "604009832622",
-    "project_id": "finalproject-57d3c",
-    "storage_bucket": "finalproject-57d3c.firebasestorage.app"
+    "project_number": "458872558515",
+    "project_id": "finalproject-ea1e8",
+    "storage_bucket": "finalproject-ea1e8.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:604009832622:android:072e959c0a23d144dbcd3f",
+        "mobilesdk_app_id": "1:458872558515:android:a17a5a9e387d9e5715b1c6",
         "android_client_info": {
           "package_name": "com.example.saffieduapp"
         }
@@ -15,7 +15,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyDbRgY_dQ97XL4JM_dNc622f2SjZVraK7w"
+          "current_key": "AIzaSyCzQjDxfHp4lEHsTQXbf7ChlnKaA08JS4s"
         }
       ],
       "services": {

@@ -52,23 +52,12 @@ fun SignUpScreen(
         viewModel.eventFlow.collectLatest { event ->
             when (event) {
                 is SignUpViewModel.UiEvent.SignUpSuccessWithVerification -> {
-                    auth.currentUser?.sendEmailVerification()?.addOnCompleteListener { task ->
-                        if (task.isSuccessful) {
-                            Toast.makeText(
-                                context,
-                                "تم إرسال رابط التفعيل إلى بريدك الإلكتروني. يرجى التحقق قبل تسجيل الدخول.",
-                                Toast.LENGTH_LONG
-                            ).show()
-                            auth.signOut()
-                            onNavigateToLogin()
-                        } else {
-                            Toast.makeText(
-                                context,
-                                "حدث خطأ أثناء إرسال رابط التفعيل.",
-                                Toast.LENGTH_SHORT
-                            ).show()
-                        }
-                    }
+                    Toast.makeText(
+                        context,
+                        "تم إرسال رابط التفعيل إلى بريدك الإلكتروني. يرجى التحقق قبل تسجيل الدخول.",
+                        Toast.LENGTH_LONG
+                    ).show()
+                    onNavigateToLogin()
                 }
 
                 is SignUpViewModel.UiEvent.ShowMessage ->
@@ -76,7 +65,6 @@ fun SignUpScreen(
             }
         }
     }
-
     BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
