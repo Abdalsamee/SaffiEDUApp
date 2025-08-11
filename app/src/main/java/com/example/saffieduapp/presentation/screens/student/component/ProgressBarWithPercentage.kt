@@ -1,9 +1,12 @@
 package com.example.saffieduapp.presentation.screens.student.component
 
-
-
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -12,13 +15,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.saffieduapp.ui.theme.AppSecondary
 
 @Composable
 fun ProgressBarWithPercentage(
@@ -26,49 +28,55 @@ fun ProgressBarWithPercentage(
     modifier: Modifier = Modifier,
     progressBarHeight: Dp = 10.dp,
     backgroundColor: Color = Color.White,
+    // التدرج عند عدم الاكتمال
     progressBrush: Brush = Brush.horizontalGradient(
-        colors = listOf(
+        listOf(
             Color.White,
-            Color(0xFF43A4D9), // لون بداية متدرج أغمق قليلاً
-            Color(0xFF0077B6)  // اللون الأصلي
+            Color(0xFF43A4D9),
+            Color(0xFF0077B6)
         )
     ),
+    // اللون الثابت عند 100%
+    completedColor: Color = Color(0xFF0077B6),
     textStyle: TextStyle = TextStyle(
         color = Color.Black,
         fontWeight = FontWeight.Bold,
-        fontSize = 16.sp,
+        fontSize = 16.sp
     )
 ) {
-    // التأكد من أن قيمة التقدم بين 0 و 100
     val validatedProgress = progress.coerceIn(0, 100)
     val progressFraction = validatedProgress / 100f
+
+    // توحيد نوع الفرشاة (Brush) لتجنّب تعارض الأنواع
+    val fillBrush: Brush =
+        if (validatedProgress == 100) SolidColor(completedColor) else progressBrush
 
     Row(
         modifier = modifier,
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp) // مسافة بين الشريط والنص
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        // حاوية شريط التقدم
+        // خلفية شريط التقدّم
         Box(
             modifier = Modifier
-                .weight(1f) // ليأخذ المساحة المتبقية
+                .weight(1f)
                 .height(progressBarHeight)
-                .clip(RoundedCornerShape(50)) // حواف دائرية بالكامل
+                .clip(RoundedCornerShape(50))
                 .background(backgroundColor)
         ) {
-
+            // جزء التقدّم
             Box(
                 modifier = Modifier
                     .fillMaxHeight()
                     .fillMaxWidth(progressFraction)
-                    .background(progressBrush)
+                    .background(fillBrush) // الآن دائمًا Brush
             )
         }
 
-        // نص النسبة المئوية
+        // نسبة التقدّم كنص
         Text(
-            text = "$validatedProgress%", // أضفت علامة % لتكون أقرب للنص
-            style = textStyle,
+            text = "$validatedProgress%",
+            style = textStyle
         )
     }
 }

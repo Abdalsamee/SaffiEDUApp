@@ -22,6 +22,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.saffieduapp.ui.theme.AppPrimary
 import com.example.saffieduapp.R
+import com.example.saffieduapp.ui.theme.Cairo
+
 @Composable
 fun CommonTopAppBar(
     title: String,
@@ -32,16 +34,17 @@ fun CommonTopAppBar(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .height(110.dp) // يمكنك تعديل الارتفاع حسب الحاجة
-            .clip(RoundedCornerShape(bottomStart = 30.dp, bottomEnd = 30.dp))
+            .height(100.dp) // يمكنك تعديل الارتفاع حسب الحاجة
+            .clip(RoundedCornerShape(bottomStart = 20.dp, bottomEnd = 20.dp))
             .background(AppPrimary),
-        contentAlignment = Alignment.Center // لتوسيط العنوان تلقائيًا
+        contentAlignment = Alignment.BottomCenter // لتوسيط العنوان تلقائيًا
     ) {
         // ٢. زر الرجوع يظهر فقط إذا تم تمرير دالة onNavigateUp
         if (onNavigateUp != null) {
             IconButton(
                 onClick = onNavigateUp,
-                modifier = Modifier.align(Alignment.CenterStart) // محاذاة لليسار
+                modifier = Modifier.align(Alignment.BottomStart) // أسفل يسار
+                    .padding(start = 8.dp, bottom = 18.dp) // محاذاة لليسار
             ) {
                 Icon(
                     painter = painterResource(id = R.drawable.arrow_left),
@@ -51,13 +54,14 @@ fun CommonTopAppBar(
             }
         }
 
-        // ٣. العنوان يظهر في منتصف الـ Box
-        Text(
 
+        Text(
             text = title,
             color = Color.White,
             fontSize = 18.sp,
-            fontWeight = FontWeight.SemiBold
+            fontWeight = FontWeight.SemiBold,
+            fontFamily = Cairo,
+            modifier = Modifier.padding(bottom = 18.dp)
         )
     }
 }
