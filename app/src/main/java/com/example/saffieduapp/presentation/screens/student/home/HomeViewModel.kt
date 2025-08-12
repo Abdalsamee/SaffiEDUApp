@@ -15,30 +15,36 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 
-// موديل بيانات المستخدم كما هو مخزن في Firestore
+// نموذج بيانات المستخدم كما هو مخزن في Firestore
 data class UserData(
     val fullName: String = "",
     val grade: String = ""
 )
 
+// ViewModel الخاص بشاشة Home للطالب
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     private val auth: FirebaseAuth,
     private val firestore: FirebaseFirestore
 ) : ViewModel() {
 
+    // حالة الشاشة التي يتم تحديثها باستمرار باستخدام StateFlow
     private val _state = MutableStateFlow(HomeState())
     val state = _state.asStateFlow()
 
+    // عند إنشاء الـ ViewModel، يتم تحميل بيانات المستخدم والبيانات الأولية الأخرى
     init {
-        // عند بدء ViewModel يتم جلب بيانات المستخدم والداتا الأولية
         loadUserData()
         loadInitialData()
     }
 
+    /**
+     * تحميل بيانات المستخدم من Firestore باستخدام البريد الإلكتروني للمستخدم الحالي
+     */
     private fun loadUserData() {
         viewModelScope.launch {
             _state.value = _state.value.copy(isLoading = true)
+
             val currentUserEmail = auth.currentUser?.email
             if (currentUserEmail != null) {
                 try {
@@ -50,8 +56,18 @@ class HomeViewModel @Inject constructor(
                     if (!querySnapshot.isEmpty) {
                         val userData = querySnapshot.documents[0].toObject(UserData::class.java)
                         if (userData != null) {
+                            val nameParts = userData.fullName.trim().split("\\s+".toRegex())
+                            val firstName = nameParts.firstOrNull() ?: ""
+                            val lastName = if (nameParts.size > 1) nameParts.last() else ""
+
+                            val displayName = if (lastName.isNotEmpty()) {
+                                "$firstName $lastName"
+                            } else {
+                                firstName
+                            }
+
                             _state.value = _state.value.copy(
-                                studentName = userData.fullName,
+                                studentName = displayName,
                                 studentGrade = userData.grade,
                                 isLoading = false
                             )
@@ -87,43 +103,58 @@ class HomeViewModel @Inject constructor(
     }
 
 
+    /**
+     * تحديث البيانات عند سحب الشاشة (refresh)
+     * هنا يتم محاكاة تأخير لعرض تأثير التحميل ثم تحديث البيانات
+     */
     fun refresh() {
         viewModelScope.launch {
             _state.value = _state.value.copy(isRefreshing = true)
-            delay(1500)  // محاكاة تأخير
+            delay(1500)  // محاكاة تأخير التحميل
             fetchAndProcessData()
             _state.value = _state.value.copy(isRefreshing = false)
         }
     }
 
+    /**
+     * تحميل البيانات الأولية عند بدء الشاشة (تطبيق تحميل وهمي مع تأخير)
+     */
     private fun loadInitialData() {
         viewModelScope.launch {
             _state.value = _state.value.copy(isLoading = true)
-            delay(1000) // محاكاة تحميل أولي
+            delay(1000) // محاكاة تأخير التحميل
             fetchAndProcessData()
             _state.value = _state.value.copy(isLoading = false)
         }
     }
 
+    /**
+     * جلب ومعالجة البيانات الوهمية (Dummy Data)
+     * - المهام العاجلة
+     * - المواد الدراسية المسجلة
+     * - الدروس المميزة
+     */
     private fun fetchAndProcessData() {
-        // بيانات مؤقتة (Dummy Data)
+        // قائمة المهام العاجلة (عينة بيانات)
         val urgentTasksList = listOf(
             UrgentTask("1", "اختبار نصفي", "التربية الإسلامية", "24/8/2025", "11 صباحاً", ""),
             UrgentTask("2", "المهمة رقم 1", "اللغة الانجليزية", "24/8/2025", "12 مساءً", "")
         )
 
+        // قائمة المواد الدراسية (عينة بيانات)
         val subjectsList = listOf(
             Subject("s1", "اللغة العربية", "خالد عبدالله", "الصف العاشر", 4.5f, "", 12),
             Subject("s2", "التربية الإسلامية", "فراس شعبان", "الصف العاشر", 4.5f, "", 20),
             Subject("s3", "رياضيات", "عبدالسميع النجار", "الصف العاشر", 1.5f, "", 15)
         )
 
+        // قائمة الدروس المميزة (عينة بيانات)
         val lessonsList = listOf(
             FeaturedLesson("l1", "Romeo story", "English", "15 دقيقة", 30, ""),
             FeaturedLesson("l2", "درس الكسور", "رياضيات", "15 دقيقة", 80, "")
         )
 
-        // تحديث الحالة مع البيانات
+        // تحديث حالة الشاشة مع البيانات الجديدة
         _state.value = _state.value.copy(
             profileImageUrl = "https://instagram.fgza2-5.fna.fbcdn.net/v/t51.2885-19/519497419_17974326737899750_3401532740011521622_n.jpg?_nc_cat=110",
             urgentTasks = urgentTasksList,
@@ -132,6 +163,9 @@ class HomeViewModel @Inject constructor(
         )
     }
 
+    /**
+     * تحديث حالة البحث عند تغيير نص البحث
+     */
     fun onSearchQueryChanged(newQuery: String) {
         _state.value = _state.value.copy(searchQuery = newQuery)
     }
