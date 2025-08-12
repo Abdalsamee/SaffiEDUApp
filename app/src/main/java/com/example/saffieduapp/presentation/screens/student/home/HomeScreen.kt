@@ -34,12 +34,18 @@ fun HomeScreen(
     Box(modifier = Modifier.fillMaxSize()) {
         val pullToRefreshState = rememberPullToRefreshState()
 
+        // إذا كانت حالة السحب للتحديث (Pull to Refresh) فعالة (أي المستخدم يسحب لتحديث البيانات)
         if (pullToRefreshState.isRefreshing) {
+            // نطلب من الـ ViewModel تنفيذ عملية التحديث (refresh)
             viewModel.refresh()
         }
+
+// إذا كانت حالة التحديث في الـ ViewModel انتهت (أي isRefreshing = false)
+// نخبر نظام السحب للتحديث أن عملية التحديث انتهت ليتم إيقاف مؤشر السحب
         if (!state.isRefreshing) {
             pullToRefreshState.endRefresh()
         }
+
 
 
         HomeTopSection(
