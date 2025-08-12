@@ -28,11 +28,12 @@ class HomeViewModel @Inject constructor(
     private val firestore: FirebaseFirestore
 ) : ViewModel() {
 
-    // حالة الشاشة التي يتم تحديثها باستمرار باستخدام StateFlow
+    // الحالة الداخلية للشاشة باستخدام MutableStateFlow (قابلة للتعديل داخلياً)
     private val _state = MutableStateFlow(HomeState())
+    // الحالة العامة للعرض (غير قابلة للتعديل خارجيًا)
     val state = _state.asStateFlow()
 
-    // عند إنشاء الـ ViewModel، يتم تحميل بيانات المستخدم والبيانات الأولية الأخرى
+    // عند بدء الـ ViewModel يتم تحميل بيانات المستخدم والبيانات الأولية
     init {
         loadUserData()
         loadInitialData()
@@ -40,14 +41,16 @@ class HomeViewModel @Inject constructor(
 
     /**
      * تحميل بيانات المستخدم من Firestore باستخدام البريد الإلكتروني للمستخدم الحالي
+     * ويعرض الاسم الأول والاسم الأخير فقط
      */
     private fun loadUserData() {
         viewModelScope.launch {
-            _state.value = _state.value.copy(isLoading = true)
+            _state.value = _state.value.copy(isLoading = true) // بدء حالة التحميل
 
             val currentUserEmail = auth.currentUser?.email
             if (currentUserEmail != null) {
                 try {
+                    // استعلام لجلب بيانات المستخدم بناء على البريد الإلكتروني
                     val querySnapshot = firestore.collection("users")
                         .whereEqualTo("email", currentUserEmail)
                         .get()
@@ -56,22 +59,26 @@ class HomeViewModel @Inject constructor(
                     if (!querySnapshot.isEmpty) {
                         val userData = querySnapshot.documents[0].toObject(UserData::class.java)
                         if (userData != null) {
+                            // تقسيم الاسم الكامل للحصول على الاسم الأول والاسم الأخير فقط
                             val nameParts = userData.fullName.trim().split("\\s+".toRegex())
                             val firstName = nameParts.firstOrNull() ?: ""
                             val lastName = if (nameParts.size > 1) nameParts.last() else ""
 
+                            // دمج الاسم الأول والأخير أو الاسم الأول فقط إذا لم يوجد آخر
                             val displayName = if (lastName.isNotEmpty()) {
                                 "$firstName $lastName"
                             } else {
                                 firstName
                             }
 
+                            // تحديث حالة الشاشة مع بيانات المستخدم المستخرجة
                             _state.value = _state.value.copy(
                                 studentName = displayName,
                                 studentGrade = userData.grade,
                                 isLoading = false
                             )
                         } else {
+                            // في حال فشل التحويل إلى نموذج UserData
                             _state.value = _state.value.copy(
                                 isLoading = false,
                                 studentName = "غير معروف",
@@ -79,6 +86,7 @@ class HomeViewModel @Inject constructor(
                             )
                         }
                     } else {
+                        // إذا لم يتم العثور على بيانات للمستخدم في Firestore
                         _state.value = _state.value.copy(
                             isLoading = false,
                             studentName = "غير معروف",
@@ -86,6 +94,7 @@ class HomeViewModel @Inject constructor(
                         )
                     }
                 } catch (e: Exception) {
+                    // التعامل مع أي خطأ في جلب البيانات من Firestore
                     _state.value = _state.value.copy(
                         isLoading = false,
                         studentName = "خطأ في التحميل",
@@ -93,6 +102,7 @@ class HomeViewModel @Inject constructor(
                     )
                 }
             } else {
+                // حالة عدم وجود مستخدم مسجل دخول
                 _state.value = _state.value.copy(
                     isLoading = false,
                     studentName = "لم يتم تسجيل الدخول",
@@ -102,59 +112,54 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-
     /**
-     * تحديث البيانات عند سحب الشاشة (refresh)
-     * هنا يتم محاكاة تأخير لعرض تأثير التحميل ثم تحديث البيانات
+     * تحديث البيانات عند السحب لتحديث الشاشة (Refresh)
+     * يتم عرض تأثير تحميل مع تأخير ثم تحديث البيانات
      */
     fun refresh() {
         viewModelScope.launch {
-            _state.value = _state.value.copy(isRefreshing = true)
-            delay(1500)  // محاكاة تأخير التحميل
-            fetchAndProcessData()
-            _state.value = _state.value.copy(isRefreshing = false)
+            _state.value = _state.value.copy(isRefreshing = true) // بدء حالة التحديث
+            delay(1500)  // محاكاة تأخير تحميل البيانات
+            fetchAndProcessData() // جلب البيانات وتحديث الحالة
+            _state.value = _state.value.copy(isRefreshing = false) // انتهاء التحديث
         }
     }
 
     /**
-     * تحميل البيانات الأولية عند بدء الشاشة (تطبيق تحميل وهمي مع تأخير)
+     * تحميل البيانات الأولية عند بدء الشاشة
+     * مع محاكاة تأخير للتحميل
      */
     private fun loadInitialData() {
         viewModelScope.launch {
-            _state.value = _state.value.copy(isLoading = true)
-            delay(1000) // محاكاة تأخير التحميل
-            fetchAndProcessData()
-            _state.value = _state.value.copy(isLoading = false)
+            _state.value = _state.value.copy(isLoading = true) // بدء تحميل أولي
+            delay(1000) // محاكاة تأخير
+            fetchAndProcessData() // جلب بيانات وهمية
+            _state.value = _state.value.copy(isLoading = false) // انتهاء التحميل
         }
     }
 
     /**
      * جلب ومعالجة البيانات الوهمية (Dummy Data)
-     * - المهام العاجلة
-     * - المواد الدراسية المسجلة
-     * - الدروس المميزة
+     * تشمل المهام العاجلة، المواد الدراسية، والدروس المميزة
      */
     private fun fetchAndProcessData() {
-        // قائمة المهام العاجلة (عينة بيانات)
         val urgentTasksList = listOf(
             UrgentTask("1", "اختبار نصفي", "التربية الإسلامية", "24/8/2025", "11 صباحاً", ""),
             UrgentTask("2", "المهمة رقم 1", "اللغة الانجليزية", "24/8/2025", "12 مساءً", "")
         )
 
-        // قائمة المواد الدراسية (عينة بيانات)
         val subjectsList = listOf(
             Subject("s1", "اللغة العربية", "خالد عبدالله", "الصف العاشر", 4.5f, "", 12),
             Subject("s2", "التربية الإسلامية", "فراس شعبان", "الصف العاشر", 4.5f, "", 20),
             Subject("s3", "رياضيات", "عبدالسميع النجار", "الصف العاشر", 1.5f, "", 15)
         )
 
-        // قائمة الدروس المميزة (عينة بيانات)
         val lessonsList = listOf(
             FeaturedLesson("l1", "Romeo story", "English", "15 دقيقة", 30, ""),
             FeaturedLesson("l2", "درس الكسور", "رياضيات", "15 دقيقة", 80, "")
         )
 
-        // تحديث حالة الشاشة مع البيانات الجديدة
+        // تحديث الحالة مع البيانات الجديدة
         _state.value = _state.value.copy(
             profileImageUrl = "https://instagram.fgza2-5.fna.fbcdn.net/v/t51.2885-19/519497419_17974326737899750_3401532740011521622_n.jpg?_nc_cat=110",
             urgentTasks = urgentTasksList,
@@ -164,7 +169,7 @@ class HomeViewModel @Inject constructor(
     }
 
     /**
-     * تحديث حالة البحث عند تغيير نص البحث
+     * تحديث حالة البحث عند تغير نص البحث
      */
     fun onSearchQueryChanged(newQuery: String) {
         _state.value = _state.value.copy(searchQuery = newQuery)
