@@ -75,6 +75,7 @@ dependencies {
     implementation(libs.androidx.foundation.layout.android)
     implementation(libs.firebase.firestore.ktx)
     implementation(libs.firebase.auth.ktx)
+    implementation(libs.google.firebase.firestore.ktx)
     kapt(libs.hilt.compiler)
     implementation(libs.dagger)
     implementation("androidx.hilt:hilt-navigation-compose:1.2.0")
