@@ -17,28 +17,26 @@ import com.example.saffieduapp.ui.theme.Cairo
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun GradeSelector(
+    selectedGrade: String,
+    onGradeSelected: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     var expanded by remember { mutableStateOf(false) }
-    var selectedGrade by remember { mutableStateOf("") }
     val grades = listOf(
         "الصف الأول", "الصف الثاني", "الصف الثالث", "الصف الرابع",
         "الصف الخامس", "الصف السادس", "الصف السابع", "الصف الثامن",
         "الصف التاسع", "الصف العاشر", "الصف الحادي عشر", "الصف الثاني عشر"
     )
 
-    // الخطوة 1: استخدام ExposedDropdownMenuBox لإدارة القائمة المنسدلة
     ExposedDropdownMenuBox(
         expanded = expanded,
         onExpandedChange = { expanded = !expanded },
         modifier = modifier
     ) {
-        // حقل النص الذي سيظهر دائماً
         OutlinedTextField(
-            // الخطوة 2: ربط حقل النص بالقائمة باستخدام menuAnchor
             modifier = Modifier
                 .fillMaxWidth()
-                .menuAnchor(), // هذا السطر مهم جداً لربط القائمة بالحقل
+                .menuAnchor(),
             readOnly = true,
             value = selectedGrade,
             onValueChange = {},
@@ -54,7 +52,6 @@ fun GradeSelector(
                     style = TextStyle(fontFamily = Cairo, color = AppTextSecondary)
                 )
             },
-
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = AppTextSecondary,
                 unfocusedBorderColor = AppTextSecondary,
@@ -70,13 +67,11 @@ fun GradeSelector(
             singleLine = true
         )
 
-        // الخطوة 3: تعريف القائمة المنسدلة التي ستظهر عند الضغط
         ExposedDropdownMenu(
             expanded = expanded,
             onDismissRequest = { expanded = false },
             modifier = Modifier
-                // الخطوة 4: تحديد أقصى ارتفاع للقائمة لجعلها قابلة للتمرير
-                .heightIn(max = 240.dp) // ارتفاع تقريبي لـ 5 عناصر
+                .heightIn(max = 240.dp)
                 .verticalScroll(rememberScrollState())
         ) {
             grades.forEach { grade ->
@@ -93,7 +88,7 @@ fun GradeSelector(
                         )
                     },
                     onClick = {
-                        selectedGrade = grade
+                        onGradeSelected(grade)
                         expanded = false
                     },
                     contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding

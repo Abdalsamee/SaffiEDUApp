@@ -5,44 +5,144 @@ import androidx.lifecycle.viewModelScope
 import com.example.saffieduapp.domain.model.FeaturedLesson
 import com.example.saffieduapp.domain.model.Subject
 import com.example.saffieduapp.domain.model.UrgentTask
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 
-@HiltViewModel
-class HomeViewModel @Inject constructor() : ViewModel() {
+// نموذج بيانات المستخدم كما هو مخزن في Firestore
+data class UserData(
+    val fullName: String = "",
+    val grade: String = ""
+)
 
+// ViewModel الخاص بشاشة Home للطالب
+@HiltViewModel
+class HomeViewModel @Inject constructor(
+    private val auth: FirebaseAuth,
+    private val firestore: FirebaseFirestore
+) : ViewModel() {
+
+    // الحالة الداخلية للشاشة باستخدام MutableStateFlow (قابلة للتعديل داخلياً)
     private val _state = MutableStateFlow(HomeState())
+    // الحالة العامة للعرض (غير قابلة للتعديل خارجيًا)
     val state = _state.asStateFlow()
 
+    // عند بدء الـ ViewModel يتم تحميل بيانات المستخدم والبيانات الأولية
     init {
+        loadUserData()
         loadInitialData()
     }
 
+    /**
+     * تحميل بيانات المستخدم من Firestore باستخدام البريد الإلكتروني للمستخدم الحالي
+     * ويعرض الاسم الأول والاسم الأخير فقط
+     */
+    private fun loadUserData() {
+        viewModelScope.launch {
+            _state.value = _state.value.copy(isLoading = true) // بدء حالة التحميل
+
+            val currentUserEmail = auth.currentUser?.email
+            if (currentUserEmail != null) {
+                try {
+                    // استعلام لجلب بيانات المستخدم بناء على البريد الإلكتروني
+                    val querySnapshot = firestore.collection("users")
+                        .whereEqualTo("email", currentUserEmail)
+                        .get()
+                        .await()
+
+                    if (!querySnapshot.isEmpty) {
+                        val userData = querySnapshot.documents[0].toObject(UserData::class.java)
+                        if (userData != null) {
+                            // تقسيم الاسم الكامل للحصول على الاسم الأول والاسم الأخير فقط
+                            val nameParts = userData.fullName.trim().split("\\s+".toRegex())
+                            val firstName = nameParts.firstOrNull() ?: ""
+                            val lastName = if (nameParts.size > 1) nameParts.last() else ""
+
+                            // دمج الاسم الأول والأخير أو الاسم الأول فقط إذا لم يوجد آخر
+                            val displayName = if (lastName.isNotEmpty()) {
+                                "$firstName $lastName"
+                            } else {
+                                firstName
+                            }
+
+                            // تحديث حالة الشاشة مع بيانات المستخدم المستخرجة
+                            _state.value = _state.value.copy(
+                                studentName = displayName,
+                                studentGrade = userData.grade,
+                                isLoading = false
+                            )
+                        } else {
+                            // في حال فشل التحويل إلى نموذج UserData
+                            _state.value = _state.value.copy(
+                                isLoading = false,
+                                studentName = "غير معروف",
+                                studentGrade = "غير معروف"
+                            )
+                        }
+                    } else {
+                        // إذا لم يتم العثور على بيانات للمستخدم في Firestore
+                        _state.value = _state.value.copy(
+                            isLoading = false,
+                            studentName = "غير معروف",
+                            studentGrade = "غير معروف"
+                        )
+                    }
+                } catch (e: Exception) {
+                    // التعامل مع أي خطأ في جلب البيانات من Firestore
+                    _state.value = _state.value.copy(
+                        isLoading = false,
+                        studentName = "خطأ في التحميل",
+                        studentGrade = "خطأ في التحميل"
+                    )
+                }
+            } else {
+                // حالة عدم وجود مستخدم مسجل دخول
+                _state.value = _state.value.copy(
+                    isLoading = false,
+                    studentName = "لم يتم تسجيل الدخول",
+                    studentGrade = "لم يتم تسجيل الدخول"
+                )
+            }
+        }
+    }
+
+    /**
+     * تحديث البيانات عند السحب لتحديث الشاشة (Refresh)
+     * يتم عرض تأثير تحميل مع تأخير ثم تحديث البيانات
+     */
     fun refresh() {
         viewModelScope.launch {
-            _state.value = _state.value.copy(isRefreshing = true)
-            delay(1500)
-            fetchAndProcessData()
-            _state.value = _state.value.copy(isRefreshing = false)
+            _state.value = _state.value.copy(isRefreshing = true) // بدء حالة التحديث
+            delay(1500)  // محاكاة تأخير تحميل البيانات
+            fetchAndProcessData() // جلب البيانات وتحديث الحالة
+            _state.value = _state.value.copy(isRefreshing = false) // انتهاء التحديث
         }
     }
 
+    /**
+     * تحميل البيانات الأولية عند بدء الشاشة
+     * مع محاكاة تأخير للتحميل
+     */
     private fun loadInitialData() {
         viewModelScope.launch {
-            _state.value = _state.value.copy(isLoading = true)
-            delay(1000) // محاكاة تحميل أولي
-            fetchAndProcessData()
-            _state.value = _state.value.copy(isLoading = false)
+            _state.value = _state.value.copy(isLoading = true) // بدء تحميل أولي
+            delay(1000) // محاكاة تأخير
+            fetchAndProcessData() // جلب بيانات وهمية
+            _state.value = _state.value.copy(isLoading = false) // انتهاء التحميل
         }
     }
 
+    /**
+     * جلب ومعالجة البيانات الوهمية (Dummy Data)
+     * تشمل المهام العاجلة، المواد الدراسية، والدروس المميزة
+     */
     private fun fetchAndProcessData() {
-        // --- بيانات مؤقتة (Dummy Data) ---
-        // يتم الآن استخدام موديلات البيانات الأساسية مباشرة من طبقة الـ domain
         val urgentTasksList = listOf(
             UrgentTask("1", "اختبار نصفي", "التربية الإسلامية", "24/8/2025", "11 صباحاً", ""),
             UrgentTask("2", "المهمة رقم 1", "اللغة الانجليزية", "24/8/2025", "12 مساءً", "")
@@ -59,17 +159,18 @@ class HomeViewModel @Inject constructor() : ViewModel() {
             FeaturedLesson("l2", "درس الكسور", "رياضيات", "15 دقيقة", 80, "")
         )
 
-
+        // تحديث الحالة مع البيانات الجديدة
         _state.value = _state.value.copy(
-            studentName = "يزن عادل ضهير",
-            studentGrade = "مصمم التطبيق Ui/Ux",
-            profileImageUrl = "https://instagram.fgza2-5.fna.fbcdn.net/v/t51.2885-19/519497419_17974326737899750_3401532740011521622_n.jpg?efg=eyJ2ZW5jb2RlX3RhZyI6InByb2ZpbGVfcGljLmRqYW5nby4xMDgwLmMyIn0&_nc_ht=instagram.fgza2-5.fna.fbcdn.net&_nc_cat=110&_nc_oc=Q6cZ2QEAjYEcIt3ibYUz-_ZxzPQ6LWBAHB0LVbTmbyydG8aFuUFgzui5xS3BbPGcDHa2gWI&_nc_ohc=9caozL-qv6UQ7kNvwHa8jHJ&_nc_gid=2X9fZrOnRU9DXAmfrxeNXQ&edm=AP4sbd4BAAAA&ccb=7-5&oh=00_AfUiJ45ROL4CzXl8rLxDR_Fp6xlbE1gVFi9fz1YrCeVIpw&oe=68964CBC&_nc_sid=7a9f4b",
+            profileImageUrl = "https://instagram.fgza2-5.fna.fbcdn.net/v/t51.2885-19/519497419_17974326737899750_3401532740011521622_n.jpg?_nc_cat=110",
             urgentTasks = urgentTasksList,
             enrolledSubjects = subjectsList,
             featuredLessons = lessonsList
         )
     }
 
+    /**
+     * تحديث حالة البحث عند تغير نص البحث
+     */
     fun onSearchQueryChanged(newQuery: String) {
         _state.value = _state.value.copy(searchQuery = newQuery)
     }

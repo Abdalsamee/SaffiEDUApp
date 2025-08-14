@@ -19,7 +19,8 @@ import com.example.saffieduapp.presentation.screens.student.components.HomeSubje
 fun EnrolledSubjectsSection(
     subjects: List<Subject>,
     modifier: Modifier = Modifier,
-    onSubjectClick: (SubjectId: String) -> Unit
+    onSubjectClick: (SubjectId: String) -> Unit,
+    onMoreClick: () -> Unit
 ) {
     Column(
         modifier = modifier
@@ -45,7 +46,7 @@ fun EnrolledSubjectsSection(
                 fontStyle = androidx.compose.ui.text.font.FontStyle.Normal,
                 color = Color.Black,
                 modifier = Modifier.clickable {
-                    //تنفيذ الانتقال الى واجهة المواد
+                    onMoreClick()
                 }
             )
         }

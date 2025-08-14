@@ -1,3 +1,5 @@
+@file:Suppress("DEPRECATION")
+
 package com.example.saffieduapp.presentation.screens.login
 
 import android.annotation.SuppressLint
@@ -40,10 +42,8 @@ fun LoginScreen(
 
     LaunchedEffect(key1 = true) {
         viewModel.eventFlow.collectLatest { event ->
-            when(event) {
-                is LoginViewModel.UiEvent.LoginSuccess -> {
-                    onLoginSuccess()
-                }
+            when (event) {
+                is LoginViewModel.UiEvent.LoginSuccess -> onLoginSuccess()
             }
         }
     }
@@ -57,9 +57,7 @@ fun LoginScreen(
         val screenWidth = maxWidth
         val logoSize = (screenHeight * 0.20f).coerceIn(100.dp, 180.dp)
 
-        Column(
-            modifier = Modifier.fillMaxSize()
-        ) {
+        Column(modifier = Modifier.fillMaxSize()) {
             Spacer(modifier = Modifier.height(screenHeight * 0.05f))
 
             Image(
@@ -139,7 +137,10 @@ fun LoginScreen(
                             Checkbox(
                                 checked = state.rememberMe,
                                 onCheckedChange = { viewModel.onEvent(LoginEvent.RememberMeChanged(it)) },
-                                colors = CheckboxDefaults.colors(checkedColor = AppPrimary , checkmarkColor = Color.White)
+                                colors = CheckboxDefaults.colors(
+                                    checkedColor = AppPrimary,
+                                    checkmarkColor = Color.White
+                                )
                             )
                             Text(
                                 text = "تذكرني",
@@ -152,7 +153,7 @@ fun LoginScreen(
                         Text(
                             text = "هل نسيت كلمة المرور؟",
                             color = AppTextPrimary,
-                            modifier = Modifier.clickable { },
+                            modifier = Modifier.clickable { /* TODO: استرجاع كلمة المرور */ },
                             style = MaterialTheme.typography.bodyMedium,
                             textAlign = TextAlign.End
                         )
@@ -160,17 +161,25 @@ fun LoginScreen(
 
                     Spacer(modifier = Modifier.height(screenHeight * 0.03f))
 
+                    // زر تسجيل الدخول مع مؤشر تحميل
                     PrimaryButton(
-                        text = "ابدأ",
+                        text = if (state.isLoading) "جاري الدخول..." else "ابدأ",
                         onClick = { viewModel.onEvent(LoginEvent.LoginClicked) },
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
                     )
+
+                    // عرض رسالة الخطأ إن وجدت
+                    state.errorMessage?.let {
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Text(
+                            text = it,
+                            color = Color.Red,
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
 
                     Spacer(modifier = Modifier.height(screenHeight * 0.02f))
 
-                    // --- بداية التصحيح ---
-
-                    // ١. نُعرّف النص في متغير أولاً
                     val annotatedText = buildAnnotatedString {
                         withStyle(
                             style = SpanStyle(
@@ -193,24 +202,16 @@ fun LoginScreen(
                     }
 
                     ClickableText(
-                        // ٢. نستخدم المتغير هنا لعرض النص
                         text = annotatedText,
                         onClick = { offset ->
-                            // ٣. ونستخدم **نفس المتغير** هنا للتحقق من النقرة
                             annotatedText.getStringAnnotations(tag = "signup", start = offset, end = offset)
-                                .firstOrNull()?.let {
-                                    // إذا تم النقر على الجزء الصحيح، نفذ الانتقال
-                                    onNavigateToSignUp()
-                                }
+                                .firstOrNull()?.let { onNavigateToSignUp() }
                         },
                         modifier = Modifier
                             .align(Alignment.CenterHorizontally)
                             .fillMaxWidth(),
-                        style = MaterialTheme.typography.bodyLarge.copy(
-                            textAlign = TextAlign.Center
-                        )
+                        style = MaterialTheme.typography.bodyLarge.copy(textAlign = TextAlign.Center)
                     )
-                    // --- نهاية التصحيح ---
                 }
             }
         }

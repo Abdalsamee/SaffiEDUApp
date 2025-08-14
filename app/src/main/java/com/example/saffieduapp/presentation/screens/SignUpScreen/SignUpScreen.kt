@@ -1,6 +1,9 @@
+@file:Suppress("DEPRECATION")
+
 package com.example.saffieduapp.presentation.screens.SignUpScreen
 
 import android.annotation.SuppressLint
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -12,6 +15,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -27,6 +31,7 @@ import com.example.saffieduapp.presentation.screens.SignUpScreen.components.Sine
 import com.example.saffieduapp.presentation.screens.SignUpScreen.components.SineUpTextField
 import com.example.saffieduapp.presentation.screens.signup.GradeSelector
 import com.example.saffieduapp.ui.theme.*
+import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.flow.collectLatest
 
 @SuppressLint("UnusedBoxWithConstraintsScope")
@@ -35,22 +40,31 @@ import kotlinx.coroutines.flow.collectLatest
 fun SignUpScreen(
     onBackClick: () -> Unit,
     onNavigateToLogin: () -> Unit,
-    onSignUpSuccess: () -> Unit,
     viewModel: SignUpViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
+    val context = LocalContext.current
+
+    val auth = FirebaseAuth.getInstance()
 
     // الاستماع لأحداث التنقل القادمة من الـ ViewModel
     LaunchedEffect(key1 = true) {
         viewModel.eventFlow.collectLatest { event ->
             when (event) {
-                is SignUpViewModel.UiEvent.SignUpSuccess -> {
-                    onSignUpSuccess()
+                is SignUpViewModel.UiEvent.SignUpSuccessWithVerification -> {
+                    Toast.makeText(
+                        context,
+                        "تم إرسال رابط التفعيل إلى بريدك الإلكتروني. يرجى التحقق قبل تسجيل الدخول.",
+                        Toast.LENGTH_LONG
+                    ).show()
+                    onNavigateToLogin()
                 }
+
+                is SignUpViewModel.UiEvent.ShowMessage ->
+                    Toast.makeText(context, event.message, Toast.LENGTH_LONG).show()
             }
         }
     }
-
     BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
@@ -96,7 +110,6 @@ fun SignUpScreen(
                         modifier = Modifier.padding(bottom = screenHeight * 0.02f)
                     )
 
-                    // تم ربط جميع الحقول بالـ ViewModel
                     SineUpTextField(
                         value = state.fullName,
                         onValueChange = { viewModel.onEvent(SignUpEvent.FullNameChanged(it)) },
@@ -169,7 +182,11 @@ fun SignUpScreen(
                     Spacer(modifier = Modifier.height(screenHeight * 0.02f))
 
                     GradeSelector(
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
+                        selectedGrade = state.selectedGrade,
+                        onGradeSelected = { grade ->
+                            viewModel.onEvent(SignUpEvent.GradeChanged(grade))
+                        }
                     )
 
                     Spacer(modifier = Modifier.height(screenHeight * 0.02f))
@@ -179,6 +196,15 @@ fun SignUpScreen(
                         onClick = { viewModel.onEvent(SignUpEvent.SignUpClicked) },
                         modifier = Modifier.fillMaxWidth()
                     )
+
+                    if (state.signUpError != null) {
+                        Text(
+                            text = state.signUpError!!,
+                            color = MaterialTheme.colorScheme.error,
+                            fontSize = 14.sp,
+                            modifier = Modifier.padding(top = 8.dp)
+                        )
+                    }
 
                     Spacer(modifier = Modifier.height(screenHeight * 0.02f))
 
@@ -217,7 +243,7 @@ fun SignUpScreen(
                             text = annotatedText,
                             onClick = { offset ->
                                 annotatedText.getStringAnnotations("terms", offset, offset)
-                                    .firstOrNull()?.let { /* TODO: افتح الشروط */ }
+                                    .firstOrNull()?.let { /* افتح الشروط */ }
                                 annotatedText.getStringAnnotations("login", offset, offset)
                                     .firstOrNull()?.let { onNavigateToLogin() }
                             },

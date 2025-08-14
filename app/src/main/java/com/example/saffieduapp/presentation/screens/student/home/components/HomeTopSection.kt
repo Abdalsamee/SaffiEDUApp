@@ -25,6 +25,7 @@ fun HomeTopSection(
     studentName: String,
     studentGrade: String,
     profileImageUrl: String,
+    modifier: Modifier = Modifier
 
 ) {
 
