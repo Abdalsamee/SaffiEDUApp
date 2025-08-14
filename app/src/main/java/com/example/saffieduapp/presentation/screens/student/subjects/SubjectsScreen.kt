@@ -1,37 +1,110 @@
 package com.example.saffieduapp.presentation.screens.student.subjects
 
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
+import android.widget.Toast
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
+import androidx.compose.material3.pulltorefresh.PullToRefreshContainer
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.NavHostController
+import com.example.saffieduapp.navigation.Routes
 import com.example.saffieduapp.presentation.screens.student.components.CommonTopAppBar
+import com.example.saffieduapp.presentation.screens.student.subjects.component.SubjectListItemCard
+import com.example.saffieduapp.ui.theme.AppPrimary
+import kotlinx.coroutines.flow.collectLatest
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SubjectScreen() {
+fun SubjectsScreen(
+    navController: NavHostController,
+    onNavigateToSubjectDetails: (subjectId: String) -> Unit,
+    viewModel: SubjectsViewModel = hiltViewModel()
+) {
+    val state by viewModel.state.collectAsState()
+    val context = LocalContext.current
+
+    // حالة القائمة للتحكم بالتمرير إلى الأعلى
+    val listState = rememberLazyListState()
+
+    // حالة السحب للتحديث
+    val pullToRefreshState = rememberPullToRefreshState()
+
+    // التقاط إعادة اختيار تبّ "المواد" من الـ BottomBar
+    LaunchedEffect(Unit) {
+        val entry = navController.getBackStackEntry(Routes.SUBJECTS_SCREEN)
+        entry.savedStateHandle
+            .getStateFlow("tab_reselected_tick", 0L)
+            .collectLatest { tick ->
+                if (tick != 0L) {
+                    listState.animateScrollToItem(0) // Scroll-to-top
+                    viewModel.refresh()              // Refresh اختياري
+                }
+            }
+    }
+
+    // إدارة دورة السحب للتحديث (مرة واحدة لكل دورة)
+    if (pullToRefreshState.isRefreshing) {
+        LaunchedEffect(Unit) { viewModel.refresh() }
+    }
+    LaunchedEffect(state.isRefreshing) {
+        if (!state.isRefreshing) pullToRefreshState.endRefresh()
+    }
 
     Scaffold(
         topBar = {
-            // ٢. وضع الـ AppBar العام في مكانه المخصص
             CommonTopAppBar(
                 title = "المواد الدراسية",
+                // onNavigateUp = { /* إن لزم */ }
             )
         }
     ) { innerPadding ->
-        // ٣. وضع محتوى الشاشة وتطبيق الـ padding
-        // innerPadding تضمن أن المحتوى يبدأ أسفل الـ TopAppBar
+
         Box(
             modifier = Modifier
+                .padding(innerPadding)
+                .nestedScroll(pullToRefreshState.nestedScrollConnection)
                 .fillMaxSize()
-                .padding(innerPadding),
-            contentAlignment = Alignment.Center
         ) {
-            Text(text = "Subject Screen Content")
+            if (state.isLoading) {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(color = AppPrimary)
+                }
+            } else {
+                LazyColumn(
+                    state = listState,
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    items(state.subject) { subject ->
+                        SubjectListItemCard(
+                            subject = subject,
+                            onClick = { onNavigateToSubjectDetails(subject.id) },
+                            onRatingChanged = { newRating ->
+                                viewModel.updateRating(subject.id, newRating)
+                            }
+                        )
+                    }
+                }
+            }
+
+            // مؤشر السحب للتحديث يظهر تحت الـ AppBar بفضل innerPadding
+            PullToRefreshContainer(
+                state = pullToRefreshState,
+                modifier = Modifier.align(Alignment.TopCenter),
+                contentColor = AppPrimary
+            )
         }
     }
 }

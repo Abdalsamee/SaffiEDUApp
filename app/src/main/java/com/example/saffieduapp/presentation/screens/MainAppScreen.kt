@@ -6,16 +6,17 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
+import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import com.example.saffieduapp.navigation.BottomNavItem
-import com.example.saffieduapp.navigation.Routes
 import com.example.saffieduapp.presentation.components.AppBottomNavigationBar
 import com.example.saffieduapp.R
 import com.example.saffieduapp.navigation.MainNavGraph
+import com.example.saffieduapp.navigation.Routes
 
 @Composable
 fun MainAppScreen() {
-    val navController = rememberNavController()
+    val navController: NavHostController = rememberNavController()
 
     // تعريف جميع عناصر شريط التنقل كما في التصميم
     val bottomNavItems = listOf(
