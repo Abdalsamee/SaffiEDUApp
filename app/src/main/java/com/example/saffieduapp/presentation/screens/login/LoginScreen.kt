@@ -36,7 +36,7 @@ import kotlinx.coroutines.flow.collectLatest
 @SuppressLint("UnusedBoxWithConstraintsScope")
 @Composable
 fun LoginScreen(
-    onStudentLogin: () -> Unit,   // عند دخول الطالب
+    onStudentLogin: () -> Unit,
     onNavigateToSignUp: () -> Unit,
     viewModel: LoginViewModel = hiltViewModel()
 ) {
@@ -47,15 +47,24 @@ fun LoginScreen(
         viewModel.eventFlow.collectLatest { event ->
             when (event) {
                 is LoginViewModel.UiEvent.LoginSuccess -> {
-                        onStudentLogin()
-
+                    when (event.role) {
+                        "student" -> onStudentLogin()
+                        else -> {
+                            Toast.makeText(
+                                context,
+                                "تعذر تحديد دور المستخدم، يرجى التواصل مع الإدارة",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                    }
                 }
                 is LoginViewModel.UiEvent.ShowError -> {
-                    Toast.makeText(context, "تعذر تحديد دور المستخدم، يرجى التواصل مع الإدارة", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, event.message, Toast.LENGTH_SHORT).show()
                 }
             }
         }
     }
+
     BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
@@ -146,9 +155,7 @@ fun LoginScreen(
                                 checked = state.rememberMe,
                                 onCheckedChange = {
                                     viewModel.onEvent(
-                                        LoginEvent.RememberMeChanged(
-                                            it
-                                        )
+                                        LoginEvent.RememberMeChanged(it)
                                     )
                                 },
                                 colors = CheckboxDefaults.colors(
@@ -167,7 +174,6 @@ fun LoginScreen(
                         Text(
                             text = "هل نسيت كلمة المرور؟",
                             color = AppTextPrimary,
-                            modifier = Modifier.clickable { /* TODO: استرجاع كلمة المرور */ },
                             style = MaterialTheme.typography.bodyMedium,
                             textAlign = TextAlign.End
                         )
@@ -175,14 +181,12 @@ fun LoginScreen(
 
                     Spacer(modifier = Modifier.height(screenHeight * 0.03f))
 
-                    // زر تسجيل الدخول مع مؤشر تحميل
                     PrimaryButton(
                         text = if (state.isLoading) "جاري الدخول..." else "ابدأ",
                         onClick = { viewModel.onEvent(LoginEvent.LoginClicked) },
                         modifier = Modifier.fillMaxWidth(),
                     )
 
-                    // عرض رسالة الخطأ إن وجدت
                     state.errorMessage?.let {
                         Spacer(modifier = Modifier.height(10.dp))
                         Text(
@@ -222,13 +226,14 @@ fun LoginScreen(
                                 tag = "signup",
                                 start = offset,
                                 end = offset
-                            )
-                                .firstOrNull()?.let { onNavigateToSignUp() }
+                            ).firstOrNull()?.let { onNavigateToSignUp() }
                         },
                         modifier = Modifier
                             .align(Alignment.CenterHorizontally)
                             .fillMaxWidth(),
-                        style = MaterialTheme.typography.bodyLarge.copy(textAlign = TextAlign.Center)
+                        style = MaterialTheme.typography.bodyLarge.copy(
+                            textAlign = TextAlign.Center
+                        )
                     )
                 }
             }

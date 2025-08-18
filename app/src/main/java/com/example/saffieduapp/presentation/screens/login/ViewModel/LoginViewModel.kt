@@ -2,6 +2,7 @@ package com.example.saffieduapp.presentation.screens.login
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.saffieduapp.data.local.preferences.PreferencesManager
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -16,7 +17,8 @@ import javax.inject.Inject
 @HiltViewModel
 class LoginViewModel @Inject constructor(
     private val auth: FirebaseAuth,
-    private val firestore: FirebaseFirestore
+    private val firestore: FirebaseFirestore,
+    private val preferencesManager: PreferencesManager
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(LoginUiState())
@@ -30,6 +32,27 @@ class LoginViewModel @Inject constructor(
     private val _eventFlow = MutableSharedFlow<UiEvent>()
     val eventFlow = _eventFlow.asSharedFlow()
 
+    init {
+        loadSavedCredentials()
+    }
+    private fun loadSavedCredentials() {
+        viewModelScope.launch {
+            preferencesManager.getCredentials().collect { (savedId, savedPassword) ->
+                savedId?.let { id ->
+                    _uiState.value = _uiState.value.copy(
+                        id = id,
+                        rememberMe = true
+                    )
+                }
+                savedPassword?.let { password ->
+                    _uiState.value = _uiState.value.copy(
+                        password = password,
+                        rememberMe = true
+                    )
+                }
+            }
+        }
+    }
     fun onEvent(event: LoginEvent) {
         when (event) {
             is LoginEvent.IdChanged -> {
@@ -62,6 +85,7 @@ class LoginViewModel @Inject constructor(
 
             val id = _uiState.value.id.trim()
             val password = _uiState.value.password.trim()
+            val rememberMe = _uiState.value.rememberMe
 
             if (id.isEmpty() || password.isEmpty()) {
                 _uiState.value = _uiState.value.copy(
@@ -72,6 +96,13 @@ class LoginViewModel @Inject constructor(
             }
 
             try {
+                // Save credentials if "Remember Me" is checked
+                if (rememberMe) {
+                    preferencesManager.saveCredentials(id, password)
+                } else {
+                    preferencesManager.clearCredentials()
+                }
+
                 // 🔹 ابحث في مجموعة "users" باستخدام رقم الهوية كـ Document ID
                 val snapshot = firestore.collection("users").document(id).get().await()
 

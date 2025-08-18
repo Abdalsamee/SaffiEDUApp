@@ -45,8 +45,6 @@ fun SignUpScreen(
     val state by viewModel.state.collectAsState()
     val context = LocalContext.current
 
-    val auth = FirebaseAuth.getInstance()
-
     // الاستماع لأحداث التنقل القادمة من الـ ViewModel
     LaunchedEffect(key1 = true) {
         viewModel.eventFlow.collectLatest { event ->
@@ -192,7 +190,7 @@ fun SignUpScreen(
                     Spacer(modifier = Modifier.height(screenHeight * 0.02f))
 
                     PrimaryButton(
-                        text = "اشتراك",
+                        text = if (state.isLoading) "جاري الاشتراك..." else "اشتراك",
                         onClick = { viewModel.onEvent(SignUpEvent.SignUpClicked) },
                         modifier = Modifier.fillMaxWidth()
                     )
