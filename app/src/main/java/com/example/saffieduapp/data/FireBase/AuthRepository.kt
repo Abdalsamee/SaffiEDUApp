@@ -10,30 +10,54 @@ class AuthRepository @Inject constructor(
     private val auth: FirebaseAuth
 ) {
 
-    // التحقق من وجود رقم الهوية في قاعدة البيانات (المستند هو رقم الهوية)
-    suspend fun isIdNumberExists(idNumber: String): Boolean {
-        val snapshot = firestore.collection("users").document(idNumber).get().await()
+    suspend fun isIdNumberExists(idNumber: String, role: String): Boolean {
+        val collection = if (role == "student") "students" else "teachers"
+        val snapshot = firestore.collection(collection).document(idNumber).get().await()
         return snapshot.exists()
     }
 
-    // إنشاء مستخدم جديد في Firebase Authentication مع إرسال بريد التحقق
     suspend fun createUserWithEmailAndPassword(email: String, password: String) {
         val authResult = auth.createUserWithEmailAndPassword(email, password).await()
         authResult.user?.sendEmailVerification()?.await()
     }
 
-    // حفظ بيانات المستخدم في Firestore ضمن مجموعة "users" باستخدام رقم الهوية كمفتاح
-    suspend fun registerUserData(
+    // حفظ بيانات الطالب
+    suspend fun registerStudentData(
         idNumber: String,
         fullName: String,
         email: String,
         grade: String
     ) {
         val userData = hashMapOf(
+            "idNumber" to idNumber,
             "fullName" to fullName,
             "email" to email,
-            "grade" to grade
+            "grade" to grade,
+            "role" to "student"
         )
+
+        firestore.collection("users")
+            .document(idNumber)
+            .set(userData)
+            .await()
+    }
+
+// نفس التعديل لـ registerTeacherData
+
+    // حفظ بيانات المعلم
+    suspend fun registerTeacherData(
+        idNumber: String,
+        fullName: String,
+        email: String,
+        subject: String
+    ) {
+        val userData = hashMapOf(
+            "fullName" to fullName,
+            "email" to email,
+            "subject" to subject,
+            "role" to "teacher"
+        )
+
         firestore.collection("users")
             .document(idNumber)
             .set(userData)

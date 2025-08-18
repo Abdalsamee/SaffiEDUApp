@@ -3,6 +3,7 @@
 package com.example.saffieduapp.presentation.screens.login
 
 import android.annotation.SuppressLint
+import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -17,6 +18,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -34,20 +36,26 @@ import kotlinx.coroutines.flow.collectLatest
 @SuppressLint("UnusedBoxWithConstraintsScope")
 @Composable
 fun LoginScreen(
-    onLoginSuccess: () -> Unit,
+    onStudentLogin: () -> Unit,   // عند دخول الطالب
     onNavigateToSignUp: () -> Unit,
     viewModel: LoginViewModel = hiltViewModel()
 ) {
+    val context = LocalContext.current
     val state by viewModel.uiState.collectAsState()
 
     LaunchedEffect(key1 = true) {
         viewModel.eventFlow.collectLatest { event ->
             when (event) {
-                is LoginViewModel.UiEvent.LoginSuccess -> onLoginSuccess()
+                is LoginViewModel.UiEvent.LoginSuccess -> {
+                        onStudentLogin()
+
+                }
+                is LoginViewModel.UiEvent.ShowError -> {
+                    Toast.makeText(context, "تعذر تحديد دور المستخدم، يرجى التواصل مع الإدارة", Toast.LENGTH_SHORT).show()
+                }
             }
         }
     }
-
     BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
@@ -136,7 +144,13 @@ fun LoginScreen(
                         ) {
                             Checkbox(
                                 checked = state.rememberMe,
-                                onCheckedChange = { viewModel.onEvent(LoginEvent.RememberMeChanged(it)) },
+                                onCheckedChange = {
+                                    viewModel.onEvent(
+                                        LoginEvent.RememberMeChanged(
+                                            it
+                                        )
+                                    )
+                                },
                                 colors = CheckboxDefaults.colors(
                                     checkedColor = AppPrimary,
                                     checkmarkColor = Color.White
@@ -204,7 +218,11 @@ fun LoginScreen(
                     ClickableText(
                         text = annotatedText,
                         onClick = { offset ->
-                            annotatedText.getStringAnnotations(tag = "signup", start = offset, end = offset)
+                            annotatedText.getStringAnnotations(
+                                tag = "signup",
+                                start = offset,
+                                end = offset
+                            )
                                 .firstOrNull()?.let { onNavigateToSignUp() }
                         },
                         modifier = Modifier

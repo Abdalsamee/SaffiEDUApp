@@ -23,7 +23,8 @@ class LoginViewModel @Inject constructor(
     val uiState = _uiState.asStateFlow()
 
     sealed class UiEvent {
-        object LoginSuccess : UiEvent()
+        data class LoginSuccess(val role: String) : UiEvent()
+        data class ShowError(val message: String) : UiEvent()
     }
 
     private val _eventFlow = MutableSharedFlow<UiEvent>()
@@ -34,17 +35,21 @@ class LoginViewModel @Inject constructor(
             is LoginEvent.IdChanged -> {
                 _uiState.value = _uiState.value.copy(id = event.id)
             }
+
             is LoginEvent.PasswordChanged -> {
                 _uiState.value = _uiState.value.copy(password = event.password)
             }
+
             is LoginEvent.RememberMeChanged -> {
                 _uiState.value = _uiState.value.copy(rememberMe = event.remember)
             }
+
             is LoginEvent.TogglePasswordVisibility -> {
                 _uiState.value = _uiState.value.copy(
                     isPasswordVisible = !_uiState.value.isPasswordVisible
                 )
             }
+
             is LoginEvent.LoginClicked -> {
                 loginUser()
             }
@@ -58,7 +63,6 @@ class LoginViewModel @Inject constructor(
             val id = _uiState.value.id.trim()
             val password = _uiState.value.password.trim()
 
-            // ✅ فحص الحقول الفارغة
             if (id.isEmpty() || password.isEmpty()) {
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
@@ -67,64 +71,61 @@ class LoginViewModel @Inject constructor(
                 return@launch
             }
 
-            // ✅ فحص طول كلمة المرور
-            if (password.length < 6) {
-                _uiState.value = _uiState.value.copy(
-                    isLoading = false,
-                    errorMessage = "كلمة المرور يجب أن تكون 6 خانات أو أكثر"
-                )
-                return@launch
-            }
-
             try {
-                // البحث عن المستخدم في Firestore باستخدام رقم الهوية
-                val snapshot = firestore.collection("users")
-                    .document(id)
-                    .get()
-                    .await()
+                // 🔹 ابحث في مجموعة "users" باستخدام رقم الهوية كـ Document ID
+                val snapshot = firestore.collection("users").document(id).get().await()
 
                 if (!snapshot.exists()) {
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
-                        errorMessage = "رقم الهوية غير موجود"
+                        errorMessage = "رقم الهوية غير مسجل"
                     )
                     return@launch
                 }
 
-                val email = snapshot.getString("email") ?: ""
-                if (email.isEmpty()) {
+                // تحقق من وجود البريد الإلكتروني
+                val email = snapshot.getString("email") ?: run {
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
-                        errorMessage = "لا يوجد بريد إلكتروني مرتبط برقم الهوية"
+                        errorMessage = "لا يوجد بريد إلكتروني مرتبط بهذا الحساب"
                     )
                     return@launch
                 }
 
-                // تسجيل الدخول عبر Firebase Authentication
+                // حاول تسجيل الدخول باستخدام Firebase Auth
                 val result = auth.signInWithEmailAndPassword(email, password).await()
-
                 val user = result.user
-                if (user != null) {
-                    if (user.isEmailVerified) {
-                        _uiState.value = _uiState.value.copy(isLoading = false)
-                        _eventFlow.emit(UiEvent.LoginSuccess)
-                    } else {
-                        auth.signOut()
-                        _uiState.value = _uiState.value.copy(
-                            isLoading = false,
-                            errorMessage = "يرجى تفعيل البريد الإلكتروني قبل تسجيل الدخول"
-                        )
-                    }
-                } else {
+
+                if (user == null) {
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
-                        errorMessage = "حدث خطأ غير متوقع أثناء تسجيل الدخول"
+                        errorMessage = "فشل تسجيل الدخول: بيانات غير صحيحة"
                     )
+                    return@launch
                 }
+
+                if (!user.isEmailVerified) {
+                    auth.signOut()
+                    _uiState.value = _uiState.value.copy(
+                        isLoading = false,
+                        errorMessage = "يجب تفعيل البريد الإلكتروني أولاً"
+                    )
+                    return@launch
+                }
+
+                // تحديد دور المستخدم (طالب أو معلم)
+                val role = snapshot.getString("role") ?: "student"
+                _eventFlow.emit(UiEvent.LoginSuccess(role))
+
             } catch (e: Exception) {
+                val errorMessage = when (e) {
+                    is com.google.firebase.auth.FirebaseAuthInvalidCredentialsException -> "البريد الإلكتروني أو كلمة المرور غير صحيحة"
+                    is com.google.firebase.FirebaseNetworkException -> "خطأ في الاتصال بالإنترنت"
+                    else -> "حدث خطأ غير متوقع: ${e.localizedMessage}"
+                }
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
-                    errorMessage = e.message ?: "فشل تسجيل الدخول"
+                    errorMessage = errorMessage
                 )
             }
         }
