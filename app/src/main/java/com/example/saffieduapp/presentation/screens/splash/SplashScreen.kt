@@ -1,6 +1,8 @@
 package com.example.saffieduapp.presentation.screens.splash
 
-import androidx.compose.animation.core.*
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -22,7 +24,6 @@ import kotlinx.coroutines.flow.first
 
 @Composable
 fun SplashScreen(
-    // 1. تم حذف الـ NavController من هنا
     onNavigate: (String) -> Unit,
     viewModel: SplashViewModel = hiltViewModel()
 ) {
@@ -31,30 +32,23 @@ fun SplashScreen(
     val scaleLogo = remember { Animatable(0f) }
 
     LaunchedEffect(Unit) {
-        // Animation logic remains the same
-        val circleAnimationDuration = 700
         scaleCircle.animateTo(
             targetValue = 55f,
-            animationSpec = tween(durationMillis = circleAnimationDuration, easing = FastOutSlowInEasing)
+            animationSpec = tween(durationMillis = 700, easing = FastOutSlowInEasing)
         )
-
         delay(150)
-
-        val logoAnimationDuration = 700
         scaleLogo.animateTo(
             targetValue = 1f,
-            animationSpec = tween(durationMillis = logoAnimationDuration, easing = FastOutSlowInEasing)
+            animationSpec = tween(durationMillis = 700, easing = FastOutSlowInEasing)
         )
 
         val destination = snapshotFlow { startDestination }
             .filterNotNull()
             .first()
 
-        // 2. تم استبدال navController.navigate بـ onNavigate
         onNavigate(destination)
     }
 
-    // UI Box remains the same
     Box(
         modifier = Modifier
             .fillMaxSize()

@@ -104,7 +104,7 @@ class LoginViewModel @Inject constructor(
                 }
 
                 // 🔹 ابحث في مجموعة "users" باستخدام رقم الهوية كـ Document ID
-                val snapshot = firestore.collection("users").document(id).get().await()
+                val snapshot = firestore.collection("students").document(id).get().await()
 
                 if (!snapshot.exists()) {
                     _uiState.value = _uiState.value.copy(

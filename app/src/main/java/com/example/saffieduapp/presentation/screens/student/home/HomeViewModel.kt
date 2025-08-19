@@ -51,7 +51,7 @@ class HomeViewModel @Inject constructor(
             if (currentUserEmail != null) {
                 try {
                     // استعلام لجلب بيانات المستخدم بناء على البريد الإلكتروني
-                    val querySnapshot = firestore.collection("users")
+                    val querySnapshot = firestore.collection("students")
                         .whereEqualTo("email", currentUserEmail)
                         .get()
                         .await()
