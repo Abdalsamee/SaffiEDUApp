@@ -1,6 +1,5 @@
 package com.example.saffieduapp.data.local.preferences
 
-// PreferencesManager.kt
 import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.*
@@ -9,12 +8,16 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
+import javax.inject.Singleton
+
+// PreferencesManager.kt
+@Singleton
 class PreferencesManager @Inject constructor(
     @ApplicationContext private val context: Context
 ) {
-    private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "user_credentials")
-
+    // نقل تعريف الـ DataStore إلى companion object لضمان أنه Singleton
     companion object {
+        private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "user_credentials")
         val USER_ID = stringPreferencesKey("user_id")
         val USER_PASSWORD = stringPreferencesKey("user_password")
     }
