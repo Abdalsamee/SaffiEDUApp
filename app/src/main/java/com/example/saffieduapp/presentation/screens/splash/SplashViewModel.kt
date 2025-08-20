@@ -30,31 +30,30 @@ class SplashViewModel @Inject constructor(
 
     private fun checkOnboardingAndLogin() {
         viewModelScope.launch {
-            val isOnboardingCompleted = getOnboardingCompletedUseCase().first()
-            if (!isOnboardingCompleted) {
-                _startDestination.value = Routes.ONBOARDING_SCREEN
-                return@launch
-            }
-
-            val currentUser = auth.currentUser
-            if (currentUser == null || !currentUser.isEmailVerified) {
-                _startDestination.value = Routes.LOGIN_SCREEN
-                return@launch
-            }
-
-            // ✅ نحاول تحديد الدور عبر uid ثم عبر email
-            val uid = currentUser.uid
-            val email = currentUser.email
-
             try {
-                // هل هو طالب؟
-                val studentByUid = firestore.collection("students")
+                val isOnboardingCompleted = getOnboardingCompletedUseCase().first()
+                if (!isOnboardingCompleted) {
+                    _startDestination.value = Routes.ONBOARDING_SCREEN
+                    return@launch
+                }
+
+                val currentUser = auth.currentUser
+                if (currentUser == null || !currentUser.isEmailVerified) {
+                    _startDestination.value = Routes.LOGIN_SCREEN
+                    return@launch
+                }
+
+                val uid = currentUser.uid
+                val email = currentUser.email
+
+                // التحقق من الطالب
+                val studentQuery = firestore.collection("students")
                     .whereEqualTo("uid", uid)
                     .limit(1)
                     .get()
                     .await()
 
-                val isStudent = !studentByUid.isEmpty || (
+                val isStudent = !studentQuery.isEmpty || (
                         email != null && !firestore.collection("students")
                             .whereEqualTo("email", email)
                             .limit(1)
@@ -68,14 +67,14 @@ class SplashViewModel @Inject constructor(
                     return@launch
                 }
 
-                // هل هو معلم؟
-             /*   val teacherByUid = firestore.collection("teachers")
+                // التحقق من المعلم
+             /*   val teacherQuery = firestore.collection("teachers")
                     .whereEqualTo("uid", uid)
                     .limit(1)
                     .get()
                     .await()
 
-                val isTeacher = !teacherByUid.isEmpty || (
+                val isTeacher = !teacherQuery.isEmpty || (
                         email != null && !firestore.collection("teachers")
                             .whereEqualTo("email", email)
                             .limit(1)
@@ -84,12 +83,8 @@ class SplashViewModel @Inject constructor(
                             .isEmpty
                         )
 
-                _startDestination.value = if (isTeacher) {
-                    Routes.TEACHER_HOME
-                }*/ else {
-                    // لم نعثر على دوره — نعيده لتسجيل الدخول
-                    Routes.LOGIN_SCREEN
-                }
+                _startDestination.value = if (isTeacher) Routes.TEACHER_HOME else Routes.LOGIN_SCREEN*/
+
             } catch (_: Exception) {
                 _startDestination.value = Routes.LOGIN_SCREEN
             }

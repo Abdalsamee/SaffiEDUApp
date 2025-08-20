@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
@@ -35,24 +36,27 @@ class LoginViewModel @Inject constructor(
     init {
         loadSavedCredentials()
     }
+
     private fun loadSavedCredentials() {
         viewModelScope.launch {
-            preferencesManager.getCredentials().collect { (savedId, savedPassword) ->
-                savedId?.let { id ->
-                    _uiState.value = _uiState.value.copy(
-                        id = id,
-                        rememberMe = true
-                    )
-                }
-                savedPassword?.let { password ->
-                    _uiState.value = _uiState.value.copy(
-                        password = password,
-                        rememberMe = true
-                    )
-                }
+            // ✅ تحميل البيانات لمرة واحدة فقط
+            val (savedId, savedPassword) = preferencesManager.getCredentials().first()
+
+            savedId?.let { id ->
+                _uiState.value = _uiState.value.copy(
+                    id = id,
+                    rememberMe = true
+                )
+            }
+            savedPassword?.let { password ->
+                _uiState.value = _uiState.value.copy(
+                    password = password,
+                    rememberMe = true
+                )
             }
         }
     }
+
     fun onEvent(event: LoginEvent) {
         when (event) {
             is LoginEvent.IdChanged -> {
@@ -103,7 +107,7 @@ class LoginViewModel @Inject constructor(
                     preferencesManager.clearCredentials()
                 }
 
-                // 🔹 ابحث في مجموعة "users" باستخدام رقم الهوية كـ Document ID
+                // 🔹 ابحث في مجموعة "students" باستخدام رقم الهوية كـ Document ID
                 val snapshot = firestore.collection("students").document(id).get().await()
 
                 if (!snapshot.exists()) {

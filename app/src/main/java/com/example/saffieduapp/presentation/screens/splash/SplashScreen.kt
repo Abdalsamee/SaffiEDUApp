@@ -31,6 +31,7 @@ fun SplashScreen(
     val scaleCircle = remember { Animatable(0.1f) }
     val scaleLogo = remember { Animatable(0f) }
 
+    // رسوم الحركة
     LaunchedEffect(Unit) {
         scaleCircle.animateTo(
             targetValue = 55f,
@@ -41,12 +42,13 @@ fun SplashScreen(
             targetValue = 1f,
             animationSpec = tween(durationMillis = 700, easing = FastOutSlowInEasing)
         )
+    }
 
-        val destination = snapshotFlow { startDestination }
-            .filterNotNull()
-            .first()
-
-        onNavigate(destination)
+    // الانتقال عند توفر الوجهة
+    LaunchedEffect(startDestination) {
+        startDestination?.let { destination ->
+            onNavigate(destination)
+        }
     }
 
     Box(

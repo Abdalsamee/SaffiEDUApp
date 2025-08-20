@@ -21,7 +21,7 @@ class AuthRepository @Inject constructor(
         authResult.user?.sendEmailVerification()?.await()
     }
 
-    // ✅ حفظ بيانات الطالب مع uid + role + grade + idNumber
+    // ✅ حفظ بيانات الطالب مع role + grade + idNumber
     suspend fun registerStuData(
         collectionName: String = "students",
         idNumber: String,
@@ -29,12 +29,8 @@ class AuthRepository @Inject constructor(
         email: String,
         grade: String,
     ) {
-        val uid = auth.currentUser?.uid
-            ?: throw IllegalStateException("No authenticated user to attach UID.")
 
         val userData = hashMapOf(
-            "uid" to uid,
-            "idNumber" to idNumber,
             "fullName" to fullName,
             "email" to email,
             "grade" to grade,
@@ -54,10 +50,7 @@ class AuthRepository @Inject constructor(
         email: String,
         subject: String,
     ) {
-        val uid = auth.currentUser?.uid // قد يكون null إذا أضيف يدويًا
         val userData = hashMapOf(
-            "uid" to uid,
-            "idNumber" to idNumber,
             "fullName" to fullName,
             "email" to email,
             "subject" to subject,
