@@ -65,7 +65,7 @@ class SignUpViewModel @Inject constructor(
 
             // 👈 تخزين البيانات حسب الدور
             if (currentState.role == "student") {
-                authRepository.registerStudentData(
+                authRepository.registerStuData(
                     idNumber = currentState.idNumber,
                     fullName = currentState.fullName,
                     email = currentState.email,

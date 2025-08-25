@@ -21,35 +21,34 @@ class AuthRepository @Inject constructor(
         authResult.user?.sendEmailVerification()?.await()
     }
 
-    // حفظ بيانات الطالب
-    suspend fun registerStudentData(
+    // ✅ حفظ بيانات الطالب مع role + grade + idNumber
+    suspend fun registerStuData(
+        collectionName: String = "students",
         idNumber: String,
         fullName: String,
         email: String,
-        grade: String
+        grade: String,
     ) {
+
         val userData = hashMapOf(
-            "idNumber" to idNumber,
             "fullName" to fullName,
             "email" to email,
             "grade" to grade,
             "role" to "student"
         )
 
-        firestore.collection("users")
-            .document(idNumber)
+        firestore.collection(collectionName)
+            .document(idNumber) // المستند يبقى برقم الهوية
             .set(userData)
             .await()
     }
 
-// نفس التعديل لـ registerTeacherData
-
-    // حفظ بيانات المعلم
+    // إن احتجت لاحقًا للمعلمين
     suspend fun registerTeacherData(
         idNumber: String,
         fullName: String,
         email: String,
-        subject: String
+        subject: String,
     ) {
         val userData = hashMapOf(
             "fullName" to fullName,
@@ -57,8 +56,7 @@ class AuthRepository @Inject constructor(
             "subject" to subject,
             "role" to "teacher"
         )
-
-        firestore.collection("users")
+        firestore.collection("teachers")
             .document(idNumber)
             .set(userData)
             .await()
