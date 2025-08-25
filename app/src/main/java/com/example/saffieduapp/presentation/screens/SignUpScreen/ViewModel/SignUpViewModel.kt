@@ -19,15 +19,12 @@ class SignUpViewModel @Inject constructor(
     private val authRepository: AuthRepository
 ) : ViewModel() {
 
-    // حالة الشاشة - تتغير مع تفاعل المستخدم أو تحديث البيانات
     private val _state = MutableStateFlow(SignUpState())
     val state = _state.asStateFlow()
 
-    // لتبادل الأحداث بين ViewModel و UI (مثل النجاح أو الرسائل)
     private val _eventFlow = MutableSharedFlow<UiEvent>()
     val eventFlow = _eventFlow.asSharedFlow()
 
-    // التعامل مع الأحداث التي تصدر من الشاشة (مثل تغييرات النصوص أو النقر على زر التسجيل)
     fun onEvent(event: SignUpEvent) {
         when (event) {
             is SignUpEvent.FullNameChanged -> _state.value = _state.value.copy(fullName = event.fullName)
@@ -39,65 +36,66 @@ class SignUpViewModel @Inject constructor(
             is SignUpEvent.TermsAgreementChanged -> _state.value = _state.value.copy(agreedToTerms = event.agreed)
             is SignUpEvent.TogglePasswordVisibility -> _state.value = _state.value.copy(isPasswordVisible = !_state.value.isPasswordVisible)
             is SignUpEvent.ToggleConfirmPasswordVisibility -> _state.value = _state.value.copy(isConfirmPasswordVisible = !_state.value.isConfirmPasswordVisible)
-            is SignUpEvent.SignUpClicked -> viewModelScope.launch { signUpUser() } // بدأ عملية التسجيل عند النقر على الزر
+            is SignUpEvent.SignUpClicked -> viewModelScope.launch { signUpUser() }
         }
     }
 
-    // دالة التسجيل الرئيسية: التحقق من البيانات ثم محاولة التسجيل في Firebase
     private suspend fun signUpUser() {
         val currentState = _state.value
 
-        // التحقق من صحة البيانات المدخلة، إذا فشل تظهر رسالة خطأ وتوقف العملية
         if (!validateInputs(currentState)) return
 
-        // تحديث الحالة إلى تحميل أثناء تنفيذ التسجيل
         _state.value = _state.value.copy(isLoading = true, signUpError = null)
 
         try {
-            delay(3000) // تأخير محاكاة لتخفيف ضغط الشبكة أو انتظار استجابة Firebase
+            delay(1500)
 
-            // التحقق إذا كان رقم الهوية موجود مسبقاً في قاعدة البيانات
-            if (authRepository.isIdNumberExists(currentState.idNumber)) {
+            // 👈 تحقق من رقم الهوية حسب الدور
+            if (authRepository.isIdNumberExists(currentState.idNumber, currentState.role)) {
                 _state.value = _state.value.copy(isLoading = false)
                 showError("رقم الهوية مستخدم مسبقًا")
                 return
             }
 
-            // إنشاء حساب Firebase Authentication بالبريد وكلمة السر
+            // 👈 إنشاء الحساب
             authRepository.createUserWithEmailAndPassword(
                 email = currentState.email,
                 password = currentState.password
             )
 
-            // تخزين باقي بيانات المستخدم في Firestore بدون كلمة المرور
-            authRepository.registerUserData(
-                idNumber = currentState.idNumber,
-                fullName = currentState.fullName,
-                email = currentState.email,
-                grade = currentState.selectedGrade
-            )
+            // 👈 تخزين البيانات حسب الدور
+            if (currentState.role == "student") {
+                authRepository.registerStudentData(
+                    idNumber = currentState.idNumber,
+                    fullName = currentState.fullName,
+                    email = currentState.email,
+                    grade = currentState.selectedGrade
+                )
+            } else {
+                authRepository.registerTeacherData(
+                    idNumber = currentState.idNumber,
+                    fullName = currentState.fullName,
+                    email = currentState.email,
+                    subject = currentState.selectedSubject
+                )
+            }
 
-            // تحديث الحالة بعد نجاح التسجيل
             _state.value = _state.value.copy(isLoading = false)
-
-            // إرسال حدث نجاح للواجهة لبدء الانتقال إلى شاشة تسجيل الدخول
             _eventFlow.emit(UiEvent.SignUpSuccessWithVerification)
 
         } catch (e: Exception) {
-            // في حالة وجود خطأ، عرض رسالة للمستخدم
             _state.value = _state.value.copy(isLoading = false)
             showError("فشل التسجيل: ${e.message}")
         }
     }
 
-    // دالة مساعدة للتحقق من صحة كل الحقول المطلوبة
     private fun validateInputs(state: SignUpState): Boolean {
-        if (state.fullName.isBlank() ||
-            state.idNumber.isBlank() ||
-            state.email.isBlank() ||
-            state.password.isBlank() ||
-            state.confirmPassword.isBlank() ||
-            state.selectedGrade.isBlank()
+        if (state.fullName.isEmpty() ||
+            state.idNumber.isEmpty() ||
+            state.email.isEmpty() ||
+            state.password.isEmpty() ||
+            state.confirmPassword.isEmpty() ||
+            state.selectedGrade.isEmpty()
         ) {
             showError("يرجى ملء جميع الحقول")
             return false
@@ -113,10 +111,16 @@ class SignUpViewModel @Inject constructor(
             return false
         }
 
-        if (state.password.length < 6) {
-            showError("كلمة المرور يجب أن تكون 6 أحرف على الأقل")
+        if (state.password.length !in 8..16) {
+            showError("كلمة المرور يجب أن تكون بين 8 و 16 حرفًا")
             return false
         }
+
+        if (!state.password.any { it.isDigit() } || !state.password.any { it.isLetter() }) {
+            showError("كلمة المرور يجب أن تحتوي على حروف وأرقام")
+            return false
+        }
+
 
         if (state.password != state.confirmPassword) {
             showError("كلمتا المرور غير متطابقتين")
@@ -131,7 +135,6 @@ class SignUpViewModel @Inject constructor(
         return true
     }
 
-    // دالة عرض رسالة الخطأ في الحالة مع إزالة الرسالة بعد 3 ثواني تلقائياً
     private fun showError(message: String) {
         _state.value = _state.value.copy(signUpError = message)
         viewModelScope.launch {
@@ -140,9 +143,8 @@ class SignUpViewModel @Inject constructor(
         }
     }
 
-    // أحداث خاصة بالواجهة (يمكن إضافتها لاحقًا حسب الحاجة)
     sealed class UiEvent {
         data class ShowMessage(val message: String) : UiEvent()
-        object SignUpSuccessWithVerification : UiEvent() // عند نجاح التسجيل
+        object SignUpSuccessWithVerification : UiEvent()
     }
 }

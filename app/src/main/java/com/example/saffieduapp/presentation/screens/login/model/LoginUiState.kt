@@ -1,7 +1,5 @@
 package com.example.saffieduapp.presentation.screens.login
 
-
-
 data class LoginUiState(
     val id: String = "",
     val password: String = "",

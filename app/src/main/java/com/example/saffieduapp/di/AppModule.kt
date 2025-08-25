@@ -2,6 +2,7 @@ package com.example.saffieduapp.di
 
 import android.content.Context
 import com.example.saffieduapp.data.local.preferences.OnboardingPreferences
+import com.example.saffieduapp.data.local.preferences.PreferencesManager
 import com.example.saffieduapp.domain.use_case.onboarding.GetOnboardingCompletedUseCase
 import com.example.saffieduapp.domain.use_case.onboarding.SetOnboardingCompletedUseCase
 import com.google.firebase.auth.FirebaseAuth
@@ -44,4 +45,16 @@ object AppModule {
     @Provides
     @Singleton
     fun provideFirebaseFirestore(): FirebaseFirestore = FirebaseFirestore.getInstance()
+
+
+    @Module
+    @InstallIn(SingletonComponent::class)
+    object AppModule {
+        @Provides
+        @Singleton
+        fun providePreferencesManager(@ApplicationContext context: Context): PreferencesManager {
+            return PreferencesManager(context)
+        }
+    }
+
 }

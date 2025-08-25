@@ -17,6 +17,7 @@ import com.example.saffieduapp.navigation.BottomNavItem
 import com.example.saffieduapp.navigation.Routes
 
 import com.example.saffieduapp.ui.theme.AppPrimary
+import com.example.saffieduapp.ui.theme.Cairo
 
 // خريطة: مسار الجراف (التبّ) -> مسار شاشة البداية داخل الجراف
 private val tabStartRoutes = mapOf(
@@ -102,6 +103,7 @@ private fun AdaptiveLabel(longText: String, shortText: String) {
         maxLines = 1,
         softWrap = false,
         overflow = TextOverflow.Clip,
-        onTextLayout = { r -> if (!useShortText && r.didOverflowWidth) useShortText = true }
+        onTextLayout = { r -> if (!useShortText && r.didOverflowWidth) useShortText = true },
+        fontFamily = Cairo
     )
 }

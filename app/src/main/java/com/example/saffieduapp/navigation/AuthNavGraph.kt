@@ -10,6 +10,7 @@ import com.example.saffieduapp.presentation.screens.onboarding.OnboardingScreen
 import com.example.saffieduapp.presentation.screens.splash.SplashScreen
 import com.example.saffieduapp.presentation.screens.login.LoginViewModel
 import androidx.hilt.navigation.compose.hiltViewModel
+import okhttp3.Route
 
 fun NavGraphBuilder.authNavGraph(navController: NavController) {
     navigation(
@@ -39,9 +40,9 @@ fun NavGraphBuilder.authNavGraph(navController: NavController) {
 
             LoginScreen(
                 viewModel = loginViewModel,
-                onLoginSuccess = {
-                    navController.navigate("main_graph") {
-                        popUpTo("auth_graph") { inclusive = true }
+                onStudentLogin = {
+                    navController.navigate(Routes.MAIN_GRAPH) {
+                        popUpTo(Routes.AUTH_GRAPH) { inclusive = true }
                     }
                 },
                 onNavigateToSignUp = {

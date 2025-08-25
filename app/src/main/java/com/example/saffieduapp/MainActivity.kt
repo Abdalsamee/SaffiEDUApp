@@ -12,6 +12,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.saffieduapp.navigation.authNavGraph
 import com.example.saffieduapp.presentation.screens.MainAppScreen
+import com.example.saffieduapp.presentation.screens.teacher.TeacherMainScreen
 
 import com.example.saffieduapp.ui.theme.SaffiEDUAppTheme
 import dagger.hilt.android.AndroidEntryPoint
@@ -22,7 +23,7 @@ class MainActivity : ComponentActivity() {
     @RequiresApi(Build.VERSION_CODES.JELLY_BEAN_MR1)
     override fun attachBaseContext(newBase: Context) {
         val config = Configuration(newBase.resources.configuration)
-        config.fontScale = 1.0f // تثبيت حجم الخط على القيمة الافتراضية
+        config.fontScale = 1.0f
         val context = newBase.createConfigurationContext(config)
         super.attachBaseContext(context)
     }
@@ -32,17 +33,19 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             SaffiEDUAppTheme {
-                val navController = rememberNavController()
-                NavHost(
-                    navController = navController,
-                    startDestination = "auth_graph"
-                ) {
-                    authNavGraph(navController)
+//                val navController = rememberNavController()
+//                NavHost(
+//                    navController = navController,
+//                    startDestination = "auth_graph"
+//                ) {
+//                    authNavGraph(navController)
+//
+//                    composable(route = "main_graph") {
+//                        MainAppScreen()
+//                    }
+//                }
 
-                    composable(route = "main_graph") {
-                        MainAppScreen()
-                    }
-                }
+                TeacherMainScreen()
             }
 
 

@@ -3,6 +3,7 @@
 package com.example.saffieduapp.presentation.screens.login
 
 import android.annotation.SuppressLint
+import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -17,6 +18,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -34,16 +36,31 @@ import kotlinx.coroutines.flow.collectLatest
 @SuppressLint("UnusedBoxWithConstraintsScope")
 @Composable
 fun LoginScreen(
-    onLoginSuccess: () -> Unit,
+    onStudentLogin: () -> Unit,
     onNavigateToSignUp: () -> Unit,
     viewModel: LoginViewModel = hiltViewModel()
 ) {
+    val context = LocalContext.current
     val state by viewModel.uiState.collectAsState()
 
     LaunchedEffect(key1 = true) {
         viewModel.eventFlow.collectLatest { event ->
             when (event) {
-                is LoginViewModel.UiEvent.LoginSuccess -> onLoginSuccess()
+                is LoginViewModel.UiEvent.LoginSuccess -> {
+                    when (event.role) {
+                        "student" -> onStudentLogin()
+                        else -> {
+                            Toast.makeText(
+                                context,
+                                "تعذر تحديد دور المستخدم، يرجى التواصل مع الإدارة",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                    }
+                }
+                is LoginViewModel.UiEvent.ShowError -> {
+                    Toast.makeText(context, event.message, Toast.LENGTH_SHORT).show()
+                }
             }
         }
     }
@@ -136,7 +153,11 @@ fun LoginScreen(
                         ) {
                             Checkbox(
                                 checked = state.rememberMe,
-                                onCheckedChange = { viewModel.onEvent(LoginEvent.RememberMeChanged(it)) },
+                                onCheckedChange = {
+                                    viewModel.onEvent(
+                                        LoginEvent.RememberMeChanged(it)
+                                    )
+                                },
                                 colors = CheckboxDefaults.colors(
                                     checkedColor = AppPrimary,
                                     checkmarkColor = Color.White
@@ -153,7 +174,6 @@ fun LoginScreen(
                         Text(
                             text = "هل نسيت كلمة المرور؟",
                             color = AppTextPrimary,
-                            modifier = Modifier.clickable { /* TODO: استرجاع كلمة المرور */ },
                             style = MaterialTheme.typography.bodyMedium,
                             textAlign = TextAlign.End
                         )
@@ -161,14 +181,12 @@ fun LoginScreen(
 
                     Spacer(modifier = Modifier.height(screenHeight * 0.03f))
 
-                    // زر تسجيل الدخول مع مؤشر تحميل
                     PrimaryButton(
                         text = if (state.isLoading) "جاري الدخول..." else "ابدأ",
                         onClick = { viewModel.onEvent(LoginEvent.LoginClicked) },
                         modifier = Modifier.fillMaxWidth(),
                     )
 
-                    // عرض رسالة الخطأ إن وجدت
                     state.errorMessage?.let {
                         Spacer(modifier = Modifier.height(10.dp))
                         Text(
@@ -204,13 +222,18 @@ fun LoginScreen(
                     ClickableText(
                         text = annotatedText,
                         onClick = { offset ->
-                            annotatedText.getStringAnnotations(tag = "signup", start = offset, end = offset)
-                                .firstOrNull()?.let { onNavigateToSignUp() }
+                            annotatedText.getStringAnnotations(
+                                tag = "signup",
+                                start = offset,
+                                end = offset
+                            ).firstOrNull()?.let { onNavigateToSignUp() }
                         },
                         modifier = Modifier
                             .align(Alignment.CenterHorizontally)
                             .fillMaxWidth(),
-                        style = MaterialTheme.typography.bodyLarge.copy(textAlign = TextAlign.Center)
+                        style = MaterialTheme.typography.bodyLarge.copy(
+                            textAlign = TextAlign.Center
+                        )
                     )
                 }
             }

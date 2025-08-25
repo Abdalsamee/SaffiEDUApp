@@ -21,4 +21,11 @@ object Routes {
     // Children للمواد
     const val SUBJECTS_LIST_SCREEN    = "subjects_list_screen"
     const val SUBJECT_DETAILS_SCREEN  = "subject_details_screen"
+
+    //Teacher  للمعلم
+    const val TEACHER_HOME_SCREEN = "teacher_home_screen"
+    const val TEACHER_CLASSES_SCREEN = "teacher_classes_screen"
+    const val TEACHER_TASKS_SCREEN = "teacher_tasks_screen"
+    const val TEACHER_CHAT_SCREEN = "teacher_chat_screen"
+    const val TEACHER_PROFILE_SCREEN = "teacher_profile_screen"
 }

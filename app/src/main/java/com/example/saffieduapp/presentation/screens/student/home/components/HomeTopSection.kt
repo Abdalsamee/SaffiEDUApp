@@ -12,7 +12,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
@@ -66,11 +69,31 @@ fun HomeTopSection(
             Column(horizontalAlignment = Alignment.Start) {
                 Text(text = "مرحباً 👋", color = Color.White, fontSize = 16.sp ,fontWeight = FontWeight.Bold)
                 Text(
-                    text = "$studentName ($studentGrade)",
-                    color = Color.White,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold
+                    buildAnnotatedString {
+                        withStyle(
+                            style = SpanStyle(
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                        ) {
+                            append(studentName)
+                        }
+
+                        append(" ") // مسافة بين الاسم والصف
+
+                        withStyle(
+                            style = SpanStyle(
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Normal,
+                                color = Color.White
+                            )
+                        ) {
+                            append("($studentGrade)")
+                        }
+                    }
                 )
+
             }
 
 
