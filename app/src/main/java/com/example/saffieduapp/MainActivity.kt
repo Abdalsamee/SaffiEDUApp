@@ -33,19 +33,18 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             SaffiEDUAppTheme {
-//                val navController = rememberNavController()
-//                NavHost(
-//                    navController = navController,
-//                    startDestination = "auth_graph"
-//                ) {
-//                    authNavGraph(navController)
-//
-//                    composable(route = "main_graph") {
-//                        MainAppScreen()
-//                    }
-//                }
+                val navController = rememberNavController()
+                NavHost(
+                    navController = navController,
+                    startDestination = "auth_graph"
+                ) {
+                    authNavGraph(navController)
 
-                TeacherMainScreen()
+                    composable(route = "main_graph") {
+                       MainAppScreen()
+                    }
+                }
+
             }
 
 

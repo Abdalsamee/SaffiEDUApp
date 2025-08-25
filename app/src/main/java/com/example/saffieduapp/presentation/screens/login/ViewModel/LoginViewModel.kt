@@ -39,9 +39,7 @@ class LoginViewModel @Inject constructor(
 
     private fun loadSavedCredentials() {
         viewModelScope.launch {
-            // ✅ تحميل البيانات لمرة واحدة فقط
             val (savedId, savedPassword) = preferencesManager.getCredentials().first()
-
             savedId?.let { id ->
                 _uiState.value = _uiState.value.copy(
                     id = id,
@@ -59,27 +57,12 @@ class LoginViewModel @Inject constructor(
 
     fun onEvent(event: LoginEvent) {
         when (event) {
-            is LoginEvent.IdChanged -> {
-                _uiState.value = _uiState.value.copy(id = event.id)
-            }
-
-            is LoginEvent.PasswordChanged -> {
-                _uiState.value = _uiState.value.copy(password = event.password)
-            }
-
-            is LoginEvent.RememberMeChanged -> {
-                _uiState.value = _uiState.value.copy(rememberMe = event.remember)
-            }
-
-            is LoginEvent.TogglePasswordVisibility -> {
-                _uiState.value = _uiState.value.copy(
-                    isPasswordVisible = !_uiState.value.isPasswordVisible
-                )
-            }
-
-            is LoginEvent.LoginClicked -> {
-                loginUser()
-            }
+            is LoginEvent.IdChanged -> _uiState.value = _uiState.value.copy(id = event.id)
+            is LoginEvent.PasswordChanged -> _uiState.value = _uiState.value.copy(password = event.password)
+            is LoginEvent.RememberMeChanged -> _uiState.value = _uiState.value.copy(rememberMe = event.remember)
+            is LoginEvent.TogglePasswordVisibility -> _uiState.value =
+                _uiState.value.copy(isPasswordVisible = !_uiState.value.isPasswordVisible)
+            is LoginEvent.LoginClicked -> loginUser()
         }
     }
 
@@ -100,17 +83,30 @@ class LoginViewModel @Inject constructor(
             }
 
             try {
-                // Save credentials if "Remember Me" is checked
-                if (rememberMe) {
-                    preferencesManager.saveCredentials(id, password)
-                } else {
-                    preferencesManager.clearCredentials()
+                // حفظ بيانات "تذكرني"
+                if (rememberMe) preferencesManager.saveCredentials(id, password)
+                else preferencesManager.clearCredentials()
+
+                // أولاً، تحقق من المعلمين
+                val teacherSnapshot = firestore.collection("teachers").document(id).get().await()
+                if (teacherSnapshot.exists()) {
+                    val email = teacherSnapshot.getString("email") ?: run {
+                        _uiState.value = _uiState.value.copy(
+                            isLoading = false,
+                            errorMessage = "لا يوجد بريد إلكتروني مرتبط بحساب المعلم"
+                        )
+                        return@launch
+                    }
+                    // تسجيل الدخول بدون تحقق البريد للمعلمين
+                    auth.signInWithEmailAndPassword(email, password).await()
+                    _eventFlow.emit(UiEvent.LoginSuccess("teacher"))
+                    _uiState.value = _uiState.value.copy(isLoading = false)
+                    return@launch
                 }
 
-                // 🔹 ابحث في مجموعة "students" باستخدام رقم الهوية كـ Document ID
-                val snapshot = firestore.collection("students").document(id).get().await()
-
-                if (!snapshot.exists()) {
+                // إذا لم يكن معلم، تحقق من الطلاب
+                val studentSnapshot = firestore.collection("students").document(id).get().await()
+                if (!studentSnapshot.exists()) {
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
                         errorMessage = "رقم الهوية غير مسجل"
@@ -118,8 +114,7 @@ class LoginViewModel @Inject constructor(
                     return@launch
                 }
 
-                // تحقق من وجود البريد الإلكتروني
-                val email = snapshot.getString("email") ?: run {
+                val email = studentSnapshot.getString("email") ?: run {
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
                         errorMessage = "لا يوجد بريد إلكتروني مرتبط بهذا الحساب"
@@ -127,10 +122,8 @@ class LoginViewModel @Inject constructor(
                     return@launch
                 }
 
-                // حاول تسجيل الدخول باستخدام Firebase Auth
                 val result = auth.signInWithEmailAndPassword(email, password).await()
                 val user = result.user
-
                 if (user == null) {
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
@@ -139,6 +132,7 @@ class LoginViewModel @Inject constructor(
                     return@launch
                 }
 
+                // تحقق من البريد للطلاب فقط
                 if (!user.isEmailVerified) {
                     auth.signOut()
                     _uiState.value = _uiState.value.copy(
@@ -148,9 +142,8 @@ class LoginViewModel @Inject constructor(
                     return@launch
                 }
 
-                // تحديد دور المستخدم (طالب أو معلم)
-                val role = snapshot.getString("role") ?: "student"
-                _eventFlow.emit(UiEvent.LoginSuccess(role))
+                _eventFlow.emit(UiEvent.LoginSuccess("student"))
+                _uiState.value = _uiState.value.copy(isLoading = false)
 
             } catch (e: Exception) {
                 val errorMessage = when (e) {
