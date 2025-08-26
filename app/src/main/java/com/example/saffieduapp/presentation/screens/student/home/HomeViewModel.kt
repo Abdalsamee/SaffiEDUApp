@@ -16,7 +16,7 @@ import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 
 // نموذج بيانات المستخدم كما هو مخزن في Firestore
-data class UserData(
+data class StdData(
     val fullName: String = "",
     val grade: String = ""
 )
@@ -57,7 +57,7 @@ class HomeViewModel @Inject constructor(
                         .await()
 
                     if (!querySnapshot.isEmpty) {
-                        val userData = querySnapshot.documents[0].toObject(UserData::class.java)
+                        val userData = querySnapshot.documents[0].toObject(StdData::class.java)
                         if (userData != null) {
                             // تقسيم الاسم الكامل للحصول على الاسم الأول والاسم الأخير فقط
                             val nameParts = userData.fullName.trim().split("\\s+".toRegex())

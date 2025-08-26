@@ -10,6 +10,7 @@ import com.example.saffieduapp.presentation.screens.onboarding.OnboardingScreen
 import com.example.saffieduapp.presentation.screens.splash.SplashScreen
 import com.example.saffieduapp.presentation.screens.login.LoginViewModel
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.example.saffieduapp.presentation.screens.teacher.TeacherMainScreen
 import com.example.saffieduapp.presentation.screens.teacher.home.TeacherHomeScreen
 
 
@@ -47,7 +48,7 @@ fun NavGraphBuilder.authNavGraph(navController: NavController) {
                     }
                 },
                 onTeacherLogin = {   // ✅ أضفنا الانتقال للمعلم
-                    navController.navigate(Routes.TEACHER_HOME_SCREEN) {
+                    navController.navigate(Routes.TEACHER_MAIN_SCREEN) {
                         popUpTo(Routes.AUTH_GRAPH) { inclusive = true }
                     }
                 },
@@ -70,7 +71,7 @@ fun NavGraphBuilder.authNavGraph(navController: NavController) {
             )
         }
     }
-    composable(Routes.TEACHER_HOME_SCREEN) {
-        TeacherHomeScreen()
+    composable(Routes.TEACHER_MAIN_SCREEN) {
+        TeacherMainScreen()
     }
 }
