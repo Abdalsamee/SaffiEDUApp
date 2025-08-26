@@ -17,11 +17,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import com.example.saffieduapp.navigation.Routes
-import com.example.saffieduapp.presentation.screens.student.home.components.EnrolledSubjectsSection
-import com.example.saffieduapp.presentation.screens.student.home.components.FeaturedLessonsSection
-import com.example.saffieduapp.presentation.screens.student.home.components.HomeTopSection
-import com.example.saffieduapp.presentation.screens.student.home.components.SearchBar
-import com.example.saffieduapp.presentation.screens.student.home.components.UrgentTasksSection
+import com.example.saffieduapp.presentation.screens.student.home.components.*
 import com.example.saffieduapp.ui.theme.AppPrimary
 import kotlinx.coroutines.flow.collectLatest
 
@@ -35,28 +31,22 @@ fun HomeScreen(
     val state by viewModel.state.collectAsState()
     val context = LocalContext.current
 
-    // حالة التمرير لقائمة الصفحة الرئيسية
     val listState = rememberLazyListState()
-
-    // سحب للتحديث
     val pullToRefreshState = rememberPullToRefreshState()
 
-    // التقاط إعادة اختيار تبّ "الصفحة الرئيسية" من الـ BottomBar
+    // إعادة اختيار تب الصفحة الرئيسية
     LaunchedEffect(Unit) {
         val entry = navController.getBackStackEntry(Routes.HOME_SCREEN)
         entry.savedStateHandle
             .getStateFlow("tab_reselected_tick", 0L)
             .collectLatest { tick ->
                 if (tick != 0L) {
-                    // رجوع لأعلى الواجهة
                     listState.animateScrollToItem(0)
-                    // تحديث اختياري
                     viewModel.refresh()
                 }
             }
     }
 
-    // إدارة دورة السحب للتحديث
     if (pullToRefreshState.isRefreshing) {
         LaunchedEffect(Unit) {
             viewModel.refresh()
@@ -68,12 +58,11 @@ fun HomeScreen(
 
     Box(modifier = Modifier.fillMaxSize()) {
 
-        // المحتوى القابل للتمرير أسفل الهيدر
         LazyColumn(
             state = listState,
             modifier = Modifier
                 .fillMaxSize()
-                .padding(top = 130.dp) // ارتفاع الهيدر
+                .padding(top = 130.dp)
                 .nestedScroll(pullToRefreshState.nestedScrollConnection)
         ) {
             item {
@@ -90,15 +79,18 @@ fun HomeScreen(
                     }
                 )
             }
+
+            // --- عرض المواد مع اسم المدرس ---
             item {
                 EnrolledSubjectsSection(
-                    subjects = state.enrolledSubjects,
+                    subjects = state.enrolledSubjects, // يجب أن يحتوي كل Subject على teacherName
                     onSubjectClick = { subjectId ->
                         Toast.makeText(context, "Clicked Subject ID: $subjectId", Toast.LENGTH_SHORT).show()
                     },
                     onMoreClick = onNavigateToSubjects
                 )
             }
+
             item {
                 FeaturedLessonsSection(
                     lessons = state.featuredLessons,
@@ -116,15 +108,13 @@ fun HomeScreen(
                 .padding(top = 120.dp),
             contentColor = AppPrimary
         )
-        // الهيدر الثابت
+
         HomeTopSection(
             studentName = state.studentName,
             studentGrade = state.studentGrade,
             profileImageUrl = state.profileImageUrl,
         )
 
-
-        // دائرة تحميل وسط الصفحة أثناء التحميل الأولي فقط
         if (state.isLoading && !state.isRefreshing) {
             Box(
                 modifier = Modifier.fillMaxSize(),

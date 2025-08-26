@@ -14,7 +14,6 @@ import androidx.compose.ui.unit.sp
 import com.example.saffieduapp.domain.model.Subject
 import com.example.saffieduapp.presentation.screens.student.components.HomeSubjectCard
 
-
 @Composable
 fun EnrolledSubjectsSection(
     subjects: List<Subject>,
@@ -36,14 +35,12 @@ fun EnrolledSubjectsSection(
             Text(
                 text = "المواد",
                 fontSize = 16.sp,
-                fontStyle = androidx.compose.ui.text.font.FontStyle.Normal,
                 color = Color.Black
             )
 
             Text(
                 text = "المزيد",
                 fontSize = 16.sp,
-                fontStyle = androidx.compose.ui.text.font.FontStyle.Normal,
                 color = Color.Black,
                 modifier = Modifier.clickable {
                     onMoreClick()
@@ -53,15 +50,12 @@ fun EnrolledSubjectsSection(
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // --- بداية التعديل ---
-
-        // 1. التحقق مما إذا كانت قائمة المواد فارغة
+        // التحقق مما إذا كانت قائمة المواد فارغة
         if (subjects.isEmpty()) {
-            // 2. في حالة كانت فارغة، يتم عرض رسالة للمستخدم
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 32.dp), // مساحة رأسية لجعل الشكل أفضل
+                    .padding(vertical = 32.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
@@ -71,19 +65,17 @@ fun EnrolledSubjectsSection(
                 )
             }
         } else {
-            // 3. في حالة وجود مواد، يتم عرض القائمة الأفقية
             LazyRow(
                 contentPadding = PaddingValues(horizontal = 16.dp),
                 horizontalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 items(subjects) { subject ->
-                    HomeSubjectCard( // <-- تم تغيير الاسم هنا
+                    HomeSubjectCard(
                         subject = subject,
                         onClick = { onSubjectClick(subject.id) }
                     )
                 }
             }
         }
-
     }
 }
