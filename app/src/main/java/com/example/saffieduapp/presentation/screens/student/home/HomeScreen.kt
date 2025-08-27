@@ -19,6 +19,7 @@ import androidx.navigation.NavHostController
 import com.example.saffieduapp.navigation.Routes
 import com.example.saffieduapp.presentation.screens.student.home.components.*
 import com.example.saffieduapp.ui.theme.AppPrimary
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.collectLatest
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -32,8 +33,22 @@ fun HomeScreen(
     val context = LocalContext.current
 
     val listState = rememberLazyListState()
+
     val pullToRefreshState = rememberPullToRefreshState()
 
+// عند السحب للتحديث
+    LaunchedEffect(pullToRefreshState.isRefreshing) {
+        if (pullToRefreshState.isRefreshing && !state.isRefreshing) {
+            viewModel.refresh()
+        }
+    }
+
+// عند انتهاء التحديث في ViewModel
+    LaunchedEffect(state.isRefreshing) {
+        if (!state.isRefreshing && pullToRefreshState.isRefreshing) {
+            pullToRefreshState.endRefresh()
+        }
+    }
     // إعادة اختيار تب الصفحة الرئيسية
     LaunchedEffect(Unit) {
         val entry = navController.getBackStackEntry(Routes.HOME_SCREEN)
@@ -45,15 +60,6 @@ fun HomeScreen(
                     viewModel.refresh()
                 }
             }
-    }
-
-    if (pullToRefreshState.isRefreshing) {
-        LaunchedEffect(Unit) {
-            viewModel.refresh()
-        }
-    }
-    LaunchedEffect(state.isRefreshing) {
-        if (!state.isRefreshing) pullToRefreshState.endRefresh()
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -80,10 +86,9 @@ fun HomeScreen(
                 )
             }
 
-            // --- عرض المواد مع اسم المدرس ---
             item {
                 EnrolledSubjectsSection(
-                    subjects = state.enrolledSubjects, // يجب أن يحتوي كل Subject على teacherName
+                    subjects = state.enrolledSubjects,
                     onSubjectClick = { subjectId ->
                         Toast.makeText(context, "Clicked Subject ID: $subjectId", Toast.LENGTH_SHORT).show()
                     },

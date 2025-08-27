@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withTimeout
 import javax.inject.Inject
 
 @HiltViewModel
@@ -20,43 +21,59 @@ class SubjectsViewModel @Inject constructor(
     val state = _state.asStateFlow()
 
     init {
-        loadSubjects()
+        refresh() // تحميل البيانات مباشرة عند إنشاء ViewModel
     }
 
+    /**
+     * جلب البيانات من Firestore مع تحديد أقصى وقت 3 ثواني.
+     * يُستخدم أيضًا عند سحب الشاشة لتحديث البيانات.
+     */
     fun refresh() {
-        loadSubjects()
-    }
-
-    private fun loadSubjects() {
         viewModelScope.launch {
-            _state.value = _state.value.copy(isLoading = true)
-
+            _state.value = _state.value.copy(isRefreshing = true)
             try {
-                // جلب جميع المدرسين والمواد التي يدرسونها من Firestore
-                val querySnapshot = firestore.collection("teachers").get().await()
-                val subjectsList = querySnapshot.documents.mapNotNull { doc ->
-                    val teacherName = doc.getString("fullName") ?: return@mapNotNull null
-                    val subjectName = doc.getString("subject") ?: return@mapNotNull null
-
-                    Subject(
-                        id = doc.id,
-                        name = subjectName,
-                        teacherName = teacherName,
-                        grade = "الصف العاشر", // يمكن تعديلها حسب المرحلة أو جلبها من Firestore إذا متاحة
-                        rating = 0f,
-                        imageUrl = "", // ضع رابط الصورة إذا متاح في Firestore
-                        lessonCount = 0 // عدد الدروس إذا متاح
-                    )
+                withTimeout(3000) { // أقصى وقت لجلب البيانات
+                    loadSubjects()
                 }
-
-                _state.value = SubjectsState(isLoading = false, subject = subjectsList)
             } catch (e: Exception) {
-                // في حالة الخطأ، نعطي قائمة فارغة
-                _state.value = SubjectsState(isLoading = false, subject = emptyList())
+                // في حالة الخطأ، نترك الشاشة بدون تعليق
+            } finally {
+                _state.value = _state.value.copy(isRefreshing = false)
             }
         }
     }
 
+    /**
+     * تحميل المواد من Firestore.
+     */
+    private suspend fun loadSubjects() {
+        _state.value = _state.value.copy(isLoading = true)
+        try {
+            val querySnapshot = firestore.collection("teachers").get().await()
+            val subjectsList = querySnapshot.documents.mapNotNull { doc ->
+                val teacherName = doc.getString("fullName") ?: return@mapNotNull null
+                val subjectName = doc.getString("subject") ?: return@mapNotNull null
+
+                Subject(
+                    id = doc.id,
+                    name = subjectName,
+                    teacherName = teacherName,
+                    grade = "الصف العاشر", // يمكن تعديلها حسب المرحلة أو جلبها من Firestore إذا متاحة
+                    rating = 0f,
+                    imageUrl = "", // رابط الصورة إذا متاح
+                    lessonCount = 0 // عدد الدروس إذا متاح
+                )
+            }
+
+            _state.value = SubjectsState(isLoading = false, subject = subjectsList)
+        } catch (e: Exception) {
+            _state.value = SubjectsState(isLoading = false, subject = emptyList())
+        }
+    }
+
+    /**
+     * تحديث تقييم المادة محليًا
+     */
     fun updateRating(subjectId: String, newRating: Int) {
         val currentSubjects = _state.value.subject.toMutableList()
         val index = currentSubjects.indexOfFirst { it.id == subjectId }

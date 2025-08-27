@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
+import kotlinx.coroutines.withTimeout
 
 data class StdData(
     val fullName: String = "",
@@ -77,9 +78,17 @@ class HomeViewModel @Inject constructor(
     fun refresh() {
         viewModelScope.launch {
             _state.value = _state.value.copy(isRefreshing = true)
-            loadTeachersSubjects()
-            loadInitialData()
-            _state.value = _state.value.copy(isRefreshing = false)
+            try {
+                // أقصى وقت لجلب البيانات: 3 ثواني
+                withTimeout(3000) {
+                    loadTeachersSubjects()
+                    loadInitialData()
+                }
+            } catch (_: Exception) {
+                // تجاهل الخطأ أو سجّله إذا حابب
+            } finally {
+                _state.value = _state.value.copy(isRefreshing = false)
+            }
         }
     }
 
@@ -121,7 +130,7 @@ class HomeViewModel @Inject constructor(
                     enrolledSubjects = subjectsList,
                     isLoading = false
                 )
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 _state.value = _state.value.copy(isLoading = false)
             }
         }
