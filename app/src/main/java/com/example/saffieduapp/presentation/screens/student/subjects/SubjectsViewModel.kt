@@ -3,57 +3,82 @@ package com.example.saffieduapp.presentation.screens.student.subjects
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.saffieduapp.domain.model.Subject
+import com.google.firebase.firestore.FirebaseFirestore
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withTimeout
 import javax.inject.Inject
 
 @HiltViewModel
-class SubjectsViewModel @Inject constructor() : ViewModel() {
+class SubjectsViewModel @Inject constructor(
+    private val firestore: FirebaseFirestore
+) : ViewModel() {
 
     private val _state = MutableStateFlow(SubjectsState())
     val state = _state.asStateFlow()
 
     init {
-        loadSubjects()
+        refresh() // تحميل البيانات مباشرة عند إنشاء ViewModel
     }
 
-    private fun loadSubjects() {
-        val subjectsList = listOf(
-            Subject("s1", "اللغة العربية", "خالد عبدالله", "الصف العاشر", 0f, "", 12),
-            Subject("s2", "التربية الإسلامية", "فراس شعبان", "الصف العاشر", 0f, "", 11),
-            Subject("s3", "رياضيات", "عبدالسميع النجار", "الصف العاشر", 0f, "", 21),
-            Subject("s2", "التربية الإسلامية", "فراس شعبان", "الصف العاشر", 0f, "", 11),
-            Subject("s2", "التربية الإسلامية", "فراس شعبان", "الصف العاشر", 0f, "", 11),
-            Subject("s2", "التربية الإسلامية", "فراس شعبان", "الصف العاشر", 0f, "", 11),
-            Subject("s2", "التربية الإسلامية", "فراس شعبان", "الصف العاشر", 0f, "", 11),
-            Subject("s2", "التربية الإسلامية", "فراس شعبان", "الصف العاشر", 0f, "", 11),
-            Subject("s2", "التربية الإسلامية", "فراس شعبان", "الصف العاشر", 0f, "", 11),
-        )
-
-        _state.value = SubjectsState(isLoading = false, subject = subjectsList)
-    }
+    /**
+     * جلب البيانات من Firestore مع تحديد أقصى وقت 3 ثواني.
+     * يُستخدم أيضًا عند سحب الشاشة لتحديث البيانات.
+     */
     fun refresh() {
         viewModelScope.launch {
             _state.value = _state.value.copy(isRefreshing = true)
-            delay(1500) // محاكاة تأخير الشبكة
-            loadSubjects() // إعادة تحميل البيانات
-            _state.value = _state.value.copy(isRefreshing = false)
+            try {
+                withTimeout(3000) { // أقصى وقت لجلب البيانات
+                    loadSubjects()
+                }
+            } catch (e: Exception) {
+                // في حالة الخطأ، نترك الشاشة بدون تعليق
+            } finally {
+                _state.value = _state.value.copy(isRefreshing = false)
+            }
         }
     }
 
-    // تم إضافة الدالة المفقودة هنا
-    fun updateRating(subjectId: String, newRating: Int) {
-        println("Subject with ID $subjectId was rated with $newRating stars.")
+    /**
+     * تحميل المواد من Firestore.
+     */
+    private suspend fun loadSubjects() {
+        _state.value = _state.value.copy(isLoading = true)
+        try {
+            val querySnapshot = firestore.collection("teachers").get().await()
+            val subjectsList = querySnapshot.documents.mapNotNull { doc ->
+                val teacherName = doc.getString("fullName") ?: return@mapNotNull null
+                val subjectName = doc.getString("subject") ?: return@mapNotNull null
 
-        // (اختياري) تحديث التقييم في الواجهة مباشرة للمعاينة
+                Subject(
+                    id = doc.id,
+                    name = subjectName,
+                    teacherName = teacherName,
+                    grade = "الصف العاشر", // يمكن تعديلها حسب المرحلة أو جلبها من Firestore إذا متاحة
+                    rating = 0f,
+                    imageUrl = "", // رابط الصورة إذا متاح
+                    lessonCount = 0 // عدد الدروس إذا متاح
+                )
+            }
+
+            _state.value = SubjectsState(isLoading = false, subject = subjectsList)
+        } catch (e: Exception) {
+            _state.value = SubjectsState(isLoading = false, subject = emptyList())
+        }
+    }
+
+    /**
+     * تحديث تقييم المادة محليًا
+     */
+    fun updateRating(subjectId: String, newRating: Int) {
         val currentSubjects = _state.value.subject.toMutableList()
-        val subjectIndex = currentSubjects.indexOfFirst { it.id == subjectId }
-        if (subjectIndex != -1) {
-            val updatedSubject = currentSubjects[subjectIndex].copy(rating = newRating.toFloat())
-            currentSubjects[subjectIndex] = updatedSubject
+        val index = currentSubjects.indexOfFirst { it.id == subjectId }
+        if (index != -1) {
+            currentSubjects[index] = currentSubjects[index].copy(rating = newRating.toFloat())
             _state.value = _state.value.copy(subject = currentSubjects)
         }
     }

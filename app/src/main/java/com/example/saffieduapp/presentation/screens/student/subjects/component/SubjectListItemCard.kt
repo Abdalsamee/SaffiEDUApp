@@ -20,7 +20,7 @@ import com.example.saffieduapp.R
 import com.example.saffieduapp.domain.model.Subject
 import com.example.saffieduapp.ui.theme.Cairo
 import com.example.saffieduapp.ui.theme.CardBackgroundColor
-import androidx.compose.foundation.layout.IntrinsicSize // مهم لـ height(IntrinsicSize.Min)
+import androidx.compose.foundation.layout.IntrinsicSize
 
 @Composable
 fun SubjectListItemCard(
@@ -40,87 +40,83 @@ fun SubjectListItemCard(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(12.dp)
-                .height(IntrinsicSize.Min), // يضمن امتلاء الارتفاع لعناصر اليمين
+                .height(IntrinsicSize.Min),
             verticalAlignment = Alignment.Top
         ) {
-            // العنصر الأول (يسار): صف الصورة + تفاصيل المادة
-            Row(
+            // الجزء الأيسر: الصورة + بيانات المادة
+            Column(
+                modifier = Modifier.weight(1f),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                AsyncImage(
+                    model = subject.imageUrl.ifEmpty { null },
+                    contentDescription = subject.name,
+                    modifier = Modifier
+                        .size(120.dp)
+                        .clip(RoundedCornerShape(8.dp)),
+                    contentScale = ContentScale.Crop,
+                    placeholder = painterResource(id = R.drawable.defultsubject),
+                    error = painterResource(id = R.drawable.defultsubject)
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "${subject.lessonCount ?: 0} دروس",
+                    fontSize = 12.sp,
+                    color = Color.Black,
+                    fontWeight = FontWeight.Normal,
+                    fontFamily = Cairo
+                )
+            }
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            // الجزء الأوسط: اسم المادة + اسم المدرس + الصف
+            Column(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxHeight()
             ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    AsyncImage(
-                        model = subject.imageUrl,
-                        contentDescription = subject.name,
-                        modifier = Modifier
-                            .size(120.dp)
-                            .clip(RoundedCornerShape(8.dp)),
-                        contentScale = ContentScale.Crop,
-                        placeholder = painterResource(id = R.drawable.defultsubject),
-                        error = painterResource(id = R.drawable.defultsubject)
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "${subject.lessonCount} دروس",
-                        fontSize = 12.sp,
-                        color = Color.Black,
-                        fontWeight = FontWeight.Normal,
-                        fontFamily = Cairo
-                    )
-                }
-
-                Spacer(modifier = Modifier.width(12.dp))
-
-                Column(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxHeight()
-                ) {
-                    Text(
-                        text = subject.name,
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 17.sp,
-                        fontFamily = Cairo
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "أ. ${subject.teacherName}",
-                        fontSize = 13.sp,
-                        color = Color.Black,
-                        fontWeight = FontWeight.Normal,
-                        fontFamily = Cairo
-                    )
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = subject.grade,
-                        fontSize = 13.sp,
-                        color = Color.Black,
-                        fontWeight = FontWeight.Normal,
-                        fontFamily = Cairo
-                    )
-                }
+                Text(
+                    text = subject.name,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 17.sp,
+                    fontFamily = Cairo
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "أ. ${subject.teacherName}",
+                    fontSize = 13.sp,
+                    color = Color.Black,
+                    fontWeight = FontWeight.Normal,
+                    fontFamily = Cairo
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = subject.grade,
+                    fontSize = 13.sp,
+                    color = Color.Black,
+                    fontWeight = FontWeight.Normal,
+                    fontFamily = Cairo
+                )
             }
 
-            // العنصر الثاني (يمين): النجوم والتقييم بأسفل المساحة
+            // الجزء الأيمن: تقييم المادة بالنجوم
             Box(
                 modifier = Modifier
                     .fillMaxHeight()
-                    .widthIn(min = 120.dp), // مساحة مخصصة لليمين
-                contentAlignment = Alignment.BottomStart // أسفل-يسار
+                    .widthIn(min = 120.dp),
+                contentAlignment = Alignment.BottomStart
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     InteractiveRatingBar(
-                        rating = subject.rating.toInt(),
+                        rating = subject.rating?.toInt() ?: 0,
                         onRatingChanged = onRatingChanged
                     )
                     Text(
-                        text = subject.rating.toString(),
+                        text = "${subject.rating ?: 0}",
                         fontWeight = FontWeight.Bold,
                         fontSize = 16.sp,
                         fontFamily = Cairo

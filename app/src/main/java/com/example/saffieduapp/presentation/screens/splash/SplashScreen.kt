@@ -31,6 +31,9 @@ fun SplashScreen(
     val scaleCircle = remember { Animatable(0.1f) }
     val scaleLogo = remember { Animatable(0f) }
 
+    var animationFinished by remember { mutableStateOf(false) }
+
+
     // رسوم الحركة
     LaunchedEffect(Unit) {
         scaleCircle.animateTo(
@@ -42,12 +45,14 @@ fun SplashScreen(
             targetValue = 1f,
             animationSpec = tween(durationMillis = 700, easing = FastOutSlowInEasing)
         )
+        animationFinished = true
+
     }
 
-    // الانتقال عند توفر الوجهة
-    LaunchedEffect(startDestination) {
-        startDestination?.let { destination ->
-            onNavigate(destination)
+    // الانتقال بعد انتهاء الحركة ووجود الوجهة
+    LaunchedEffect(animationFinished, startDestination) {
+        if (animationFinished && startDestination != null) {
+            onNavigate(startDestination!!)
         }
     }
 

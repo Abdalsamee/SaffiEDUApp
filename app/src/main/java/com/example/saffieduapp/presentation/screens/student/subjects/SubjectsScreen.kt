@@ -34,7 +34,7 @@ fun SubjectsScreen(
     val state by viewModel.state.collectAsState()
     val context = LocalContext.current
 
-    // حالة القائمة للتحكم بالتمرير إلى الأعلى
+    // حالة القائمة للتحكم بالتمرير
     val listState = rememberLazyListState()
 
     // حالة السحب للتحديث
@@ -47,13 +47,13 @@ fun SubjectsScreen(
             .getStateFlow("tab_reselected_tick", 0L)
             .collectLatest { tick ->
                 if (tick != 0L) {
-                    listState.animateScrollToItem(0) // Scroll-to-top
-                    viewModel.refresh()              // Refresh اختياري
+                    listState.animateScrollToItem(0)
+                    viewModel.refresh()
                 }
             }
     }
 
-    // إدارة دورة السحب للتحديث (مرة واحدة لكل دورة)
+    // إدارة دورة السحب للتحديث
     if (pullToRefreshState.isRefreshing) {
         LaunchedEffect(Unit) { viewModel.refresh() }
     }
@@ -65,7 +65,6 @@ fun SubjectsScreen(
         topBar = {
             CommonTopAppBar(
                 title = "المواد الدراسية",
-                // onNavigateUp = { /* إن لزم */ }
             )
         }
     ) { innerPadding ->
@@ -93,13 +92,17 @@ fun SubjectsScreen(
                             onClick = { onNavigateToSubjectDetails(subject.id) },
                             onRatingChanged = { newRating ->
                                 viewModel.updateRating(subject.id, newRating)
+                                Toast.makeText(
+                                    context,
+                                    "تم تقييم المادة ${subject.name} بـ $newRating نجوم",
+                                    Toast.LENGTH_SHORT
+                                ).show()
                             }
                         )
                     }
                 }
             }
 
-            // مؤشر السحب للتحديث يظهر تحت الـ AppBar بفضل innerPadding
             PullToRefreshContainer(
                 state = pullToRefreshState,
                 modifier = Modifier.align(Alignment.TopCenter),

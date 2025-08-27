@@ -58,7 +58,7 @@ fun CommonTopAppBar(
         Text(
             text = title,
             color = Color.White,
-            fontSize = 18.sp,
+            fontSize = 20.sp,
             fontWeight = FontWeight.SemiBold,
             fontFamily = Cairo,
             modifier = Modifier.padding(bottom = 18.dp)

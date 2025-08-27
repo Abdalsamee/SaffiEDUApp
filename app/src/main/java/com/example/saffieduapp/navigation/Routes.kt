@@ -23,6 +23,7 @@ object Routes {
     const val SUBJECT_DETAILS_SCREEN  = "subject_details_screen"
 
     //Teacher  للمعلم
+    const val TEACHER_MAIN_SCREEN = "teacher_main_screen"
     const val TEACHER_HOME_SCREEN = "teacher_home_screen"
     const val TEACHER_CLASSES_SCREEN = "teacher_classes_screen"
     const val TEACHER_TASKS_SCREEN = "teacher_tasks_screen"

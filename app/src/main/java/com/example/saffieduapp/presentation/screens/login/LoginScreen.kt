@@ -6,7 +6,6 @@ import android.annotation.SuppressLint
 import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -37,18 +36,21 @@ import kotlinx.coroutines.flow.collectLatest
 @Composable
 fun LoginScreen(
     onStudentLogin: () -> Unit,
+    onTeacherLogin: () -> Unit, // ← تم إضافة التوجيه لشاشة المعلم
     onNavigateToSignUp: () -> Unit,
     viewModel: LoginViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
     val state by viewModel.uiState.collectAsState()
 
+    // 🔹 متابعة الأحداث
     LaunchedEffect(key1 = true) {
         viewModel.eventFlow.collectLatest { event ->
-            when (event) {
+            when(event){
                 is LoginViewModel.UiEvent.LoginSuccess -> {
-                    when (event.role) {
+                    when(event.role){
                         "student" -> onStudentLogin()
+                        "teacher" -> onTeacherLogin() // <- هنا
                         else -> {
                             Toast.makeText(
                                 context,
@@ -154,9 +156,7 @@ fun LoginScreen(
                             Checkbox(
                                 checked = state.rememberMe,
                                 onCheckedChange = {
-                                    viewModel.onEvent(
-                                        LoginEvent.RememberMeChanged(it)
-                                    )
+                                    viewModel.onEvent(LoginEvent.RememberMeChanged(it))
                                 },
                                 colors = CheckboxDefaults.colors(
                                     checkedColor = AppPrimary,

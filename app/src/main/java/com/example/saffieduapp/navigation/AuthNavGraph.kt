@@ -10,12 +10,14 @@ import com.example.saffieduapp.presentation.screens.onboarding.OnboardingScreen
 import com.example.saffieduapp.presentation.screens.splash.SplashScreen
 import com.example.saffieduapp.presentation.screens.login.LoginViewModel
 import androidx.hilt.navigation.compose.hiltViewModel
-import okhttp3.Route
+import com.example.saffieduapp.presentation.screens.teacher.TeacherMainScreen
+import com.example.saffieduapp.presentation.screens.teacher.home.TeacherHomeScreen
+
 
 fun NavGraphBuilder.authNavGraph(navController: NavController) {
     navigation(
         startDestination = Routes.SPLASH_SCREEN,
-        route = "auth_graph"
+        route = Routes.AUTH_GRAPH
     ) {
         composable(Routes.SPLASH_SCREEN) {
             SplashScreen(
@@ -45,6 +47,11 @@ fun NavGraphBuilder.authNavGraph(navController: NavController) {
                         popUpTo(Routes.AUTH_GRAPH) { inclusive = true }
                     }
                 },
+                onTeacherLogin = {   // ✅ أضفنا الانتقال للمعلم
+                    navController.navigate(Routes.TEACHER_MAIN_SCREEN) {
+                        popUpTo(Routes.AUTH_GRAPH) { inclusive = true }
+                    }
+                },
                 onNavigateToSignUp = {
                     navController.navigate(Routes.SIGNUP_SCREEN)
                 }
@@ -63,5 +70,8 @@ fun NavGraphBuilder.authNavGraph(navController: NavController) {
                 }
             )
         }
+    }
+    composable(Routes.TEACHER_MAIN_SCREEN) {
+        TeacherMainScreen()
     }
 }

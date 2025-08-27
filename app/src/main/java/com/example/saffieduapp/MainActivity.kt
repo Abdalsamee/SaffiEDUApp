@@ -13,6 +13,7 @@ import androidx.navigation.compose.rememberNavController
 import com.example.saffieduapp.navigation.authNavGraph
 import com.example.saffieduapp.presentation.screens.MainAppScreen
 import com.example.saffieduapp.presentation.screens.teacher.TeacherMainScreen
+import com.example.saffieduapp.presentation.screens.teacher.calsses.TeacherClassesScreen
 
 import com.example.saffieduapp.ui.theme.SaffiEDUAppTheme
 import dagger.hilt.android.AndroidEntryPoint
@@ -33,21 +34,22 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             SaffiEDUAppTheme {
-//                val navController = rememberNavController()
-//                NavHost(
-//                    navController = navController,
-//                    startDestination = "auth_graph"
-//                ) {
-//                    authNavGraph(navController)
-//
-//                    composable(route = "main_graph") {
-//                        MainAppScreen()
-//                    }
-//                }
+                val navController = rememberNavController()
+                NavHost(
+                    navController = navController,
+                    startDestination = "auth_graph"
+                ) {
+                    authNavGraph(navController)
 
-                TeacherMainScreen()
+                    composable(route = "main_graph") {
+                       MainAppScreen()
+                    }
+                }
+
+
+
+
             }
-
 
 
 
