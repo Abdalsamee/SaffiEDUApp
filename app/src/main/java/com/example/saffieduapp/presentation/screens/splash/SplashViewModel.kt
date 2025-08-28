@@ -38,7 +38,7 @@ class SplashViewModel @Inject constructor(
                 }
 
                 val currentUser = auth.currentUser
-                if (currentUser == null || !currentUser.isEmailVerified) {
+                if (currentUser == null) {
                     _startDestination.value = Routes.LOGIN_SCREEN
                     return@launch
                 }
@@ -46,44 +46,54 @@ class SplashViewModel @Inject constructor(
                 val uid = currentUser.uid
                 val email = currentUser.email
 
-                // التحقق من الطالب
+                // ✅ التحقق أولاً من المعلم
+                val teacherQuery = firestore.collection("teachers")
+                    .whereEqualTo("uid", uid)
+                    .limit(1)
+                    .get()
+                    .await()
+
+                val teacherByEmail = if (email != null) {
+                    firestore.collection("teachers")
+                        .whereEqualTo("email", email)
+                        .limit(1)
+                        .get()
+                        .await()
+                } else null
+
+                if (!teacherQuery.isEmpty || (teacherByEmail != null && !teacherByEmail.isEmpty)) {
+                    // 🔹 المعلم لا يحتاج تحقق من البريد
+                    _startDestination.value = Routes.TEACHER_MAIN_SCREEN
+                    return@launch
+                }
+
+                // ✅ التحقق ثانياً من الطالب
                 val studentQuery = firestore.collection("students")
                     .whereEqualTo("uid", uid)
                     .limit(1)
                     .get()
                     .await()
 
-                val isStudent = !studentQuery.isEmpty || (
-                        email != null && !firestore.collection("students")
-                            .whereEqualTo("email", email)
-                            .limit(1)
-                            .get()
-                            .await()
-                            .isEmpty
-                        )
+                val studentByEmail = if (email != null) {
+                    firestore.collection("students")
+                        .whereEqualTo("email", email)
+                        .limit(1)
+                        .get()
+                        .await()
+                } else null
 
-                if (isStudent) {
-                    _startDestination.value = Routes.MAIN_GRAPH
+                if (!studentQuery.isEmpty || (studentByEmail != null && !studentByEmail.isEmpty)) {
+                    // 🔹 الطالب لازم يكون مفعل البريد
+                    if (currentUser.isEmailVerified) {
+                        _startDestination.value = Routes.MAIN_GRAPH
+                    } else {
+                        _startDestination.value = Routes.LOGIN_SCREEN
+                    }
                     return@launch
                 }
 
-                // التحقق من المعلم
-             /*   val teacherQuery = firestore.collection("teachers")
-                    .whereEqualTo("uid", uid)
-                    .limit(1)
-                    .get()
-                    .await()
-
-                val isTeacher = !teacherQuery.isEmpty || (
-                        email != null && !firestore.collection("teachers")
-                            .whereEqualTo("email", email)
-                            .limit(1)
-                            .get()
-                            .await()
-                            .isEmpty
-                        )
-
-                _startDestination.value = if (isTeacher) Routes.TEACHER_HOME else Routes.LOGIN_SCREEN*/
+                // 🔹 إذا لم يكن طالب ولا معلم → Login
+                _startDestination.value = Routes.LOGIN_SCREEN
 
             } catch (_: Exception) {
                 _startDestination.value = Routes.LOGIN_SCREEN

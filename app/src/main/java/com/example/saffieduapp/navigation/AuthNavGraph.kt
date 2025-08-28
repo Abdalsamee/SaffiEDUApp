@@ -11,14 +11,13 @@ import com.example.saffieduapp.presentation.screens.splash.SplashScreen
 import com.example.saffieduapp.presentation.screens.login.LoginViewModel
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.saffieduapp.presentation.screens.teacher.TeacherMainScreen
-import com.example.saffieduapp.presentation.screens.teacher.home.TeacherHomeScreen
-
 
 fun NavGraphBuilder.authNavGraph(navController: NavController) {
     navigation(
         startDestination = Routes.SPLASH_SCREEN,
         route = Routes.AUTH_GRAPH
     ) {
+        // 🔹 Splash Screen
         composable(Routes.SPLASH_SCREEN) {
             SplashScreen(
                 onNavigate = { route ->
@@ -28,6 +27,8 @@ fun NavGraphBuilder.authNavGraph(navController: NavController) {
                 }
             )
         }
+
+        // 🔹 Onboarding Screen
         composable(Routes.ONBOARDING_SCREEN) {
             OnboardingScreen(
                 onNavigateToLogin = {
@@ -37,6 +38,8 @@ fun NavGraphBuilder.authNavGraph(navController: NavController) {
                 }
             )
         }
+
+        // 🔹 Login Screen
         composable(Routes.LOGIN_SCREEN) { backStackEntry ->
             val loginViewModel: LoginViewModel = hiltViewModel(backStackEntry)
 
@@ -47,7 +50,7 @@ fun NavGraphBuilder.authNavGraph(navController: NavController) {
                         popUpTo(Routes.AUTH_GRAPH) { inclusive = true }
                     }
                 },
-                onTeacherLogin = {   // ✅ أضفنا الانتقال للمعلم
+                onTeacherLogin = {
                     navController.navigate(Routes.TEACHER_MAIN_SCREEN) {
                         popUpTo(Routes.AUTH_GRAPH) { inclusive = true }
                     }
@@ -58,6 +61,7 @@ fun NavGraphBuilder.authNavGraph(navController: NavController) {
             )
         }
 
+        // 🔹 SignUp Screen
         composable(Routes.SIGNUP_SCREEN) {
             SignUpScreen(
                 onBackClick = {
@@ -70,8 +74,10 @@ fun NavGraphBuilder.authNavGraph(navController: NavController) {
                 }
             )
         }
-    }
-    composable(Routes.TEACHER_MAIN_SCREEN) {
-        TeacherMainScreen()
+
+        // 🔹 Teacher Main Screen (تم نقلها داخل الـ navigation graph)
+        composable(Routes.TEACHER_MAIN_SCREEN) {
+            TeacherMainScreen()
+        }
     }
 }

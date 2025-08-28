@@ -19,8 +19,6 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.saffieduapp.R
 import com.example.saffieduapp.ui.theme.AppPrimary
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.filterNotNull
-import kotlinx.coroutines.flow.first
 
 @Composable
 fun SplashScreen(
@@ -33,8 +31,7 @@ fun SplashScreen(
 
     var animationFinished by remember { mutableStateOf(false) }
 
-
-    // رسوم الحركة
+    // 🔹 تشغيل الأنيميشن
     LaunchedEffect(Unit) {
         scaleCircle.animateTo(
             targetValue = 55f,
@@ -45,17 +42,21 @@ fun SplashScreen(
             targetValue = 1f,
             animationSpec = tween(durationMillis = 700, easing = FastOutSlowInEasing)
         )
-        animationFinished = true
 
+        // بعد انتهاء الحركة
+        animationFinished = true
     }
 
-    // الانتقال بعد انتهاء الحركة ووجود الوجهة
+    // 🔹 الانتقال بعد الانيميشن + تحديد الوجهة من الـ ViewModel
     LaunchedEffect(animationFinished, startDestination) {
         if (animationFinished && startDestination != null) {
+            // تأخير بسيط عشان يعطي شعور ان السبلش انتهى طبيعي
+            delay(300)
             onNavigate(startDestination!!)
         }
     }
 
+    // 🔹 واجهة السبلش
     Box(
         modifier = Modifier
             .fillMaxSize()
