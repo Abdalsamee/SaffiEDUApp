@@ -9,6 +9,7 @@ import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import com.example.saffieduapp.presentation.screens.teacher.calsses.TeacherClassesScreen
 import com.example.saffieduapp.presentation.screens.teacher.home.TeacherHomeScreen
 
 // استورد شاشة المعلم الرئيسية هنا
@@ -23,11 +24,11 @@ fun TeacherNavGraph(navController: NavHostController, modifier: Modifier = Modif
         modifier = modifier
     ) {
         composable(Routes.TEACHER_HOME_SCREEN) {
-             TeacherHomeScreen() // سنقوم ببنائها لاحقًا
+             TeacherHomeScreen()
 
         }
         composable(Routes.TEACHER_CLASSES_SCREEN) {
-            PlaceholderScreen("Teacher Classes Screen")
+            TeacherClassesScreen()
         }
         composable(Routes.TEACHER_TASKS_SCREEN) {
             PlaceholderScreen("Teacher Tasks Screen")

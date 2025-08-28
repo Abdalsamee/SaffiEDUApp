@@ -13,6 +13,7 @@ import androidx.navigation.compose.rememberNavController
 import com.example.saffieduapp.navigation.authNavGraph
 import com.example.saffieduapp.presentation.screens.MainAppScreen
 import com.example.saffieduapp.presentation.screens.teacher.TeacherMainScreen
+import com.example.saffieduapp.presentation.screens.teacher.calsses.TeacherClassesScreen
 
 import com.example.saffieduapp.ui.theme.SaffiEDUAppTheme
 import dagger.hilt.android.AndroidEntryPoint
@@ -45,8 +46,10 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
-            }
 
+
+
+            }
 
 
 
