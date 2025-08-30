@@ -31,8 +31,10 @@ class HomeViewModel @Inject constructor(
 
     init {
         loadUserData()
-        loadTeachersSubjects()
-        loadInitialData()
+        viewModelScope.launch {
+            loadInitialData()
+            loadTeachersSubjects()
+        }
     }
 
     private fun loadUserData() {
@@ -85,14 +87,15 @@ class HomeViewModel @Inject constructor(
                     loadInitialData()
                 }
             } catch (_: Exception) {
-                // تجاهل الخطأ أو سجّله إذا حابب
+                // تجاهل الخطأ أو سجّله إذا لزم
             } finally {
                 _state.value = _state.value.copy(isRefreshing = false)
             }
         }
     }
 
-    private fun loadInitialData() {
+    // suspend function → ما في launch داخله
+    private suspend fun loadInitialData() {
         val urgentTasksList = listOf(
             UrgentTask("1", "اختبار نصفي", "التربية الإسلامية", "24/8/2025", "11 صباحاً", ""),
             UrgentTask("2", "المهمة رقم 1", "اللغة الانجليزية", "24/8/2025", "12 مساءً", "")
@@ -109,30 +112,30 @@ class HomeViewModel @Inject constructor(
         )
     }
 
-    private fun loadTeachersSubjects() {
-        viewModelScope.launch {
-            try {
-                val querySnapshot = firestore.collection("teachers").get().await()
-                val subjectsList = querySnapshot.documents.map { doc ->
-                    val fullName = doc.getString("fullName") ?: "غير معروف"
-                    val subjectName = doc.getString("subject") ?: "غير معروف"
-                    Subject(
-                        id = doc.id,
-                        name = subjectName,
-                        teacherName = fullName,
-                        grade = "",
-                        rating = 0f,
-                        imageUrl = "",
-                        totalLessons = 0
-                    )
-                }
-                _state.value = _state.value.copy(
-                    enrolledSubjects = subjectsList,
-                    isLoading = false
+    // suspend function → مباشرة تستخدم await
+    private suspend fun loadTeachersSubjects() {
+        try {
+            val querySnapshot = firestore.collection("teachers").get().await()
+            val subjectsList = querySnapshot.documents.map { doc ->
+                val fullName = doc.getString("fullName") ?: "غير معروف"
+                val subjectName = doc.getString("subject") ?: "غير معروف"
+                Subject(
+                    id = doc.id,
+                    name = subjectName,
+                    teacherName = fullName,
+                    grade = "",
+                    rating = 0f,
+                    imageUrl = "",
+                    totalLessons = 0
                 )
-            } catch (_: Exception) {
-                _state.value = _state.value.copy(isLoading = false)
             }
+
+            _state.value = _state.value.copy(
+                enrolledSubjects = subjectsList,
+                isLoading = false
+            )
+        } catch (_: Exception) {
+            _state.value = _state.value.copy(isLoading = false)
         }
     }
 
