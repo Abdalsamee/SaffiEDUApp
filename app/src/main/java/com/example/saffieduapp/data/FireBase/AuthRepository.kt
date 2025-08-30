@@ -43,22 +43,5 @@ class AuthRepository @Inject constructor(
             .await()
     }
 
-    // إن احتجت لاحقًا للمعلمين
-    suspend fun registerTeacherData(
-        idNumber: String,
-        fullName: String,
-        email: String,
-        subject: String,
-    ) {
-        val userData = hashMapOf(
-            "fullName" to fullName,
-            "email" to email,
-            "subject" to subject,
-            "role" to "teacher"
-        )
-        firestore.collection("teachers")
-            .document(idNumber)
-            .set(userData)
-            .await()
-    }
+
 }
