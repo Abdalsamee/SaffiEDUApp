@@ -3,6 +3,7 @@ package com.example.saffieduapp.presentation.screens.teacher.home
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -79,12 +80,14 @@ fun TeacherHomeScreen(
         }
 
 
-
         HomeTopSection(
             studentName = state.teacherName,
             studentGrade = state.teacherRole,
             profileImageUrl = state.profileImageUrl,
-
+            showActivateButton = true,
+            onActivateClick = {
+                // الكود عند الضغط
+            }
         )
 
 
