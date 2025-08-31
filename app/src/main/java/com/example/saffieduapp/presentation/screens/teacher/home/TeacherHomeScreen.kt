@@ -55,7 +55,7 @@ fun TeacherHomeScreen(
             item {
                 TeacherClassesSection(
                     classes = state.teacherClasses,
-                    subjectName = state.teacherRole,
+                    subjectName = state.teacherSub,
                     onClassClick = { classId ->
                         // TODO: Handle click on a specific class
                     },
@@ -79,17 +79,15 @@ fun TeacherHomeScreen(
             }
         }
 
-
         HomeTopSection(
-            studentName = state.teacherName,
-            studentGrade = state.teacherRole,
+            studentName = state.teacherName.split(" ").let {
+                if (it.size >= 2) "${it.first()} ${it.last()}" else state.teacherName
+            },
+            studentSubject = state.teacherSub.removePrefix("مدرس ").trim(), // اسم المادة
             profileImageUrl = state.profileImageUrl,
-            showActivateButton = true,
-            onActivateClick = {
-                // الكود عند الضغط
-            }
+            showActivateButton = state.showActivateButton,
+            onActivateClick = { viewModel.activateSubject() }
         )
-
 
         if (state.isLoading) {
             Box(

@@ -32,7 +32,7 @@ data class TeacherHomeState(
     val isLoading: Boolean = true,
     val isRefreshing: Boolean = false,
     val teacherName: String = "",
-    val teacherRole: String = "", // مثال: "مدرس رياضيات"
+    val teacherSub: String = "", // مثال: "مدرس رياضيات"
     val profileImageUrl: String = "",
     val searchQuery: String = "",
     val studentUpdates: List<StudentUpdate> = emptyList(),
@@ -43,6 +43,8 @@ data class TeacherHomeState(
     // الصف المختار حاليًا في الفلتر
     val selectedClassFilter: String? = null,
     // قائمة الطلاب المتفوقين للصف المختار
-    val topStudents: List<TopStudent> = emptyList()
+    val topStudents: List<TopStudent> = emptyList(),
+    val showActivateButton: Boolean = false // ⬅️ إضافة هذه الخاصية
+
 )
 
