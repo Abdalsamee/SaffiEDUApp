@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import java.util.UUID
 import javax.inject.Inject
 
 data class TeachData(
@@ -150,8 +151,9 @@ class TeacherHomeViewModel @Inject constructor(
                     "rating" to 0
                 )
 
+                val docId = UUID.randomUUID().toString()
                 firestore.collection("subjects")
-                    .document("${teacherId}_${currentState.teacherSub}")
+                    .document(docId)
                     .set(subjectData)
                     .await()
 
