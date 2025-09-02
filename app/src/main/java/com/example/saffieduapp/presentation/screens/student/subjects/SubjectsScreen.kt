@@ -89,7 +89,9 @@ fun SubjectsScreen(
                     items(state.subject) { subject ->
                         SubjectListItemCard(
                             subject = subject,
-                            onClick = { onNavigateToSubjectDetails(subject.id) },
+                            onClick = {
+                                println("SubjectsScreen: Navigating with ID -> ${subject.id}")
+                                onNavigateToSubjectDetails(subject.id) },
                             onRatingChanged = { newRating ->
                                 viewModel.updateRating(subject.id, newRating)
                                 Toast.makeText(
