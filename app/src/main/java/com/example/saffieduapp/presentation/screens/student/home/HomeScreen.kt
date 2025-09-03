@@ -116,7 +116,7 @@ fun HomeScreen(
 
         HomeTopSection(
             studentName = state.studentName,
-            studentGrade = state.studentGrade,
+            studentSubject = state.studentGrade,
             profileImageUrl = state.profileImageUrl,
         )
 

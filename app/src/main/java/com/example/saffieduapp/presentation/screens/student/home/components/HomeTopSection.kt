@@ -24,7 +24,7 @@ import com.example.saffieduapp.ui.theme.AppPrimary
 @Composable
 fun HomeTopSection(
     studentName: String,
-    studentGrade: String,
+    studentSubject: String,
     profileImageUrl: String,
     modifier: Modifier = Modifier,
     showActivateButton: Boolean = false, // 🔹 افتراضي مخفي
@@ -112,7 +112,7 @@ fun HomeTopSection(
                                 color = Color.White
                             )
                         ) {
-                            append("($studentGrade)")
+                            append("($studentSubject)")
                         }
                     }
                 )
