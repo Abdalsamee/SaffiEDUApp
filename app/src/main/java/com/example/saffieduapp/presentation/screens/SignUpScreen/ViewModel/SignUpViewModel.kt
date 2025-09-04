@@ -51,7 +51,7 @@ class SignUpViewModel @Inject constructor(
             delay(1500)
 
             // 👈 تحقق من رقم الهوية حسب الدور
-            if (authRepository.isIdNumberExists(currentState.idNumber, currentState.role)) {
+            if (authRepository.isIdNumberExists(currentState.idNumber, "student")) {
                 _state.value = _state.value.copy(isLoading = false)
                 showError("رقم الهوية مستخدم مسبقًا")
                 return
@@ -63,22 +63,15 @@ class SignUpViewModel @Inject constructor(
                 password = currentState.password
             )
 
-            // 👈 تخزين البيانات حسب الدور
-            if (currentState.role == "student") {
+            //تخزين بيانات الطلاب
+            currentState.role == "student"
                 authRepository.registerStuData(
                     idNumber = currentState.idNumber,
                     fullName = currentState.fullName,
                     email = currentState.email,
                     grade = currentState.selectedGrade
                 )
-            } else {
-                authRepository.registerTeacherData(
-                    idNumber = currentState.idNumber,
-                    fullName = currentState.fullName,
-                    email = currentState.email,
-                    subject = currentState.selectedSubject
-                )
-            }
+
 
             _state.value = _state.value.copy(isLoading = false)
             _eventFlow.emit(UiEvent.SignUpSuccessWithVerification)
