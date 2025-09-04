@@ -31,7 +31,11 @@ import com.example.saffieduapp.ui.theme.SaffiEDUAppTheme
 import kotlin.math.roundToInt
 
 @Composable
-fun LessonCard(lesson: Lesson) {
+fun LessonCard(
+    lesson: Lesson,
+    onClick: () -> Unit,
+
+) {
     Card(
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = CardBackgroundColor),
@@ -115,7 +119,7 @@ fun LessonCard(lesson: Lesson) {
                     color = Color.Black
                 )
                 Button(
-                    onClick = { /* Handle click */ },
+                    onClick = onClick,
                     shape = RoundedCornerShape(50),
                     colors = ButtonDefaults.buttonColors(containerColor = AppPrimary),
                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
@@ -136,28 +140,3 @@ fun LessonCard(lesson: Lesson) {
 }
 
 
-// --- دالة المعاينة (تبقى كما هي) ---
-@Preview(showBackground = true, name = "Lesson Card Preview (RTL)")
-@Composable
-private fun LessonCardPreview() {
-    val sampleLesson = Lesson(
-        id = 1,
-        title = "الدرس الأول",
-        subTitle = "شرح سورة نوح",
-        duration = 15,
-        imageUrl = "",
-        progress = 95.0f
-    )
-
-    SaffiEDUAppTheme {
-        CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
-            Box(
-                modifier = Modifier
-                    .padding(16.dp)
-                    .width(180.dp)
-            ) {
-                LessonCard(lesson = sampleLesson)
-            }
-        }
-    }
-}
