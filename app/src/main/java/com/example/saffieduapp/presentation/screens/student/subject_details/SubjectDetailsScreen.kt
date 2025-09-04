@@ -26,11 +26,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.NavController
+import com.example.saffieduapp.navigation.Routes
 import com.example.saffieduapp.presentation.screens.student.components.CommonTopAppBar
 import com.example.saffieduapp.presentation.screens.student.home.components.SearchBar
 import com.example.saffieduapp.presentation.screens.student.subject_details.components.LessonCard
@@ -42,10 +45,13 @@ import com.example.saffieduapp.ui.theme.AppTextSecondary
 @Composable
 fun SubjectDetailsScreen(
     onNavigateUp: () -> Unit,
-    viewModel: SubjectDetailsViewModel = hiltViewModel()
+    viewModel: SubjectDetailsViewModel = hiltViewModel(),
+    navController: NavController,
 ) {
     val state by viewModel.state.collectAsState()
-
+    val configuration = LocalConfiguration.current
+    val screenWidthDp = configuration.screenWidthDp.dp
+    val columns = if (screenWidthDp < 400.dp) 1 else 2
     Scaffold(
         topBar = {
             CommonTopAppBar(
@@ -134,7 +140,7 @@ fun SubjectDetailsScreen(
                             )
                         }
                         if (state.videoLessons.isNotEmpty()) {
-                            items(state.videoLessons.chunked(2)) { rowItems ->
+                            items(state.videoLessons.chunked(columns)) { rowItems ->
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
@@ -144,10 +150,15 @@ fun SubjectDetailsScreen(
                                 ) {
                                     rowItems.forEach { lesson ->
                                         Box(modifier = Modifier.weight(1f)) {
-                                            LessonCard(lesson = lesson)
+                                            LessonCard(lesson = lesson,
+                                                onClick = {
+                                                    navController.navigate("${Routes.VIDEO_PLAYER_SCREEN}/${lesson.id}")
+                                                }
+
+                                                )
                                         }
                                     }
-                                    if (rowItems.size < 2) {
+                                    if (rowItems.size < columns) {
                                         Spacer(modifier = Modifier.weight(1f))
                                     }
                                 }
@@ -179,7 +190,7 @@ fun SubjectDetailsScreen(
                             )
                         }
                         if (state.pdfSummaries.isNotEmpty()) {
-                            items(state.pdfSummaries.chunked(2)) { rowItems ->
+                            items(state.pdfSummaries.chunked(columns)) { rowItems ->
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
@@ -194,7 +205,7 @@ fun SubjectDetailsScreen(
                                             )
                                         }
                                     }
-                                    if (rowItems.size < 2) {
+                                    if (rowItems.size < columns) {
                                         Spacer(modifier = Modifier.weight(1f))
                                     }
                                 }

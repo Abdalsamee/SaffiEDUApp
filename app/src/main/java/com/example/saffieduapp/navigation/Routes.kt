@@ -21,6 +21,7 @@ object Routes {
     // Children للمواد
     const val SUBJECTS_LIST_SCREEN    = "subjects_list_screen"
     const val SUBJECT_DETAILS_SCREEN  = "subject_details_screen"
+    const val VIDEO_PLAYER_SCREEN = "video_player_screen"
 
     //Teacher  للمعلم
     const val TEACHER_MAIN_SCREEN = "teacher_main_screen"

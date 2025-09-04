@@ -13,6 +13,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
@@ -20,7 +21,7 @@ import com.example.saffieduapp.R
 import com.example.saffieduapp.domain.model.Subject
 import com.example.saffieduapp.ui.theme.Cairo
 import com.example.saffieduapp.ui.theme.CardBackgroundColor
-import androidx.compose.foundation.layout.IntrinsicSize
+import com.example.saffieduapp.ui.theme.SaffiEDUAppTheme
 
 @Composable
 fun SubjectListItemCard(
@@ -36,93 +37,117 @@ fun SubjectListItemCard(
         colors = CardDefaults.cardColors(containerColor = CardBackgroundColor),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
-        Row(
+        // ✅ التغيير الرئيسي: استخدام Column كحاوية أساسية
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(12.dp)
-                .height(IntrinsicSize.Min),
-            verticalAlignment = Alignment.Top
         ) {
-            // الجزء الأيسر: الصورة + بيانات المادة
-            Column(
-                modifier = Modifier.weight(1f),
-                horizontalAlignment = Alignment.CenterHorizontally
+            // --- الصف العلوي: للصورة والنصوص الأساسية ---
+            Row(
+                verticalAlignment = Alignment.CenterVertically
             ) {
+                // الصورة بحجم ثابت لمنع ضغطها
                 AsyncImage(
                     model = subject.imageUrl.ifEmpty { null },
                     contentDescription = subject.name,
                     modifier = Modifier
-                        .size(120.dp)
+                        .size(100.dp) // حجم ثابت وواضح
                         .clip(RoundedCornerShape(8.dp)),
                     contentScale = ContentScale.Crop,
                     placeholder = painterResource(id = R.drawable.defultsubject),
                     error = painterResource(id = R.drawable.defultsubject)
                 )
-                Spacer(modifier = Modifier.height(4.dp))
+
+                Spacer(modifier = Modifier.width(12.dp))
+
+                // عمود النصوص يأخذ باقي المساحة المتاحة في الصف
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = subject.name,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 17.sp,
+                        fontFamily = Cairo
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "أ. ${subject.teacherName}",
+                        fontSize = 13.sp,
+                        color = Color.Black.copy(alpha = 0.8f),
+                        fontWeight = FontWeight.Normal,
+                        fontFamily = Cairo
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = subject.grade,
+                        fontSize = 13.sp,
+                        color = Color.Black.copy(alpha = 0.8f),
+                        fontWeight = FontWeight.Normal,
+                        fontFamily = Cairo
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp)) // فاصل بين الصفين
+
+            // --- الصف السفلي: لعدد الدروس والتقييم ---
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // عدد الدروس على اليسار
                 Text(
                     text = "${subject.lessonCount ?: 0} دروس",
                     fontSize = 12.sp,
                     color = Color.Black,
                     fontWeight = FontWeight.Normal,
-                    fontFamily = Cairo
+                    fontFamily = Cairo,
+                    modifier=Modifier.padding(start=20.dp)
                 )
-            }
 
-            Spacer(modifier = Modifier.width(12.dp))
+                // فاصل مرن لدفع التقييم إلى اليمين
+                Spacer(modifier = Modifier.weight(1f))
 
-            // الجزء الأوسط: اسم المادة + اسم المدرس + الصف
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxHeight()
-            ) {
-                Text(
-                    text = subject.name,
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 17.sp,
-                    fontFamily = Cairo
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "أ. ${subject.teacherName}",
-                    fontSize = 13.sp,
-                    color = Color.Black,
-                    fontWeight = FontWeight.Normal,
-                    fontFamily = Cairo
-                )
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = subject.grade,
-                    fontSize = 13.sp,
-                    color = Color.Black,
-                    fontWeight = FontWeight.Normal,
-                    fontFamily = Cairo
-                )
-            }
-
-            // الجزء الأيمن: تقييم المادة بالنجوم
-            Box(
-                modifier = Modifier
-                    .fillMaxHeight()
-                    .widthIn(min = 120.dp),
-                contentAlignment = Alignment.BottomStart
-            ) {
+                // التقييم على اليمين
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    InteractiveRatingBar(
-                        rating = subject.rating?.toInt() ?: 0,
-                        onRatingChanged = onRatingChanged
-                    )
                     Text(
-                        text = "${subject.rating ?: 0}",
+                        text = "${subject.rating ?: 0.0}",
                         fontWeight = FontWeight.Bold,
                         fontSize = 16.sp,
                         fontFamily = Cairo
                     )
+                    InteractiveRatingBar(
+                        rating = subject.rating?.toInt() ?: 0,
+                        onRatingChanged = onRatingChanged
+                    )
+
                 }
             }
         }
+    }
+}
+
+// --- دالة المعاينة (Preview) ---
+@Preview(name = "New Layout Preview", showBackground = true,locale="ar")
+@Composable
+fun SubjectListItemCardPreview() {
+    SaffiEDUAppTheme {
+        val sampleSubject = Subject(
+            id = "1",
+            name = "الفيزياء الحديثة",
+            teacherName = "أحمد علي",
+            grade = "الصف الثاني عشر",
+            imageUrl = "",
+            lessonCount = 24,
+            rating = 4.5f
+        )
+        SubjectListItemCard(
+            subject = sampleSubject,
+            onClick = {},
+            onRatingChanged = {}
+        )
     }
 }
