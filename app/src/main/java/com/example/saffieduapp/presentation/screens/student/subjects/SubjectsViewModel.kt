@@ -49,19 +49,22 @@ class SubjectsViewModel @Inject constructor(
     private suspend fun loadSubjects() {
         _state.value = _state.value.copy(isLoading = true)
         try {
-            val querySnapshot = firestore.collection("teachers").get().await()
+            val querySnapshot = firestore.collection("subjects").get().await()
             val subjectsList = querySnapshot.documents.mapNotNull { doc ->
-                val teacherName = doc.getString("fullName") ?: return@mapNotNull null
-                val subjectName = doc.getString("subject") ?: return@mapNotNull null
+                val subjectName = doc.getString("subjectName") ?: return@mapNotNull null
+                val teacherName = doc.getString("teacherName") ?: "غير معروف"
+                val grade = doc.getString("className") ?: "غير محدد"
+                val lessonsCount = (doc.getLong("lessonsCount") ?: 0).toInt()
+                val rating = (doc.getDouble("rating") ?: 0.0).toFloat()
 
                 Subject(
                     id = doc.id,
                     name = subjectName,
                     teacherName = teacherName,
-                    grade = "الصف العاشر", // يمكن تعديلها حسب المرحلة أو جلبها من Firestore إذا متاحة
-                    rating = 0f,
-                    imageUrl = "", // رابط الصورة إذا متاح
-                    lessonCount = 0 // عدد الدروس إذا متاح
+                    grade = grade,
+                    rating = rating,
+                    imageUrl = "",
+                    totalLessons = lessonsCount
                 )
             }
 

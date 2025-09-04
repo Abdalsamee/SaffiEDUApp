@@ -33,7 +33,7 @@ class HomeViewModel @Inject constructor(
         loadUserData()
         viewModelScope.launch {
             loadInitialData()
-            loadTeachersSubjects()
+            loadSubjects()
         }
     }
 
@@ -83,7 +83,7 @@ class HomeViewModel @Inject constructor(
             try {
                 // أقصى وقت لجلب البيانات: 3 ثواني
                 withTimeout(3000) {
-                    loadTeachersSubjects()
+                    loadSubjects()
                     loadInitialData()
                 }
             } catch (_: Exception) {
@@ -113,20 +113,24 @@ class HomeViewModel @Inject constructor(
     }
 
     // suspend function → مباشرة تستخدم await
-    private suspend fun loadTeachersSubjects() {
+    private suspend fun loadSubjects() {
         try {
-            val querySnapshot = firestore.collection("teachers").get().await()
+            val querySnapshot = firestore.collection("subjects").get().await()
             val subjectsList = querySnapshot.documents.map { doc ->
-                val fullName = doc.getString("fullName") ?: "غير معروف"
-                val subjectName = doc.getString("subject") ?: "غير معروف"
+                val subjectName = doc.getString("subjectName") ?: "غير معروف"
+                val teacherName = doc.getString("teacherName") ?: "غير معروف"
+                val grade = doc.getString("className") ?: "غير محدد"
+                val lessonsCount = (doc.getLong("lessonsCount") ?: 0).toInt()
+                val rating = (doc.getDouble("rating") ?: 0.0).toFloat()
+
                 Subject(
                     id = doc.id,
                     name = subjectName,
-                    teacherName = fullName,
-                    grade = "",
-                    rating = 0f,
+                    teacherName = teacherName,
+                    grade = grade,
+                    rating = rating,
                     imageUrl = "",
-                    totalLessons = 0
+                    totalLessons = lessonsCount
                 )
             }
 
