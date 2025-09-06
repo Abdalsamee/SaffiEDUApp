@@ -1,4 +1,4 @@
-package com.example.saffieduapp
+package com.example.saffieduapp // تأكد من أن اسم الحزمة صحيح
 
 import android.app.Application
 import dagger.hilt.android.HiltAndroidApp
