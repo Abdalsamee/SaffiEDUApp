@@ -6,9 +6,7 @@ import androidx.core.content.FileProvider
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.saffieduapp.domain.model.Subject // Assuming this is in domain/model
-// Use the imports as they exist in your project
-
+import com.example.saffieduapp.domain.model.Subject
 import com.example.saffieduapp.presentation.screens.student.subject_details.components.Lesson
 import com.example.saffieduapp.presentation.screens.student.subject_details.components.PdfLesson
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -26,7 +24,7 @@ import java.io.File
 import java.net.URL
 import javax.inject.Inject
 
-// --- الإضافة ١: تعريف الأحداث التي سترسلها للواجهة ---
+// --- الأحداث التي سترسل للواجهة ---
 sealed class DetailsUiEvent {
     data class OpenPdf(val uri: Uri) : DetailsUiEvent()
     data class ShowToast(val message: String) : DetailsUiEvent()
@@ -34,7 +32,6 @@ sealed class DetailsUiEvent {
 
 @HiltViewModel
 class SubjectDetailsViewModel @Inject constructor(
-    // --- الإضافة ٢: حقن Context ---
     @ApplicationContext private val context: Context,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
@@ -42,13 +39,13 @@ class SubjectDetailsViewModel @Inject constructor(
     private val _state = MutableStateFlow(SubjectDetailsState())
     val state = _state.asStateFlow()
 
-    // --- الإضافة ٣: إنشاء مجرى لإرسال الأحداث ---
+    // لتدفق الأحداث (فتح PDF، رسائل Toast...)
     private val _eventFlow = MutableSharedFlow<DetailsUiEvent>()
     val eventFlow = _eventFlow.asSharedFlow()
 
+    // المعرف القادم من Navigation
     private val subjectId: String = checkNotNull(savedStateHandle["subjectId"])
 
-    // --- الكود الأصلي الخاص بك (بقي كما هو) ---
     init {
         loadSubjectDetails()
         loadVideoLessons()
@@ -99,6 +96,7 @@ class SubjectDetailsViewModel @Inject constructor(
             _state.update { it.copy(isLoading = false, videoLessons = lessons) }
         }
     }
+
     private fun loadPdfSummaries() {
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true) }
@@ -110,9 +108,8 @@ class SubjectDetailsViewModel @Inject constructor(
             _state.update { it.copy(isLoading = false, pdfSummaries = pdfs) }
         }
     }
-    // --- نهاية الكود الأصلي ---
 
-    // --- الإضافة ٤: الدوال الجديدة الخاصة بالـ PDF ---
+    // --- التعامل مع فتح ملفات PDF ---
     fun onPdfCardClick(pdfId: String, pdfUrl: String) {
         viewModelScope.launch {
             try {
@@ -140,6 +137,22 @@ class SubjectDetailsViewModel @Inject constructor(
                 }
             }
             return localFile
+        }
+    }
+
+    // --- تحديث حالة قراءة PDF ---
+    fun updatePdfLessonReadStatus(lesson: PdfLesson, isRead: Boolean) {
+        viewModelScope.launch {
+            _state.update { currentState ->
+                val updatedPdfs = currentState.pdfSummaries.map { pdf ->
+                    if (pdf.id == lesson.id) {
+                        pdf.copy(isRead = isRead)
+                    } else {
+                        pdf
+                    }
+                }
+                currentState.copy(pdfSummaries = updatedPdfs)
+            }
         }
     }
 }
