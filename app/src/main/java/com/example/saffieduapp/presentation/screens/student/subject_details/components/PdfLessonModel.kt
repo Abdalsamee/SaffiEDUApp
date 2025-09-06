@@ -2,10 +2,11 @@ package com.example.saffieduapp.presentation.screens.student.subject_details.com
 
 
 data class PdfLesson(
-    val id: Int,
+    val id: String,
     val title: String,
     val subTitle: String,
     val pagesCount: Int,
     val isRead: Boolean,
-    val imageUrl: String
+    val imageUrl: String,
+    val pdfUrl: String
 )
