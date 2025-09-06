@@ -1,5 +1,7 @@
 package com.example.saffieduapp.presentation.screens.student.subject_details
 
+import android.content.Intent
+import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -21,12 +23,14 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -49,9 +53,34 @@ fun SubjectDetailsScreen(
     navController: NavController,
 ) {
     val state by viewModel.state.collectAsState()
+    val context = LocalContext.current
+
+    // --- معالج الأحداث ---
+    LaunchedEffect(Unit) {
+        viewModel.eventFlow.collect { event ->
+            when (event) {
+                is DetailsUiEvent.OpenPdf -> {
+                    try {
+                        val intent = Intent(Intent.ACTION_VIEW).apply {
+                            setDataAndType(event.uri, "application/pdf")
+                            flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NO_HISTORY
+                        }
+                        context.startActivity(intent)
+                    } catch (e: Exception) {
+                        Toast.makeText(context, "لا يوجد تطبيق لفتح ملفات PDF", Toast.LENGTH_SHORT).show()
+                    }
+                }
+                is DetailsUiEvent.ShowToast -> {
+                    Toast.makeText(context, event.message, Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+
     val configuration = LocalConfiguration.current
     val screenWidthDp = configuration.screenWidthDp.dp
     val columns = if (screenWidthDp < 400.dp) 1 else 2
+
     Scaffold(
         topBar = {
             CommonTopAppBar(
@@ -87,7 +116,6 @@ fun SubjectDetailsScreen(
 
                 // قسم التنبيهات
                 item {
-                    // <--- تعديل: نقلنا العنوان إلى هنا ليظهر دائماً
                     Text(
                         text = "التنبيهات",
                         fontSize = 18.sp,
@@ -115,7 +143,6 @@ fun SubjectDetailsScreen(
                         }
                     }
                 } else {
-                    // <--- إضافة: عرض رسالة في حال عدم وجود تنبيهات
                     item {
                         Text(
                             text = "لا توجد تنبيهات حالياً.",
@@ -154,8 +181,7 @@ fun SubjectDetailsScreen(
                                                 onClick = {
                                                     navController.navigate("${Routes.VIDEO_PLAYER_SCREEN}/${lesson.id}")
                                                 }
-
-                                                )
+                                            )
                                         }
                                     }
                                     if (rowItems.size < columns) {
@@ -164,12 +190,11 @@ fun SubjectDetailsScreen(
                                 }
                             }
                         } else {
-                            // <--- إضافة: عرض رسالة في حال عدم وجود دروس
                             item {
                                 Box(
                                     modifier = Modifier
-                                        .fillParentMaxSize() // تملأ المساحة المتبقية في الشاشة
-                                        .height(200.dp), // ارتفاع افتراضي
+                                        .fillParentMaxSize()
+                                        .height(200.dp),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Text(
@@ -202,6 +227,10 @@ fun SubjectDetailsScreen(
                                         Box(modifier = Modifier.weight(1f)) {
                                             PdfCard(
                                                 pdfLesson = pdf,
+                                                onClick = {
+                                                    println("DEBUG: Click event received in SubjectDetailsScreen for PDF ID: ${pdf.id}")
+                                                    viewModel.onPdfCardClick(pdf.id, pdf.pdfUrl)
+                                                }
                                             )
                                         }
                                     }
@@ -211,7 +240,6 @@ fun SubjectDetailsScreen(
                                 }
                             }
                         } else {
-                            // <--- إضافة: عرض رسالة في حال عدم وجود ملخصات
                             item {
                                 Box(
                                     modifier = Modifier
@@ -233,14 +261,11 @@ fun SubjectDetailsScreen(
     }
 }
 
-// --- باقي الـ Composables كما هي ---
-
 @Composable
 private fun SubjectTabsRow(
     selectedTab: SubjectTab,
     onTabSelected: (SubjectTab) -> Unit
 ) {
-    // ... (الكود لم يتغير)
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -262,7 +287,6 @@ private fun SubjectTabsRow(
 
 @Composable
 private fun TabItem(text: String, isSelected: Boolean, onClick: () -> Unit) {
-    // ... (الكود لم يتغير)
     val textColor = if (isSelected) AppPrimary else AppTextSecondary
     Text(
         text = text,
@@ -276,7 +300,6 @@ private fun TabItem(text: String, isSelected: Boolean, onClick: () -> Unit) {
 
 @Composable
 fun AlertsSection(alerts: List<Alert>, modifier: Modifier = Modifier) {
-    // ... (الكود لم يتغير)
     Column(modifier = modifier.fillMaxWidth()) {
         Text(
             text = "التنبيهات",

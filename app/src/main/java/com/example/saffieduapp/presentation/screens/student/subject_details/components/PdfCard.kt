@@ -30,7 +30,11 @@ import com.example.saffieduapp.R
 import com.example.saffieduapp.ui.theme.*
 
 @Composable
-fun PdfCard(pdfLesson: PdfLesson) {
+fun PdfCard(
+    pdfLesson: PdfLesson,
+    onClick: () -> Unit,
+
+) {
     Card(
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = CardBackgroundColor),
@@ -103,7 +107,12 @@ fun PdfCard(pdfLesson: PdfLesson) {
 
                 // <--- تعديل: تم نقل الزر إلى هنا (الجهة اليسرى)
                 Button(
-                    onClick = { /* فتح الملف */ },
+
+                    onClick = {
+                        println("DEBUG: Button in PdfCard was clicked!")
+                        onClick()
+                    }
+                    ,
                     shape = RoundedCornerShape(50),
                     colors = ButtonDefaults.buttonColors(containerColor = AppPrimary),
                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
@@ -156,17 +165,19 @@ private fun ReadStatus(isRead: Boolean) {
 @Composable
 private fun PdfCardUnreadPreview() {
     val samplePdf = PdfLesson(
-        id = 1,
+        id = "1",
         title = "ملخص الوحدة الأولى",
         subTitle = "النحو والصرف",
         pagesCount = 12,
         isRead = false,
-        imageUrl = ""
+        imageUrl = "",
+        ""
     )
     SaffiEDUAppTheme {
         CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
             Box(modifier = Modifier.padding(16.dp).width(220.dp)) {
-                PdfCard(pdfLesson = samplePdf)
+                PdfCard(pdfLesson = samplePdf,
+                    onClick = {})
             }
         }
     }
