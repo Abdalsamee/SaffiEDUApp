@@ -75,14 +75,27 @@ class SubjectsViewModel @Inject constructor(
     }
 
     /**
-     * تحديث تقييم المادة محليًا
+     * تحديث التقييم محلياً + تخزينه في Firestore
      */
     fun updateRating(subjectId: String, newRating: Int) {
+        // تحديث محلي
         val currentSubjects = _state.value.subject.toMutableList()
         val index = currentSubjects.indexOfFirst { it.id == subjectId }
         if (index != -1) {
             currentSubjects[index] = currentSubjects[index].copy(rating = newRating.toFloat())
             _state.value = _state.value.copy(subject = currentSubjects)
+        }
+
+        // تحديث في Firestore
+        viewModelScope.launch {
+            try {
+                firestore.collection("subjects")
+                    .document(subjectId)
+                    .update("rating", newRating)
+                    .await()
+            } catch (e: Exception) {
+                // ممكن تضيف Log أو رسالة خطأ
+            }
         }
     }
 }
