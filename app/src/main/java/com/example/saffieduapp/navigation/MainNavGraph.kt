@@ -51,7 +51,11 @@ private fun slideDir(from: NavBackStackEntry, to: NavBackStackEntry): Int {
 }
 
 @Composable
-fun MainNavGraph(navController: NavHostController, modifier: Modifier = Modifier) {
+fun MainNavGraph(
+    navController: NavHostController,
+    modifier: Modifier = Modifier,
+    onFullscreenChange: ((Boolean) -> Unit)? = null
+    ) {
     NavHost(
         navController = navController,
         startDestination = Routes.HOME_SCREEN,
@@ -104,7 +108,10 @@ fun MainNavGraph(navController: NavHostController, modifier: Modifier = Modifier
                 onNavigateToSubjects = { navController.navigate(Routes.SUBJECTS_SCREEN) }
             )
         }
-        subjectsNavGraph(navController)
-        // بقية الجرافات...
+        subjectsNavGraph(
+            navController,
+            onFullscreenChange = onFullscreenChange
+        )
+
     }
 }

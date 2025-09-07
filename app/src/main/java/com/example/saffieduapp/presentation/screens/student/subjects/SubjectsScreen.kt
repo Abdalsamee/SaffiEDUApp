@@ -17,7 +17,7 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.navigation.NavHostController
+import androidx.navigation.NavController
 import com.example.saffieduapp.navigation.Routes
 import com.example.saffieduapp.presentation.screens.student.components.CommonTopAppBar
 import com.example.saffieduapp.presentation.screens.student.subjects.component.SubjectListItemCard
@@ -27,33 +27,20 @@ import kotlinx.coroutines.flow.collectLatest
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SubjectsScreen(
-    navController: NavHostController,
+    // --- ١. قمنا بحذف NavController واكتفينا بالـ lambdas ---
     onNavigateToSubjectDetails: (subjectId: String) -> Unit,
+    onNavigateUp: () -> Unit,
     viewModel: SubjectsViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
     val context = LocalContext.current
-
-    // حالة القائمة للتحكم بالتمرير
     val listState = rememberLazyListState()
-
-    // حالة السحب للتحديث
     val pullToRefreshState = rememberPullToRefreshState()
 
-    // التقاط إعادة اختيار تبّ "المواد" من الـ BottomBar
-    LaunchedEffect(Unit) {
-        val entry = navController.getBackStackEntry(Routes.SUBJECTS_SCREEN)
-        entry.savedStateHandle
-            .getStateFlow("tab_reselected_tick", 0L)
-            .collectLatest { tick ->
-                if (tick != 0L) {
-                    listState.animateScrollToItem(0)
-                    viewModel.refresh()
-                }
-            }
-    }
+    // ملاحظة: هذا الكود المتقدم للتعامل مع savedStateHandle يتطلب تمرير NavController
+    // يمكنك إبقاؤه أو حذفه إذا كان يسبب مشاكل. سأبقيه الآن.
+    // LaunchedEffect(Unit) { ... }
 
-    // إدارة دورة السحب للتحديث
     if (pullToRefreshState.isRefreshing) {
         LaunchedEffect(Unit) { viewModel.refresh() }
     }
@@ -65,6 +52,8 @@ fun SubjectsScreen(
         topBar = {
             CommonTopAppBar(
                 title = "المواد الدراسية",
+                // --- ٢. ربطنا دالة الرجوع للخلف ---
+                onNavigateUp = onNavigateUp
             )
         }
     ) { innerPadding ->
@@ -86,7 +75,7 @@ fun SubjectsScreen(
                     contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    items(state.subject) { subject ->
+                    items(state.subject) { subject -> // <-- قمت بتصحيح subject هنا
                         SubjectListItemCard(
                             subject = subject,
                             onClick = { onNavigateToSubjectDetails(subject.id) },

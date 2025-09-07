@@ -40,8 +40,8 @@ fun ProgressBarWithPercentage(
     completedColor: Color = Color(0xFF0077B6),
     textStyle: TextStyle = TextStyle(
         color = Color.Black,
-        fontWeight = FontWeight.Bold,
-        fontSize = 16.sp
+        fontWeight = FontWeight.Normal,
+        fontSize = 13.sp
     )
 ) {
     val validatedProgress = progress.coerceIn(0, 100)

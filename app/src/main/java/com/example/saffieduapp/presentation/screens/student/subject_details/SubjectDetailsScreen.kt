@@ -1,27 +1,84 @@
 package com.example.saffieduapp.presentation.screens.student.subject_details
 
+import android.content.Intent
+import android.widget.Toast
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.NavController
+import com.example.saffieduapp.navigation.Routes
 import com.example.saffieduapp.presentation.screens.student.components.CommonTopAppBar
+import com.example.saffieduapp.presentation.screens.student.home.components.SearchBar
+import com.example.saffieduapp.presentation.screens.student.subject_details.components.LessonCard
+import com.example.saffieduapp.presentation.screens.student.subject_details.components.PdfCard
+import com.example.saffieduapp.ui.theme.AppPrimary
+import com.example.saffieduapp.ui.theme.AppTextSecondary
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SubjectDetailsScreen(
     onNavigateUp: () -> Unit,
-    viewModel: SubjectDetailsViewModel = hiltViewModel()
+    viewModel: SubjectDetailsViewModel = hiltViewModel(),
+    navController: NavController,
 ) {
     val state by viewModel.state.collectAsState()
+    val context = LocalContext.current
+
+    // --- معالج الأحداث ---
+    LaunchedEffect(Unit) {
+        viewModel.eventFlow.collect { event ->
+            when (event) {
+                is DetailsUiEvent.OpenPdf -> {
+                    try {
+                        val intent = Intent(Intent.ACTION_VIEW).apply {
+                            setDataAndType(event.uri, "application/pdf")
+                            flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NO_HISTORY
+                        }
+                        context.startActivity(intent)
+                    } catch (e: Exception) {
+                        Toast.makeText(context, "لا يوجد تطبيق لفتح ملفات PDF", Toast.LENGTH_SHORT).show()
+                    }
+                }
+                is DetailsUiEvent.ShowToast -> {
+                    Toast.makeText(context, event.message, Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+
+    val configuration = LocalConfiguration.current
+    val screenWidthDp = configuration.screenWidthDp.dp
+    val columns = if (screenWidthDp < 400.dp) 1 else 2
 
     Scaffold(
         topBar = {
@@ -31,16 +88,241 @@ fun SubjectDetailsScreen(
             )
         }
     ) { innerPadding ->
-        Box(
+        Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding),
-            contentAlignment = Alignment.Center
+                .padding(innerPadding)
         ) {
-            when {
-                state.isLoading -> CircularProgressIndicator()
-                state.subject != null -> Text(text = "Details for ${state.subject!!.name}")
-                else -> Text(text = "Subject not found")
+            // 1. التبويبات (ثابتة ولا يتم تمريرها)
+            SubjectTabsRow(
+                selectedTab = state.selectedTab,
+                onTabSelected = viewModel::onTabSelected
+            )
+
+            // 2. المحتوى القابل للتمرير
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(vertical = 8.dp)
+            ) {
+                // شريط البحث
+                item {
+                    SearchBar(
+                        query = state.searchQuery,
+                        onQueryChanged = viewModel::onSearchQueryChanged,
+                        modifier = Modifier.padding(horizontal = 16.dp)
+                    )
+                }
+
+                // قسم التنبيهات
+                item {
+                    Text(
+                        text = "التنبيهات",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier
+                            .padding(horizontal = 16.dp)
+                            .padding(top = 8.dp)
+                    )
+                }
+
+                if (state.alerts.isNotEmpty()) {
+                    items(state.alerts) { alert ->
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 4.dp),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = CardDefaults.cardColors(containerColor = AppPrimary)
+                        ) {
+                            Text(
+                                text = alert.message,
+                                color = Color.White,
+                                modifier = Modifier.padding(16.dp)
+                            )
+                        }
+                    }
+                } else {
+                    // عرض رسالة في حال عدم وجود تنبيهات
+                    item {
+                        Text(
+                            text = "لا توجد تنبيهات حالياً.",
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 8.dp),
+                            textAlign = TextAlign.Center,
+                            color = AppTextSecondary
+                        )
+                    }
+                }
+
+                // محتوى التبويب المحدد
+                when (state.selectedTab) {
+                    SubjectTab.VIDEOS -> {
+                        item {
+                            Text(
+                                text = "الدروس",
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                            )
+                        }
+                        if (state.videoLessons.isNotEmpty()) {
+                            items(state.videoLessons.chunked(columns)) { rowItems ->
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 16.dp)
+                                        .padding(bottom = 12.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                ) {
+                                    rowItems.forEach { lesson ->
+                                        Box(modifier = Modifier.weight(1f)) {
+                                            LessonCard(
+                                                lesson = lesson,
+                                                onClick = {
+                                                    navController.navigate("${Routes.VIDEO_PLAYER_SCREEN}/${lesson.id}")
+                                                }
+                                            )
+                                        }
+                                    }
+                                    if (rowItems.size < columns) {
+                                        Spacer(modifier = Modifier.weight(1f))
+                                    }
+                                }
+                            }
+                        } else {
+                            // عرض رسالة في حال عدم وجود دروس
+                            item {
+                                Box(
+                                    modifier = Modifier
+                                        .fillParentMaxSize()
+                                        .height(200.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = "لا توجد دروس مصورة حالياً.",
+                                        color = AppTextSecondary
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    SubjectTab.PDFS -> {
+                        item {
+                            Text(
+                                text = "الملخصات",
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                            )
+                        }
+                        if (state.pdfSummaries.isNotEmpty()) {
+                            items(state.pdfSummaries.chunked(columns)) { rowItems ->
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 16.dp)
+                                        .padding(bottom = 12.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                ) {
+                                    rowItems.forEach { pdf ->
+                                        Box(modifier = Modifier.weight(1f)) {
+                                            PdfCard(
+                                                pdfLesson = pdf,
+                                                onClick = {
+                                                    println("DEBUG: Click event received in SubjectDetailsScreen for PDF ID: ${pdf.id}")
+                                                    viewModel.onPdfCardClick(pdf.id, pdf.pdfUrl)
+                                                }
+                                            )
+                                        }
+                                    }
+                                    if (rowItems.size < columns) {
+                                        Spacer(modifier = Modifier.weight(1f))
+                                    }
+                                }
+                            }
+                        } else {
+                            // عرض رسالة في حال عدم وجود ملخصات
+                            item {
+                                Box(
+                                    modifier = Modifier
+                                        .fillParentMaxSize()
+                                        .height(200.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = "لا توجد ملخصات PDF حالياً.",
+                                        color = AppTextSecondary
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SubjectTabsRow(
+    selectedTab: SubjectTab,
+    onTabSelected: (SubjectTab) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 0.dp),
+        horizontalArrangement = Arrangement.SpaceEvenly
+    ) {
+        TabItem(
+            text = "الدروس المصوّرة",
+            isSelected = selectedTab == SubjectTab.VIDEOS,
+            onClick = { onTabSelected(SubjectTab.VIDEOS) }
+        )
+        TabItem(
+            text = "الملخّصات PDF",
+            isSelected = selectedTab == SubjectTab.PDFS,
+            onClick = { onTabSelected(SubjectTab.PDFS) }
+        )
+    }
+}
+
+@Composable
+private fun TabItem(text: String, isSelected: Boolean, onClick: () -> Unit) {
+    val textColor = if (isSelected) AppPrimary else AppTextSecondary
+    Text(
+        text = text,
+        color = textColor,
+        fontWeight = FontWeight.Medium,
+        modifier = Modifier
+            .clickable(onClick = onClick)
+            .padding(8.dp)
+    )
+}
+
+@Composable
+fun AlertsSection(alerts: List<Alert>, modifier: Modifier = Modifier) {
+    Column(modifier = modifier.fillMaxWidth()) {
+        Text(
+            text = "التنبيهات",
+            fontSize = 18.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(bottom = 3.dp)
+        )
+        alerts.forEach { alert ->
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = AppPrimary
+                )
+            ) {
+                Text(
+                    text = alert.message,
+                    color = Color.White,
+                    modifier = Modifier.padding(16.dp)
+                )
             }
         }
     }

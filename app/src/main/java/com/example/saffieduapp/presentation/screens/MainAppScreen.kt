@@ -4,6 +4,10 @@ package com.example.saffieduapp.presentation.screens
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.navigation.NavHostController
@@ -17,7 +21,7 @@ import com.example.saffieduapp.navigation.Routes
 @Composable
 fun MainAppScreen() {
     val navController: NavHostController = rememberNavController()
-
+    var isVideoFullscreen by remember { mutableStateOf(false) }
     // تعريف جميع عناصر شريط التنقل كما في التصميم
     val bottomNavItems = listOf(
         BottomNavItem(
@@ -25,42 +29,48 @@ fun MainAppScreen() {
             route = Routes.HOME_SCREEN,
             icon = painterResource(id = R.drawable.homenot),
 
-        ),
+            ),
         BottomNavItem(
             title = "المواد",
             route = Routes.SUBJECTS_SCREEN,
             icon = painterResource(id = R.drawable.subject),
 
-        ),
+            ),
         BottomNavItem(
             title = "المهام",
             route = Routes.TASKS_SCREEN,
-           icon = painterResource(id = R.drawable.tasks),
+            icon = painterResource(id = R.drawable.tasks),
 
-        ),
+            ),
         BottomNavItem(
             title = "الدردشة",
             route = Routes.CHAT_SCREEN,
             icon = painterResource(id = R.drawable.chat),
 
-        ),
+            ),
         BottomNavItem(
             title = "الملف الشخصي",
             route = Routes.PROFILE_SCREEN,
-           icon = painterResource(id = R.drawable.user),
+            icon = painterResource(id = R.drawable.user),
 
-        )
+            )
     )
 
     Scaffold(
         bottomBar = {
-            AppBottomNavigationBar(items = bottomNavItems, navController = navController)
+            // إخفاء الـ BottomBar عند fullscreen
+            if (!isVideoFullscreen) {
+                AppBottomNavigationBar(items = bottomNavItems, navController = navController)
+            }
         }
     ) { innerPadding ->
 
         MainNavGraph(
             navController = navController,
-            modifier = Modifier.padding(innerPadding)
+            modifier = Modifier.padding(innerPadding),
+            onFullscreenChange = { fullscreen ->
+                isVideoFullscreen = fullscreen
+            }
         )
     }
 }
