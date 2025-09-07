@@ -31,7 +31,6 @@ class TeacherHomeViewModel @Inject constructor(
     private val _state = MutableStateFlow(TeacherHomeState())
     val state = _state.asStateFlow()
 
-    // قائمة كاملة بالبيانات (كأنها في قاعدة البيانات)
     private val allUpdates = listOf(
         StudentUpdate("1", "محمد محمود", "", "حل واجب الرياضيات", "قبل ساعة"),
         StudentUpdate("2", "علي أحمد", "", "حل اختبار الفيزياء", "قبل ساعتين"),
@@ -46,33 +45,22 @@ class TeacherHomeViewModel @Inject constructor(
         TeacherClass("c2","الصف الثاني","رياضيات","",24,listOf("", "", "")),
         TeacherClass("c3","الصف الثالث","","",15,listOf("", "", "")),
         TeacherClass("c4","الصف الرابع","","",12,listOf("", "", "")),
-        TeacherClass("c5","الصف الخامس","","",20,listOf("", "", "")),
+        TeacherClass("c5","الصف الخامس","","",20,listOf("", "", ""))
     )
 
     private var currentPage = 0
-    private val pageSize = 3
-
-    private var idTeach: String? = null // لتخزين رقم هوية المعلم (document id)
+    private var idTeach: String? = null // لتخزين رقم هوية المعلم
 
     init {
-        // قراءة حالة تفعيل المادة من DataStore
         viewModelScope.launch {
-            prefs.isSubjectActivated.collect { isActivated ->
-                // تحديث الحالة في UI (الزر)
-                _state.value = _state.value.copy(showActivateButton = !isActivated)
-            }
+            // جلب حالة التفعيل من Firestore أولًا
+            loadTeacherData()
         }
-        // تحميل بيانات المدرس + باقي البيانات
-        loadTeacherData()
     }
 
-    /**
-     * تحميل بيانات المدرس من Firestore
-     */
     private fun loadTeacherData() {
         viewModelScope.launch {
             _state.value = _state.value.copy(isLoading = true)
-
             val currentUserEmail = auth.currentUser?.email
             if (currentUserEmail != null) {
                 try {
@@ -86,14 +74,22 @@ class TeacherHomeViewModel @Inject constructor(
                         idTeach = doc.id
                         val teacherData = doc.toObject(TeachData::class.java)
 
-                        if (teacherData != null) {
-                            loadInitialData(
-                                teacherName = teacherData.fullName,
-                                teacherSubject = teacherData.subject,
-                                isActivated = teacherData.isSubjectActivated
-                            )
-                            return@launch
-                        }
+                        val teacherId = doc.id
+
+                        // تحقق من وجود أي مادة للمستخدم في كوليكشن subjects
+                        val subjectsSnapshot = firestore.collection("subjects")
+                            .whereEqualTo("teacherId", teacherId)
+                            .get()
+                            .await()
+
+                        val hasAnySubject = !subjectsSnapshot.isEmpty // true إذا وجد أي مستند
+
+                        loadInitialData(
+                            teacherName = teacherData?.fullName ?: "غير معروف",
+                            teacherSubject = teacherData?.subject ?: "غير معروف",
+                            isActivated = hasAnySubject // ✅ إذا موجود أي مادة، الزر لا يظهر
+                        )
+                        return@launch
                     }
                     loadInitialData("غير معروف", "غير معروف", false)
 
@@ -106,46 +102,54 @@ class TeacherHomeViewModel @Inject constructor(
         }
     }
 
-    /**
-     * تحميل البيانات الثابتة (الهيدر، الطلاب، الصفوف...)
-     */
     private fun loadInitialData(teacherName: String, teacherSubject: String, isActivated: Boolean) {
         viewModelScope.launch {
-            val activatedFromPrefs = prefs.isSubjectActivated.first() // اقرأ القيمة من DataStore
             val topStudentsList = listOf(
                 TopStudent("st1", "طاهر قديح", "", 1, 98, "9/10", "10/10"),
                 TopStudent("st2", "محمد خالد", "", 2, 96, "8/10", "10/10"),
                 TopStudent("st3", "علي أحمد", "", 3, 95, "10/10", "8/10")
             )
 
-            delay(500) // محاكاة تحميل البيانات
+            delay(500)
 
             _state.value = TeacherHomeState(
                 isLoading = false,
                 teacherName = teacherName,
                 teacherSub = teacherSubject,
                 profileImageUrl = "",
-                studentUpdates = allUpdates.take(pageSize),
+                studentUpdates = allUpdates.take(3),
                 teacherClasses = classesList,
                 availableClassesForFilter = listOf("الصف السادس","الصف السابع","الصف الثامن","الصف الثاني عشر","الصف الحادي عشر"),
                 selectedClassFilter = "الصف السادس",
                 topStudents = topStudentsList,
-                showActivateButton = !activatedFromPrefs // ✅ استخدم DataStore كمصدر
+                showActivateButton = !isActivated
             )
         }
     }
 
-    // ⬇️ تفعيل المادة
     fun activateSubject(selectedClass: String = "") {
         viewModelScope.launch {
             try {
                 val teacherId = idTeach ?: return@launch
                 val currentState = _state.value
+                val subjectName = currentState.teacherSub.removePrefix("مدرس ").trim()
+
+                val existingSubjects = firestore.collection("subjects")
+                    .whereEqualTo("teacherId", teacherId)
+                    .whereEqualTo("subjectName", subjectName)
+                    .get()
+                    .await()
+
+                if (!existingSubjects.isEmpty) {   // ✅ استخدم isEmpty بدل isNotEmpty
+                    // المادة موجودة بالفعل
+                    _state.value = _state.value.copy(showActivateButton = false)
+                    return@launch
+                }
 
                 val subjectData = mapOf(
                     "teacherId" to teacherId,
                     "teacherName" to currentState.teacherName,
-                    "subjectName" to currentState.teacherSub.removePrefix("مدرس ").trim(),
+                    "subjectName" to subjectName,
                     "className" to selectedClass,
                     "lessonsCount" to 0,
                     "rating" to 0
@@ -162,30 +166,23 @@ class TeacherHomeViewModel @Inject constructor(
                     .update("isSubjectActivated", true)
                     .await()
 
-                // ✅ تخزين الحالة في DataStore
                 prefs.setSubjectActivated(true)
-
-                // إخفاء الزر في الواجهة
                 _state.value = _state.value.copy(showActivateButton = false)
-                println("✅ تم تفعيل المادة وتخزين البيانات بنجاح")
             } catch (e: Exception) {
                 println("❌ خطأ عند تفعيل المادة: ${e.message}")
             }
         }
     }
 
-
     fun onClassFilterSelected(className: String) {
         _state.value = _state.value.copy(selectedClassFilter = className)
-        println("Selected class: $className")
     }
 
     fun loadNextUpdates() {
-        if (_state.value.isLoading || currentPage * pageSize >= allUpdates.size) return
-
+        if (_state.value.isLoading || currentPage * 3 >= allUpdates.size) return
         viewModelScope.launch {
-            val startIndex = currentPage * pageSize
-            val endIndex = (startIndex + pageSize).coerceAtMost(allUpdates.size)
+            val startIndex = currentPage * 3
+            val endIndex = (startIndex + 3).coerceAtMost(allUpdates.size)
             val newUpdates = allUpdates.subList(startIndex, endIndex)
 
             _state.value = _state.value.copy(
