@@ -208,7 +208,6 @@ fun AddLessonScreen(
                     fontSize = 13.sp
                 )
             }
-
         }
     }
 }

@@ -10,6 +10,7 @@ import androidx.annotation.RequiresApi
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.example.saffieduapp.data.FireBase.scheduleDailyLessonNotification
 import com.example.saffieduapp.navigation.authNavGraph
 import com.example.saffieduapp.presentation.screens.MainAppScreen
 import com.example.saffieduapp.presentation.screens.teacher.add_lesson.AddLessonScreen
@@ -33,6 +34,7 @@ class MainActivity : ComponentActivity() {
         super.attachBaseContext(context)
     }
 
+    @RequiresApi(Build.VERSION_CODES.O)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -51,5 +53,6 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+        scheduleDailyLessonNotification(this)
     }
 }
