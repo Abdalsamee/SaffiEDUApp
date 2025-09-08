@@ -29,12 +29,7 @@ import com.example.saffieduapp.ui.theme.*
 @Composable
 fun PdfCard(
     pdfLesson: PdfLesson,
-<<<<<<< HEAD
-    onClick: () -> Unit,
-
-=======
     onClick: () -> Unit
->>>>>>> origin/main
 ) {
     Card(
         shape = RoundedCornerShape(12.dp),
@@ -104,19 +99,10 @@ fun PdfCard(
                 )
 
                 Button(
-<<<<<<< HEAD
-
-                    onClick = {
-                        println("DEBUG: Button in PdfCard was clicked!")
-                        onClick()
-                    }
-                    ,
-=======
                     onClick = {
                         println("DEBUG: Button in PdfCard was clicked!")
                         onClick()
                     },
->>>>>>> origin/main
                     shape = RoundedCornerShape(50),
                     colors = ButtonDefaults.buttonColors(containerColor = AppPrimary),
                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
@@ -172,15 +158,6 @@ private fun PdfCardUnreadPreview() {
         pagesCount = 12,
         isRead = false,
         imageUrl = "",
-<<<<<<< HEAD
-        ""
-    )
-    SaffiEDUAppTheme {
-        CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
-            Box(modifier = Modifier.padding(16.dp).width(220.dp)) {
-                PdfCard(pdfLesson = samplePdf,
-                    onClick = {})
-=======
         pdfUrl = "https://example.com/sample.pdf"
     )
     SaffiEDUAppTheme {
@@ -191,7 +168,6 @@ private fun PdfCardUnreadPreview() {
                     .width(220.dp)
             ) {
                 PdfCard(pdfLesson = samplePdf, onClick = {})
->>>>>>> origin/main
             }
         }
     }

@@ -5,10 +5,6 @@ package com.example.saffieduapp.presentation.screens.student.subject_details.com
  * A data class representing a PDF lesson.
  */
 data class Lesson(
-<<<<<<< HEAD
-=======
-
->>>>>>> origin/main
     val id: String,
     val title: String,
     val subTitle: String,
