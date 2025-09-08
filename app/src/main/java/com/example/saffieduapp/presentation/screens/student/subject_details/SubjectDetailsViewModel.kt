@@ -26,7 +26,11 @@ import java.io.File
 import java.net.URL
 import javax.inject.Inject
 
+<<<<<<< HEAD
 // --- الإضافة ١: تعريف الأحداث التي سترسلها للواجهة ---
+=======
+// --- الأحداث التي سترسل للواجهة ---
+>>>>>>> origin/main
 sealed class DetailsUiEvent {
     data class OpenPdf(val uri: Uri) : DetailsUiEvent()
     data class ShowToast(val message: String) : DetailsUiEvent()
@@ -34,7 +38,10 @@ sealed class DetailsUiEvent {
 
 @HiltViewModel
 class SubjectDetailsViewModel @Inject constructor(
+<<<<<<< HEAD
     // --- الإضافة ٢: حقن Context ---
+=======
+>>>>>>> origin/main
     @ApplicationContext private val context: Context,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
@@ -42,10 +49,18 @@ class SubjectDetailsViewModel @Inject constructor(
     private val _state = MutableStateFlow(SubjectDetailsState())
     val state = _state.asStateFlow()
 
+<<<<<<< HEAD
     // --- الإضافة ٣: إنشاء مجرى لإرسال الأحداث ---
     private val _eventFlow = MutableSharedFlow<DetailsUiEvent>()
     val eventFlow = _eventFlow.asSharedFlow()
 
+=======
+    // لتدفق الأحداث (فتح PDF، رسائل Toast...)
+    private val _eventFlow = MutableSharedFlow<DetailsUiEvent>()
+    val eventFlow = _eventFlow.asSharedFlow()
+
+    // المعرف القادم من Navigation
+>>>>>>> origin/main
     private val subjectId: String = checkNotNull(savedStateHandle["subjectId"])
 
     // --- الكود الأصلي الخاص بك (بقي كما هو) ---
@@ -99,6 +114,7 @@ class SubjectDetailsViewModel @Inject constructor(
             _state.update { it.copy(isLoading = false, videoLessons = lessons) }
         }
     }
+
     private fun loadPdfSummaries() {
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true) }
@@ -112,6 +128,7 @@ class SubjectDetailsViewModel @Inject constructor(
     }
     // --- نهاية الكود الأصلي ---
 
+<<<<<<< HEAD
     // --- الإضافة ٤: الدوال الجديدة الخاصة بالـ PDF ---
     fun onPdfCardClick(pdfId: String, pdfUrl: String) {
         viewModelScope.launch {
@@ -143,3 +160,52 @@ class SubjectDetailsViewModel @Inject constructor(
         }
     }
 }
+=======
+    // --- التعامل مع فتح ملفات PDF ---
+    fun onPdfCardClick(pdfId: String, pdfUrl: String) {
+        viewModelScope.launch {
+            try {
+                _eventFlow.emit(DetailsUiEvent.ShowToast("جاري تجهيز الملف..."))
+                val localFile = getOrDownloadFile(pdfId, pdfUrl)
+                val fileUri = FileProvider.getUriForFile(context, "${context.packageName}.provider", localFile)
+                _eventFlow.emit(DetailsUiEvent.OpenPdf(fileUri))
+            } catch (e: Exception) {
+                _eventFlow.emit(DetailsUiEvent.ShowToast("فشل تحميل الملف"))
+                e.printStackTrace()
+            }
+        }
+    }
+
+    private suspend fun getOrDownloadFile(fileId: String, fileUrl: String): File {
+        val localFile = File(context.filesDir, "$fileId.pdf")
+        if (localFile.exists()) {
+            return localFile
+        } else {
+            withContext(Dispatchers.IO) {
+                URL(fileUrl).openStream().use { input ->
+                    localFile.outputStream().use { output ->
+                        input.copyTo(output)
+                    }
+                }
+            }
+            return localFile
+        }
+    }
+
+    // --- تحديث حالة قراءة PDF ---
+    fun updatePdfLessonReadStatus(lesson: PdfLesson, isRead: Boolean) {
+        viewModelScope.launch {
+            _state.update { currentState ->
+                val updatedPdfs = currentState.pdfSummaries.map { pdf ->
+                    if (pdf.id == lesson.id) {
+                        pdf.copy(isRead = isRead)
+                    } else {
+                        pdf
+                    }
+                }
+                currentState.copy(pdfSummaries = updatedPdfs)
+            }
+        }
+    }
+}
+>>>>>>> origin/main

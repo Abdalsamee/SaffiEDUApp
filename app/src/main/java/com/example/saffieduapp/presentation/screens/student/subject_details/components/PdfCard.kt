@@ -4,9 +4,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckBox
-import androidx.compose.material.icons.filled.CheckBoxOutlineBlank
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material.icons.filled.Square
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -19,7 +16,6 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.LayoutDirection
@@ -29,11 +25,16 @@ import coil.compose.AsyncImage
 import com.example.saffieduapp.R
 import com.example.saffieduapp.ui.theme.*
 
+// ✅ بطاقة الـ PDF
 @Composable
 fun PdfCard(
     pdfLesson: PdfLesson,
+<<<<<<< HEAD
     onClick: () -> Unit,
 
+=======
+    onClick: () -> Unit
+>>>>>>> origin/main
 ) {
     Card(
         shape = RoundedCornerShape(12.dp),
@@ -48,7 +49,6 @@ fun PdfCard(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // <--- تعديل: تم نقل الصورة إلى هنا (الجهة اليمنى)
                 Box(
                     modifier = Modifier
                         .size(60.dp)
@@ -67,7 +67,6 @@ fun PdfCard(
 
                 Spacer(modifier = Modifier.width(12.dp))
 
-                // <--- تعديل: تم نقل النصوص إلى هنا (الجهة اليسرى) ومحاذاتها لليسار
                 Column(
                     modifier = Modifier.weight(1f),
                     horizontalAlignment = Alignment.Start
@@ -98,21 +97,26 @@ fun PdfCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // <--- تعديل: تم نقل نص عدد الصفحات إلى هنا (الجهة اليمنى)
                 Text(
                     text = "عدد الصفحات ${pdfLesson.pagesCount}",
                     fontSize = 10.sp,
                     color = AppTextPrimary
                 )
 
-                // <--- تعديل: تم نقل الزر إلى هنا (الجهة اليسرى)
                 Button(
+<<<<<<< HEAD
 
                     onClick = {
                         println("DEBUG: Button in PdfCard was clicked!")
                         onClick()
                     }
                     ,
+=======
+                    onClick = {
+                        println("DEBUG: Button in PdfCard was clicked!")
+                        onClick()
+                    },
+>>>>>>> origin/main
                     shape = RoundedCornerShape(50),
                     colors = ButtonDefaults.buttonColors(containerColor = AppPrimary),
                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
@@ -129,13 +133,11 @@ fun PdfCard(
     }
 }
 
-// <--- تعديل: تم تعديل ReadStatus ليكون المحتوى على اليسار
+// ✅ حالة المقروء/غير المقروء
 @Composable
 private fun ReadStatus(isRead: Boolean) {
     val statusText = if (isRead) "مقروء" else "غير مقروء"
-    // تعديل 1: استبدال أيقونات الدائرة بالمربع
     val icon = if (isRead) Icons.Default.CheckBox else Icons.Filled.Square
-    // تعديل 2: تغيير اللون في حالة "غير مقروء" إلى لون النص الأساسي
     val iconColor = if (isRead) AppAccent else Color.White
 
     Row(
@@ -159,8 +161,7 @@ private fun ReadStatus(isRead: Boolean) {
     }
 }
 
-// --- دوال المعاينة (تم تعديلها لتعرض من اليسار لليمين) ---
-
+// ✅ معاينة
 @Preview(showBackground = true, name = "PDF Card - Unread")
 @Composable
 private fun PdfCardUnreadPreview() {
@@ -171,6 +172,7 @@ private fun PdfCardUnreadPreview() {
         pagesCount = 12,
         isRead = false,
         imageUrl = "",
+<<<<<<< HEAD
         ""
     )
     SaffiEDUAppTheme {
@@ -178,28 +180,19 @@ private fun PdfCardUnreadPreview() {
             Box(modifier = Modifier.padding(16.dp).width(220.dp)) {
                 PdfCard(pdfLesson = samplePdf,
                     onClick = {})
+=======
+        pdfUrl = "https://example.com/sample.pdf"
+    )
+    SaffiEDUAppTheme {
+        CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
+            Box(
+                modifier = Modifier
+                    .padding(16.dp)
+                    .width(220.dp)
+            ) {
+                PdfCard(pdfLesson = samplePdf, onClick = {})
+>>>>>>> origin/main
             }
         }
     }
 }
-
-//@Preview(showBackground = true, name = "PDF Card - Read")
-//@Composable
-//private fun PdfCardReadPreview() {
-//    val samplePdf = PdfLesson(
-//        id = 2,
-//        title = "ملخص الوحدة الثانية",
-//        subTitle = "البلاغة والنصوص",
-//        pagesCount = 8,
-//        isRead = true,
-//        imageUrl = ""
-//    )
-//    SaffiEDUAppTheme {
-//        CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl){
-//            Box(modifier = Modifier.padding(16.dp).width(220.dp)) {
-//                PdfCard(pdfLesson = samplePdf)
-//            }
-//        }
-//
-//    }
-//}

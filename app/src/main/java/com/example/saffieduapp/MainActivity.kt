@@ -15,6 +15,10 @@ import com.example.saffieduapp.presentation.screens.MainAppScreen
 import com.example.saffieduapp.presentation.screens.teacher.add_lesson.AddLessonScreen
 
 
+import com.example.saffieduapp.presentation.screens.teacher.add_lesson.AddLessonScreen
+
+
+
 import com.example.saffieduapp.ui.theme.SaffiEDUAppTheme
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -46,6 +50,10 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> origin/main
             }
 
         }

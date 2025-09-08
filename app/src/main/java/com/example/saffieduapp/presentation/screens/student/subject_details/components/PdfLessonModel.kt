@@ -2,11 +2,21 @@ package com.example.saffieduapp.presentation.screens.student.subject_details.com
 
 
 data class PdfLesson(
+<<<<<<< HEAD
     val id: String,
+=======
+
+    val id: String,
+
+>>>>>>> origin/main
     val title: String,
     val subTitle: String,
     val pagesCount: Int,
     val isRead: Boolean,
     val imageUrl: String,
     val pdfUrl: String
+<<<<<<< HEAD
+=======
+
+>>>>>>> origin/main
 )
