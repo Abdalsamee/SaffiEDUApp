@@ -6,9 +6,7 @@ import androidx.core.content.FileProvider
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.saffieduapp.domain.model.Subject // Assuming this is in domain/model
-// Use the imports as they exist in your project
-
+import com.example.saffieduapp.domain.model.Subject
 import com.example.saffieduapp.presentation.screens.student.subject_details.components.Lesson
 import com.example.saffieduapp.presentation.screens.student.subject_details.components.PdfLesson
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -34,7 +32,6 @@ sealed class DetailsUiEvent {
 
 @HiltViewModel
 class SubjectDetailsViewModel @Inject constructor(
-    // --- الإضافة ٢: حقن Context ---
     @ApplicationContext private val context: Context,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
@@ -42,14 +39,13 @@ class SubjectDetailsViewModel @Inject constructor(
     private val _state = MutableStateFlow(SubjectDetailsState())
     val state = _state.asStateFlow()
 
-    // --- الإضافة ٣: إنشاء مجرى لإرسال الأحداث ---
+    // لتدفق الأحداث (فتح PDF، رسائل Toast...)
     private val _eventFlow = MutableSharedFlow<DetailsUiEvent>()
     val eventFlow = _eventFlow.asSharedFlow()
 
     // المعرف القادم من Navigation
     private val subjectId: String = checkNotNull(savedStateHandle["subjectId"])
 
-    // --- الكود الأصلي الخاص بك (بقي كما هو) ---
     init {
         loadSubjectDetails()
         loadVideoLessons()
@@ -113,37 +109,6 @@ class SubjectDetailsViewModel @Inject constructor(
         }
     }
 
-    // --- الإضافة ٤: الدوال الجديدة الخاصة بالـ PDF ---
-    fun onPdfCardClick(pdfId: String, pdfUrl: String) {
-        viewModelScope.launch {
-            try {
-                _eventFlow.emit(DetailsUiEvent.ShowToast("جاري تجهيز الملف..."))
-                val localFile = getOrDownloadFile(pdfId, pdfUrl)
-                val fileUri = FileProvider.getUriForFile(context, "${context.packageName}.provider", localFile)
-                _eventFlow.emit(DetailsUiEvent.OpenPdf(fileUri))
-            } catch (e: Exception) {
-                _eventFlow.emit(DetailsUiEvent.ShowToast("فشل تحميل الملف"))
-                e.printStackTrace()
-            }
-        }
-    }
-
-    private suspend fun getOrDownloadFile(fileId: String, fileUrl: String): File {
-        val localFile = File(context.filesDir, "$fileId.pdf")
-        if (localFile.exists()) {
-            return localFile
-        } else {
-            withContext(Dispatchers.IO) {
-                URL(fileUrl).openStream().use { input ->
-                    localFile.outputStream().use { output ->
-                        input.copyTo(output)
-                    }
-                }
-            }
-            return localFile
-        }
-    }
-}
     // --- التعامل مع فتح ملفات PDF ---
     fun onPdfCardClick(pdfId: String, pdfUrl: String) {
         viewModelScope.launch {
