@@ -5,6 +5,7 @@ import android.net.Uri
 import android.provider.OpenableColumns
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.saffieduapp.data.FireBase.LessonRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -15,7 +16,8 @@ import javax.inject.Inject
 
 @HiltViewModel
 class AddLessonViewModel @Inject constructor(
-    @ApplicationContext private val context: Context
+    @ApplicationContext private val context: Context,
+    private val lessonRepository: LessonRepository // ✅ لازم تنحقن
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(AddLessonState())
@@ -87,12 +89,41 @@ class AddLessonViewModel @Inject constructor(
         }
     }
 
-    private fun saveLesson() {
+    private fun saveLesson(isDraft: Boolean = false) {
         viewModelScope.launch {
             _state.update { it.copy(isSaving = true) }
-            println("Saving lesson: ${state.value}")
-            kotlinx.coroutines.delay(1500)
-            _state.update { it.copy(isSaving = false) }
+
+            try {
+                val current = state.value
+
+                val lessonData = mapOf(
+                    "title" to current.lessonTitle,
+                    "description" to current.description,
+                    "className" to current.selectedClass,
+                    "publicationDate" to current.publicationDate,
+                    "notifyStudents" to current.notifyStudents,
+                    "isDraft" to isDraft, // جديد
+                    "createdAt" to System.currentTimeMillis()
+                )
+
+                lessonRepository.saveLesson(lessonData)
+
+                // لو مش مسودة وكان مفعّل خيار إشعار الطلاب → أرسل إشعار
+                if (!isDraft && current.notifyStudents) {
+                    lessonRepository.sendNotificationToStudents(
+                        className = current.selectedClass,
+                        title = current.lessonTitle,
+                        description = current.description
+                    )
+                }
+
+                println("✅ Lesson saved successfully")
+
+            } catch (e: Exception) {
+                println("❌ Error saving lesson: ${e.message}")
+            } finally {
+                _state.update { it.copy(isSaving = false) }
+            }
         }
     }
 

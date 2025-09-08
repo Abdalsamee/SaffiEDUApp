@@ -79,6 +79,7 @@ dependencies {
     implementation(libs.firebase.firestore.ktx)
     implementation(libs.firebase.auth.ktx)
     implementation(libs.google.firebase.firestore.ktx)
+    implementation(libs.firebase.storage.ktx)
     kapt(libs.hilt.compiler)
     implementation(libs.dagger)
     implementation("androidx.hilt:hilt-navigation-compose:1.2.0")
@@ -112,4 +113,5 @@ dependencies {
 
     implementation ("androidx.datastore:datastore-preferences:1.0.0")
     implementation ("androidx.security:security-crypto:1.1.0-alpha06")
+
 }

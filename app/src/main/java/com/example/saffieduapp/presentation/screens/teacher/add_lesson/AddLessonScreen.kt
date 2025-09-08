@@ -185,7 +185,7 @@ fun AddLessonScreen(
                 )
                 Spacer(modifier = Modifier.height(20.dp))
                 AppButton(
-                    text = "حفظ ونشر للطلاب",
+                    text = if (state.isSaving) "جارٍ الحفظ..." else "حفظ ونشر للطلاب",
                     onClick = { viewModel.onEvent(AddLessonEvent.SaveClicked) },
                     modifier = Modifier.fillMaxWidth()
                 )
