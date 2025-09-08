@@ -2,7 +2,11 @@
 <project version="4">
   <component name="deploymentTargetSelector">
     <selectionStates>
+<<<<<<< Updated upstream
       <SelectionState runConfigName="app">
+=======
+      <SelectionState runConfigName="SaffiEDUApp.app">
+>>>>>>> Stashed changes
         <option name="selectionMode" value="DROPDOWN" />
       </SelectionState>
     </selectionStates>
