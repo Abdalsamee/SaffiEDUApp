@@ -142,10 +142,8 @@ fun SubjectDetailsScreen(
                         }
                     }
                 } else {
-<<<<<<< HEAD
-=======
+
                     // عرض رسالة في حال عدم وجود تنبيهات
->>>>>>> origin/main
                     item {
                         Text(
                             text = "لا توجد تنبيهات حالياً.",
@@ -180,12 +178,9 @@ fun SubjectDetailsScreen(
                                 ) {
                                     rowItems.forEach { lesson ->
                                         Box(modifier = Modifier.weight(1f)) {
-<<<<<<< HEAD
                                             LessonCard(lesson = lesson,
-=======
                                             LessonCard(
                                                 lesson = lesson,
->>>>>>> origin/main
                                                 onClick = {
                                                     navController.navigate("${Routes.VIDEO_PLAYER_SCREEN}/${lesson.id}")
                                                 }
@@ -198,10 +193,7 @@ fun SubjectDetailsScreen(
                                 }
                             }
                         } else {
-<<<<<<< HEAD
-=======
                             // عرض رسالة في حال عدم وجود دروس
->>>>>>> origin/main
                             item {
                                 Box(
                                     modifier = Modifier
@@ -252,10 +244,7 @@ fun SubjectDetailsScreen(
                                 }
                             }
                         } else {
-<<<<<<< HEAD
-=======
                             // عرض رسالة في حال عدم وجود ملخصات
->>>>>>> origin/main
                             item {
                                 Box(
                                     modifier = Modifier

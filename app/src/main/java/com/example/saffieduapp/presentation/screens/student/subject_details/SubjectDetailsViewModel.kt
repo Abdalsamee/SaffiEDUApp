@@ -26,11 +26,7 @@ import java.io.File
 import java.net.URL
 import javax.inject.Inject
 
-<<<<<<< HEAD
-// --- الإضافة ١: تعريف الأحداث التي سترسلها للواجهة ---
-=======
 // --- الأحداث التي سترسل للواجهة ---
->>>>>>> origin/main
 sealed class DetailsUiEvent {
     data class OpenPdf(val uri: Uri) : DetailsUiEvent()
     data class ShowToast(val message: String) : DetailsUiEvent()
@@ -38,10 +34,7 @@ sealed class DetailsUiEvent {
 
 @HiltViewModel
 class SubjectDetailsViewModel @Inject constructor(
-<<<<<<< HEAD
     // --- الإضافة ٢: حقن Context ---
-=======
->>>>>>> origin/main
     @ApplicationContext private val context: Context,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
@@ -49,18 +42,11 @@ class SubjectDetailsViewModel @Inject constructor(
     private val _state = MutableStateFlow(SubjectDetailsState())
     val state = _state.asStateFlow()
 
-<<<<<<< HEAD
     // --- الإضافة ٣: إنشاء مجرى لإرسال الأحداث ---
     private val _eventFlow = MutableSharedFlow<DetailsUiEvent>()
     val eventFlow = _eventFlow.asSharedFlow()
 
-=======
-    // لتدفق الأحداث (فتح PDF، رسائل Toast...)
-    private val _eventFlow = MutableSharedFlow<DetailsUiEvent>()
-    val eventFlow = _eventFlow.asSharedFlow()
-
     // المعرف القادم من Navigation
->>>>>>> origin/main
     private val subjectId: String = checkNotNull(savedStateHandle["subjectId"])
 
     // --- الكود الأصلي الخاص بك (بقي كما هو) ---
@@ -126,9 +112,7 @@ class SubjectDetailsViewModel @Inject constructor(
             _state.update { it.copy(isLoading = false, pdfSummaries = pdfs) }
         }
     }
-    // --- نهاية الكود الأصلي ---
 
-<<<<<<< HEAD
     // --- الإضافة ٤: الدوال الجديدة الخاصة بالـ PDF ---
     fun onPdfCardClick(pdfId: String, pdfUrl: String) {
         viewModelScope.launch {
@@ -160,7 +144,6 @@ class SubjectDetailsViewModel @Inject constructor(
         }
     }
 }
-=======
     // --- التعامل مع فتح ملفات PDF ---
     fun onPdfCardClick(pdfId: String, pdfUrl: String) {
         viewModelScope.launch {
@@ -208,4 +191,3 @@ class SubjectDetailsViewModel @Inject constructor(
         }
     }
 }
->>>>>>> origin/main

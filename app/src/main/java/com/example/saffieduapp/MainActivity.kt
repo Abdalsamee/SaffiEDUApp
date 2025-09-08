@@ -49,13 +49,7 @@ class MainActivity : ComponentActivity() {
                        MainAppScreen()
                     }
                 }
-
-<<<<<<< HEAD
-=======
-
->>>>>>> origin/main
             }
-
         }
     }
 }
