@@ -178,7 +178,6 @@ fun SubjectDetailsScreen(
                                 ) {
                                     rowItems.forEach { lesson ->
                                         Box(modifier = Modifier.weight(1f)) {
-                                            LessonCard(lesson = lesson,
                                             LessonCard(
                                                 lesson = lesson,
                                                 onClick = {
