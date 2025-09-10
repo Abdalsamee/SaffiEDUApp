@@ -9,6 +9,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.saffieduapp.domain.model.Subject
 import com.example.saffieduapp.presentation.screens.student.subject_details.components.Lesson
 import com.example.saffieduapp.presentation.screens.student.subject_details.components.PdfLesson
+import com.google.firebase.firestore.FirebaseFirestore
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -19,6 +20,7 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.net.URL
@@ -33,6 +35,7 @@ sealed class DetailsUiEvent {
 @HiltViewModel
 class SubjectDetailsViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
+    private val firestore: FirebaseFirestore, // ✅ إضافة Firestore
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -88,27 +91,96 @@ class SubjectDetailsViewModel @Inject constructor(
     private fun loadVideoLessons() {
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true) }
-            delay(500)
-            val lessons = listOf(
-                Lesson(id = "l1", title = "الدرس الأول", subTitle = "شرح سورة نوح", duration = 15, imageUrl = "", progress = 30f),
-                Lesson(id = "l2", title = "الدرس الثاني", subTitle = "شرح سورة البقرة", duration = 22, imageUrl = "", progress = 50f)
-            )
-            _state.update { it.copy(isLoading = false, videoLessons = lessons) }
+            try {
+                val lessonDocs = firestore.collection("lessons")
+                    .whereEqualTo("subjectId", subjectId)
+                    // جلب كل الدروس التي تاريخ نشرها >= اليوم الحالي
+                    .get().await()
+
+                val videoLessons = mutableListOf<Lesson>()
+                val pdfLessons = mutableListOf<PdfLesson>()
+
+                val now = System.currentTimeMillis()
+
+                lessonDocs.documents.forEach { doc ->
+                    val title = doc.getString("title") ?: return@forEach
+                    val description = doc.getString("description") ?: ""
+                    val videoUrl = doc.getString("videoUrl")
+                    val pdfUrl = doc.getString("pdfUrl")
+                    val duration = (doc.getLong("duration") ?: 0).toInt()
+                    val pagesCount = (doc.getLong("pagesCount") ?: 0).toInt()
+                    val publicationDate = doc.getLong("publicationDate") ?: 0
+
+                    // فقط الدروس التي تاريخ نشرها يساوي أو قبل اليوم الحالي
+                    if (publicationDate <= now) {
+                        if (!videoUrl.isNullOrEmpty()) {
+                            videoLessons.add(
+                                Lesson(
+                                    id = doc.id,
+                                    title = title,
+                                    subTitle = description,
+                                    duration = duration,
+                                    imageUrl = "",
+                                    progress = 0f
+                                )
+                            )
+                        }
+                        if (!pdfUrl.isNullOrEmpty()) {
+                            pdfLessons.add(
+                                PdfLesson(
+                                    id = doc.id,
+                                    title = title,
+                                    subTitle = description,
+                                    pagesCount = pagesCount,
+                                    isRead = false,
+                                    imageUrl = "",
+                                    pdfUrl = pdfUrl
+                                )
+                            )
+                        }
+                    }
+                }
+
+                _state.update { it.copy(isLoading = false, videoLessons = videoLessons, pdfSummaries = pdfLessons) }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                _state.update { it.copy(isLoading = false) }
+            }
         }
     }
 
     private fun loadPdfSummaries() {
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true) }
-            delay(500)
-            val pdfs = listOf(
-                PdfLesson(id = "p1", title = "الوحدة الأولى", subTitle = "النحو والصرف", pagesCount = 12, isRead = false, imageUrl = "", pdfUrl = "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf"),
-                PdfLesson(id = "p2", title = "ملخص الوحدة الثانية", subTitle = "البلاغة", pagesCount = 8, isRead = false, imageUrl = "", pdfUrl = "https://bitcoin.org/bitcoin.pdf")
-            )
-            _state.update { it.copy(isLoading = false, pdfSummaries = pdfs) }
+            try {
+                val pdfDocs = firestore.collection("lessons")
+                    .whereEqualTo("subjectId", subjectId)
+                    .whereLessThanOrEqualTo("publicationDate", System.currentTimeMillis())
+                    .get().await()
+
+                val pdfs = pdfDocs.documents.mapNotNull { doc ->
+                    val title = doc.getString("title") ?: return@mapNotNull null
+                    val subTitle = doc.getString("description") ?: ""
+                    val pdfUrl = doc.getString("pdfUrl") ?: return@mapNotNull null
+                    val pagesCount = (doc.getLong("pagesCount") ?: 0).toInt()
+                    PdfLesson(
+                        id = doc.id,
+                        title = title,
+                        subTitle = subTitle,
+                        pagesCount = pagesCount,
+                        isRead = false,
+                        imageUrl = "",
+                        pdfUrl = pdfUrl
+                    )
+                }
+
+                _state.update { it.copy(isLoading = false, pdfSummaries = pdfs) }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                _state.update { it.copy(isLoading = false) }
+            }
         }
     }
-
     // --- التعامل مع فتح ملفات PDF ---
     fun onPdfCardClick(pdfId: String, pdfUrl: String) {
         viewModelScope.launch {

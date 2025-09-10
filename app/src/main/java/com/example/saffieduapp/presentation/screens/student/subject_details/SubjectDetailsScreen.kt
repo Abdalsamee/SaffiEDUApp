@@ -142,6 +142,7 @@ fun SubjectDetailsScreen(
                         }
                     }
                 } else {
+
                     // عرض رسالة في حال عدم وجود تنبيهات
                     item {
                         Text(

@@ -1,6 +1,7 @@
 package com.example.saffieduapp.di
 
 import android.content.Context
+import com.example.saffieduapp.data.FireBase.LessonRepository
 import com.example.saffieduapp.data.local.preferences.OnboardingPreferences
 import com.example.saffieduapp.data.local.preferences.PreferencesManager
 import com.example.saffieduapp.domain.use_case.onboarding.GetOnboardingCompletedUseCase
@@ -56,5 +57,9 @@ object AppModule {
             return PreferencesManager(context)
         }
     }
-
+    @Provides
+    @Singleton
+    fun provideLessonRepository(firestore: FirebaseFirestore): LessonRepository {
+        return LessonRepository(firestore)
+    }
 }
