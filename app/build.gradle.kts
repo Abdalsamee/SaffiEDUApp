@@ -81,6 +81,7 @@ dependencies {
     implementation(libs.google.firebase.firestore.ktx)
     implementation(libs.firebase.storage.ktx)
     implementation(libs.androidx.work.runtime.ktx)
+    implementation(libs.google.firebase.storage.ktx)
     kapt(libs.hilt.compiler)
     implementation(libs.dagger)
     implementation("androidx.hilt:hilt-navigation-compose:1.2.0")
@@ -104,13 +105,12 @@ dependencies {
 
     implementation ("androidx.compose.material:material-icons-extended:1.4.3")
 
-
-
     // Import the Firebase BoM
     implementation(platform("com.google.firebase:firebase-bom:34.1.0"))
     // TODO: Add the dependencies for Firebase products you want to use
     // When using the BoM, don't specify versions in Firebase dependencies
     implementation("com.google.firebase:firebase-analytics")
+    implementation ("com.google.firebase:firebase-storage-ktx")
 
     implementation ("androidx.datastore:datastore-preferences:1.0.0")
     implementation ("androidx.security:security-crypto:1.1.0-alpha06")

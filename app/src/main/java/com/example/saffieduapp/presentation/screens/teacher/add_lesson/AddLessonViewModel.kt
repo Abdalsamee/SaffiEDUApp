@@ -3,15 +3,19 @@ package com.example.saffieduapp.presentation.screens.teacher.add_lesson
 import android.content.Context
 import android.net.Uri
 import android.provider.OpenableColumns
+import android.widget.Toast
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.saffieduapp.data.FireBase.LessonRepository
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.storage.FirebaseStorage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 
 @HiltViewModel
@@ -91,24 +95,62 @@ class AddLessonViewModel @Inject constructor(
 
     private fun saveLesson(isDraft: Boolean = false) {
         viewModelScope.launch {
+            val current = state.value
+
+            // ✅ التحقق من الحقول الفارغة
+            if (current.lessonTitle.isBlank()) {
+                Toast.makeText(context, "يرجى إدخال عنوان الدرس", Toast.LENGTH_SHORT).show()
+                return@launch
+            }
+            if (current.selectedClass.isBlank()) {
+                Toast.makeText(context, "يرجى اختيار الصف", Toast.LENGTH_SHORT).show()
+                return@launch
+            }
+            if (current.publicationDate.isBlank()) {
+                Toast.makeText(context, "يرجى اختيار تاريخ النشر", Toast.LENGTH_SHORT).show()
+                return@launch
+            }
+
             _state.update { it.copy(isSaving = true) }
 
             try {
-                val current = state.value
+                // 🔹 رفع ملفات PDF و الفيديو إذا تم اختيارها
+                var pdfUrl: String? = null
+                var videoUrl: String? = null
 
+                current.selectedPdfUri?.let { uri ->
+                    val pdfRef = FirebaseStorage.getInstance()
+                        .reference.child("lessons/${current.selectedPdfName ?: "file_${System.currentTimeMillis()}.pdf"}")
+                    pdfRef.putFile(uri).await() // استخدام kotlinx.coroutines.tasks.await()
+                    pdfUrl = pdfRef.downloadUrl.await().toString()
+                }
+
+                current.selectedVideoUri?.let { uri ->
+                    val videoRef = FirebaseStorage.getInstance()
+                        .reference.child("lessons/${current.selectedVideoName ?: "video_${System.currentTimeMillis()}.mp4"}")
+                    videoRef.putFile(uri).await()
+                    videoUrl = videoRef.downloadUrl.await().toString()
+                }
+
+                // 🔹 تحضير بيانات الدرس مع روابط الملفات
                 val lessonData = mapOf(
                     "title" to current.lessonTitle,
                     "description" to current.description,
                     "className" to current.selectedClass,
                     "publicationDate" to current.publicationDate,
                     "notifyStudents" to current.notifyStudents,
-                    "isDraft" to isDraft, // جديد
-                    "createdAt" to System.currentTimeMillis()
+                    "isDraft" to isDraft,
+                    "createdAt" to System.currentTimeMillis(),
+                    "pdfUrl" to pdfUrl,
+                    "videoUrl" to videoUrl
                 )
 
-                lessonRepository.saveLesson(lessonData)
+                // 🔹 حفظ الدرس في Firestore
+                FirebaseFirestore.getInstance().collection("lessons")
+                    .add(lessonData)
+                    .await()
 
-                // لو مش مسودة وكان مفعّل خيار إشعار الطلاب → أرسل إشعار
+                // 🔹 إرسال إشعارات إذا لزم الأمر
                 if (!isDraft && current.notifyStudents) {
                     lessonRepository.sendNotificationToStudents(
                         className = current.selectedClass,
@@ -117,10 +159,27 @@ class AddLessonViewModel @Inject constructor(
                     )
                 }
 
-                println("✅ Lesson saved successfully")
+                Toast.makeText(context, "✅ تم حفظ الدرس بنجاح", Toast.LENGTH_SHORT).show()
+
+                // ✅ تفريغ جميع الحقول بعد الحفظ
+                _state.update {
+                    it.copy(
+                        lessonTitle = "",
+                        description = "",
+                        selectedClass = "",
+                        publicationDate = "",
+                        selectedVideoUri = null,
+                        selectedVideoName = null,
+                        selectedPdfUri = null,
+                        selectedPdfName = null,
+                        selectedContentType = ContentType.NONE,
+                        notifyStudents = false
+                    )
+                }
 
             } catch (e: Exception) {
-                println("❌ Error saving lesson: ${e.message}")
+                e.printStackTrace()
+                Toast.makeText(context, "❌ فشل حفظ الدرس: ${e.message}", Toast.LENGTH_LONG).show()
             } finally {
                 _state.update { it.copy(isSaving = false) }
             }
@@ -136,4 +195,6 @@ class AddLessonViewModel @Inject constructor(
             cursor.getString(nameIndex)
         }
     }
+
+
 }
