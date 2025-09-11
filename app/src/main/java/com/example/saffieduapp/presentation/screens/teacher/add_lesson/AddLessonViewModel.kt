@@ -150,6 +150,7 @@ class AddLessonViewModel @Inject constructor(
         viewModelScope.launch {
             val current = state.value
 
+            // تحقق من الحقول
             if (current.lessonTitle.isBlank()) {
                 Toast.makeText(context, "يرجى إدخال عنوان الدرس", Toast.LENGTH_SHORT).show()
                 return@launch
@@ -168,24 +169,45 @@ class AddLessonViewModel @Inject constructor(
             try {
                 val (teacherId, subjectId) = fetchTeacherAndSubjectIds()
                 if (teacherId == null || subjectId == null) {
-                    Toast.makeText(context, "❌ لم يتم العثور على بيانات المعلم أو المادة", Toast.LENGTH_LONG).show()
+                    Toast.makeText(
+                        context,
+                        "❌ لم يتم العثور على بيانات المعلم أو المادة",
+                        Toast.LENGTH_LONG
+                    ).show()
                     _state.update { it.copy(isSaving = false) }
                     return@launch
                 }
 
-                // تحويل ملفات PDF والفيديو إلى Base64
+                // --- فحص PDF ---
                 val pdfBase64: String? = current.selectedPdfUri?.let { uri ->
                     context.contentResolver.openInputStream(uri)?.use { inputStream ->
-                        Base64.encodeToString(inputStream.readBytes(), Base64.DEFAULT)
+                        val bytes = inputStream.readBytes()
+                        if (bytes.size > 1_000_000) { // أقل من 1 ميجا
+                            Toast.makeText(context, "❌ حجم PDF كبير جدًا", Toast.LENGTH_SHORT)
+                                .show()
+                            return@launch
+                        }
+                        Base64.encodeToString(bytes, Base64.DEFAULT)
                     }
                 }
 
+                // --- فحص الفيديو ---
                 val videoBase64: String? = current.selectedVideoUri?.let { uri ->
                     context.contentResolver.openInputStream(uri)?.use { inputStream ->
-                        Base64.encodeToString(inputStream.readBytes(), Base64.DEFAULT)
+                        val bytes = inputStream.readBytes()
+                        if (bytes.size > 1_000_000) { // أقل من 1 ميجا
+                            Toast.makeText(
+                                context,
+                                "❌ حجم الفيديو كبير جدًا لا يمكن رفعه",
+                                Toast.LENGTH_LONG
+                            ).show()
+                            return@launch
+                        }
+                        Base64.encodeToString(bytes, Base64.DEFAULT)
                     }
                 }
 
+                // حفظ البيانات في Firestore
                 val lessonData = mapOf(
                     "title" to current.lessonTitle,
                     "description" to current.description,
@@ -200,8 +222,11 @@ class AddLessonViewModel @Inject constructor(
                     "teacherId" to teacherId
                 )
 
-                firestore.collection("lessons").add(lessonData).await()
+                firestore.collection("lessons")
+                    .add(lessonData)
+                    .await()
 
+                // إرسال إشعار إذا لزم الأمر
                 if (!isDraft && current.notifyStudents) {
                     lessonRepository.sendNotificationToStudents(
                         className = current.selectedClass,
