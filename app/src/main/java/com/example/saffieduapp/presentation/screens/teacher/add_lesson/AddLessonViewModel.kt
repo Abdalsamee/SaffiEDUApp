@@ -150,7 +150,6 @@ class AddLessonViewModel @Inject constructor(
         viewModelScope.launch {
             val current = state.value
 
-            // ✅ التحقق من الحقول الفارغة
             if (current.lessonTitle.isBlank()) {
                 Toast.makeText(context, "يرجى إدخال عنوان الدرس", Toast.LENGTH_SHORT).show()
                 return@launch
@@ -167,34 +166,26 @@ class AddLessonViewModel @Inject constructor(
             _state.update { it.copy(isSaving = true) }
 
             try {
-                // جلب teacherId و subjectId
                 val (teacherId, subjectId) = fetchTeacherAndSubjectIds()
                 if (teacherId == null || subjectId == null) {
-                    Toast.makeText(
-                        context,
-                        "❌ لم يتم العثور على بيانات المعلم أو المادة",
-                        Toast.LENGTH_LONG
-                    ).show()
+                    Toast.makeText(context, "❌ لم يتم العثور على بيانات المعلم أو المادة", Toast.LENGTH_LONG).show()
                     _state.update { it.copy(isSaving = false) }
                     return@launch
                 }
 
-                // --- تحويل ملفات PDF والفيديو إلى Base64 ---
+                // تحويل ملفات PDF والفيديو إلى Base64
                 val pdfBase64: String? = current.selectedPdfUri?.let { uri ->
                     context.contentResolver.openInputStream(uri)?.use { inputStream ->
-                        val bytes = inputStream.readBytes()
-                        Base64.encodeToString(bytes, Base64.DEFAULT)
+                        Base64.encodeToString(inputStream.readBytes(), Base64.DEFAULT)
                     }
                 }
 
                 val videoBase64: String? = current.selectedVideoUri?.let { uri ->
                     context.contentResolver.openInputStream(uri)?.use { inputStream ->
-                        val bytes = inputStream.readBytes()
-                        Base64.encodeToString(bytes, Base64.DEFAULT)
+                        Base64.encodeToString(inputStream.readBytes(), Base64.DEFAULT)
                     }
                 }
 
-                // حفظ البيانات في Firestore
                 val lessonData = mapOf(
                     "title" to current.lessonTitle,
                     "description" to current.description,
@@ -209,11 +200,8 @@ class AddLessonViewModel @Inject constructor(
                     "teacherId" to teacherId
                 )
 
-                firestore.collection("lessons")
-                    .add(lessonData)
-                    .await()
+                firestore.collection("lessons").add(lessonData).await()
 
-                // إرسال إشعار إذا لزم الأمر
                 if (!isDraft && current.notifyStudents) {
                     lessonRepository.sendNotificationToStudents(
                         className = current.selectedClass,
@@ -246,6 +234,7 @@ class AddLessonViewModel @Inject constructor(
             }
         }
     }
+
 
     // --- تم نقل الدالة إلى داخل الكلاس ---
     private fun getFileName(uri: Uri): String? {
