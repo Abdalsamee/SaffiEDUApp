@@ -11,6 +11,7 @@ import com.example.saffieduapp.presentation.screens.splash.SplashScreen
 import com.example.saffieduapp.presentation.screens.login.LoginViewModel
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.saffieduapp.presentation.screens.teacher.TeacherMainScreen
+import com.example.saffieduapp.presentation.screens.teacher.add_lesson.AddLessonScreen
 
 fun NavGraphBuilder.authNavGraph(navController: NavController) {
     navigation(

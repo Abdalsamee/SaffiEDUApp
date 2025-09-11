@@ -61,7 +61,6 @@ fun TeacherMainScreen() {
             painterResource(id = R.drawable.user)
         )
     )
-
     val fabActions = listOf(
         FabActionItem(
             icon = painterResource(id = R.drawable.books),
