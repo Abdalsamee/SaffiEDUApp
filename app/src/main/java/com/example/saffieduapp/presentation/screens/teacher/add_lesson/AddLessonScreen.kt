@@ -97,7 +97,7 @@ fun AddLessonScreen(
                     onValueChange = { viewModel.onEvent(AddLessonEvent.DescriptionChanged(it)) },
                     placeholder = "أدخل الوصف / الأهداف",
                     modifier = Modifier.height(100.dp),
-                    enabled = state.selectedContentType != ContentType.PDF
+                    enabled = state.selectedContentType == ContentType.VIDEO // مفعل فقط للفيديو
                 )
 
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {

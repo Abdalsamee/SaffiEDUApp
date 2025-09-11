@@ -101,7 +101,8 @@ class AddLessonViewModel @Inject constructor(
                         selectedPdfName = event.uri?.let { uri -> getFileName(uri) },
                         selectedContentType = if (event.uri != null) ContentType.PDF else ContentType.NONE,
                         selectedVideoUri = null,
-                        selectedVideoName = null
+                        selectedVideoName = null,
+                        description = "" // مسح أي محتوى في الوصف عند اختيار PDF
                     )
                 }
             }
