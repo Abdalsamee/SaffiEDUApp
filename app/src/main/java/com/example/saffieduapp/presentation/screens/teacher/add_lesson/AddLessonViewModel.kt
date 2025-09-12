@@ -7,8 +7,8 @@ import android.widget.Toast
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.saffieduapp.data.FireBase.LessonRepository
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.storage.FirebaseStorage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -17,11 +17,14 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
+import android.util.Base64
 
 @HiltViewModel
 class AddLessonViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val lessonRepository: LessonRepository // ✅ لازم تنحقن
+    private val lessonRepository: LessonRepository, // ✅ لازم تنحقن
+    private val firestore: FirebaseFirestore,
+    private val auth: FirebaseAuth
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(AddLessonState())
@@ -32,61 +35,112 @@ class AddLessonViewModel @Inject constructor(
         "الصف التاسع", "الصف العاشر", "الصف الحادي عشر", "الصف الثاني عشر"
     )
 
+    private suspend fun fetchTeacherAndSubjectIds(): Pair<String?, String?> {
+        return try {
+            val currentUserEmail = auth.currentUser?.email
+            if (currentUserEmail.isNullOrEmpty()) return null to null
+
+            // جلب المستند الخاص بالمعلم
+            val teacherSnapshot = firestore.collection("teachers")
+                .whereEqualTo("email", currentUserEmail)
+                .get()
+                .await()
+
+            if (teacherSnapshot.isEmpty) return null to null
+
+            val teacherDoc = teacherSnapshot.documents[0]
+            val teacherId = teacherDoc.id
+
+            // جلب أول مادة مرتبطة بهذا المعلم
+            val subjectsSnapshot = firestore.collection("subjects")
+                .whereEqualTo("teacherId", teacherId)
+                .get()
+                .await()
+
+            val subjectId = if (subjectsSnapshot.isEmpty) null else subjectsSnapshot.documents[0].id
+
+            teacherId to subjectId
+
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null to null
+        }
+    }
+
     fun onEvent(event: AddLessonEvent) {
         // --- تم تنظيف جملة when من التكرار ---
         when (event) {
             is AddLessonEvent.TitleChanged -> {
                 _state.update { it.copy(lessonTitle = event.title) }
             }
+
             is AddLessonEvent.DescriptionChanged -> {
                 _state.update { it.copy(description = event.description) }
             }
+
             is AddLessonEvent.ClassSelected -> {
                 _state.update { it.copy(selectedClass = event.className) }
             }
+
             is AddLessonEvent.VideoSelected -> {
-                _state.update { it.copy(
-                    selectedVideoUri = event.uri,
-                    selectedVideoName = event.uri?.let { uri -> getFileName(uri) },
-                    selectedContentType = if (event.uri != null) ContentType.VIDEO else ContentType.NONE,
-                    selectedPdfUri = null,
-                    selectedPdfName = null
-                ) }
+                _state.update {
+                    it.copy(
+                        selectedVideoUri = event.uri,
+                        selectedVideoName = event.uri?.let { uri -> getFileName(uri) },
+                        selectedContentType = if (event.uri != null) ContentType.VIDEO else ContentType.NONE,
+                        selectedPdfUri = null,
+                        selectedPdfName = null
+                    )
+                }
             }
+
             is AddLessonEvent.PdfSelected -> {
-                _state.update { it.copy(
-                    selectedPdfUri = event.uri,
-                    selectedPdfName = event.uri?.let { uri -> getFileName(uri) },
-                    selectedContentType = if (event.uri != null) ContentType.PDF else ContentType.NONE,
-                    selectedVideoUri = null,
-                    selectedVideoName = null
-                ) }
+                _state.update {
+                    it.copy(
+                        selectedPdfUri = event.uri,
+                        selectedPdfName = event.uri?.let { uri -> getFileName(uri) },
+                        selectedContentType = if (event.uri != null) ContentType.PDF else ContentType.NONE,
+                        selectedVideoUri = null,
+                        selectedVideoName = null,
+                        description = "" // مسح أي محتوى في الوصف عند اختيار PDF
+                    )
+                }
             }
+
             is AddLessonEvent.ClearVideoSelection -> {
-                _state.update { it.copy(
-                    selectedVideoUri = null,
-                    selectedVideoName = null,
-                    // أعد النوع إلى "لا شيء" إذا لم يكن هناك ملف PDF مختار
-                    selectedContentType = if (it.selectedPdfUri == null) ContentType.NONE else ContentType.PDF
-                ) }
+                _state.update {
+                    it.copy(
+                        selectedVideoUri = null,
+                        selectedVideoName = null,
+                        // أعد النوع إلى "لا شيء" إذا لم يكن هناك ملف PDF مختار
+                        selectedContentType = if (it.selectedPdfUri == null) ContentType.NONE else ContentType.PDF
+                    )
+                }
             }
+
             is AddLessonEvent.ClearPdfSelection -> {
-                _state.update { it.copy(
-                    selectedPdfUri = null,
-                    selectedPdfName = null,
-                    // أعد النوع إلى "لا شيء" إذا لم يكن هناك فيديو مختار
-                    selectedContentType = if (it.selectedVideoUri == null) ContentType.NONE else ContentType.VIDEO
-                ) }
+                _state.update {
+                    it.copy(
+                        selectedPdfUri = null,
+                        selectedPdfName = null,
+                        // أعد النوع إلى "لا شيء" إذا لم يكن هناك فيديو مختار
+                        selectedContentType = if (it.selectedVideoUri == null) ContentType.NONE else ContentType.VIDEO
+                    )
+                }
             }
+
             is AddLessonEvent.SaveClicked -> {
                 saveLesson()
             }
+
             is AddLessonEvent.DateChanged -> {
                 _state.update { it.copy(publicationDate = event.date) }
             }
+
             is AddLessonEvent.NotifyStudentsToggled -> {
                 _state.update { it.copy(notifyStudents = event.isEnabled) }
             }
+
             is AddLessonEvent.SaveClicked -> {
                 saveLesson()
             }
@@ -97,7 +151,7 @@ class AddLessonViewModel @Inject constructor(
         viewModelScope.launch {
             val current = state.value
 
-            // ✅ التحقق من الحقول الفارغة
+            // تحقق من الحقول
             if (current.lessonTitle.isBlank()) {
                 Toast.makeText(context, "يرجى إدخال عنوان الدرس", Toast.LENGTH_SHORT).show()
                 return@launch
@@ -114,25 +168,47 @@ class AddLessonViewModel @Inject constructor(
             _state.update { it.copy(isSaving = true) }
 
             try {
-                // 🔹 رفع ملفات PDF و الفيديو إذا تم اختيارها
-                var pdfUrl: String? = null
-                var videoUrl: String? = null
-
-                current.selectedPdfUri?.let { uri ->
-                    val pdfRef = FirebaseStorage.getInstance()
-                        .reference.child("lessons/${current.selectedPdfName ?: "file_${System.currentTimeMillis()}.pdf"}")
-                    pdfRef.putFile(uri).await() // استخدام kotlinx.coroutines.tasks.await()
-                    pdfUrl = pdfRef.downloadUrl.await().toString()
+                val (teacherId, subjectId) = fetchTeacherAndSubjectIds()
+                if (teacherId == null || subjectId == null) {
+                    Toast.makeText(
+                        context,
+                        "❌ لم يتم العثور على بيانات المعلم أو المادة",
+                        Toast.LENGTH_LONG
+                    ).show()
+                    _state.update { it.copy(isSaving = false) }
+                    return@launch
                 }
 
-                current.selectedVideoUri?.let { uri ->
-                    val videoRef = FirebaseStorage.getInstance()
-                        .reference.child("lessons/${current.selectedVideoName ?: "video_${System.currentTimeMillis()}.mp4"}")
-                    videoRef.putFile(uri).await()
-                    videoUrl = videoRef.downloadUrl.await().toString()
+                // --- فحص PDF ---
+                val pdfBase64: String? = current.selectedPdfUri?.let { uri ->
+                    context.contentResolver.openInputStream(uri)?.use { inputStream ->
+                        val bytes = inputStream.readBytes()
+                        if (bytes.size > 1_000_000) { // أقل من 1 ميجا
+                            Toast.makeText(context, "❌ حجم PDF كبير جدًا", Toast.LENGTH_SHORT)
+                                .show()
+                            return@launch
+                        }
+                        Base64.encodeToString(bytes, Base64.DEFAULT)
+                    }
                 }
 
-                // 🔹 تحضير بيانات الدرس مع روابط الملفات
+                // --- فحص الفيديو ---
+                val videoBase64: String? = current.selectedVideoUri?.let { uri ->
+                    context.contentResolver.openInputStream(uri)?.use { inputStream ->
+                        val bytes = inputStream.readBytes()
+                        if (bytes.size > 1_000_000) { // أقل من 1 ميجا
+                            Toast.makeText(
+                                context,
+                                "❌ حجم الفيديو كبير جدًا لا يمكن رفعه",
+                                Toast.LENGTH_LONG
+                            ).show()
+                            return@launch
+                        }
+                        Base64.encodeToString(bytes, Base64.DEFAULT)
+                    }
+                }
+
+                // حفظ البيانات في Firestore
                 val lessonData = mapOf(
                     "title" to current.lessonTitle,
                     "description" to current.description,
@@ -141,16 +217,17 @@ class AddLessonViewModel @Inject constructor(
                     "notifyStudents" to current.notifyStudents,
                     "isDraft" to isDraft,
                     "createdAt" to System.currentTimeMillis(),
-                    "pdfUrl" to pdfUrl,
-                    "videoUrl" to videoUrl
+                    "pdfBase64" to pdfBase64,
+                    "videoBase64" to videoBase64,
+                    "subjectId" to subjectId,
+                    "teacherId" to teacherId
                 )
 
-                // 🔹 حفظ الدرس في Firestore
-                FirebaseFirestore.getInstance().collection("lessons")
+                firestore.collection("lessons")
                     .add(lessonData)
                     .await()
 
-                // 🔹 إرسال إشعارات إذا لزم الأمر
+                // إرسال إشعار إذا لزم الأمر
                 if (!isDraft && current.notifyStudents) {
                     lessonRepository.sendNotificationToStudents(
                         className = current.selectedClass,
@@ -160,8 +237,6 @@ class AddLessonViewModel @Inject constructor(
                 }
 
                 Toast.makeText(context, "✅ تم حفظ الدرس بنجاح", Toast.LENGTH_SHORT).show()
-
-                // ✅ تفريغ جميع الحقول بعد الحفظ
                 _state.update {
                     it.copy(
                         lessonTitle = "",
@@ -186,6 +261,7 @@ class AddLessonViewModel @Inject constructor(
         }
     }
 
+
     // --- تم نقل الدالة إلى داخل الكلاس ---
     private fun getFileName(uri: Uri): String? {
         // الآن يمكنها الوصول إلى context بشكل صحيح
@@ -195,6 +271,4 @@ class AddLessonViewModel @Inject constructor(
             cursor.getString(nameIndex)
         }
     }
-
-
 }
