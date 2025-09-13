@@ -232,7 +232,7 @@ fun SubjectDetailsScreen(
                                                 pdfLesson = pdf,
                                                 onClick = {
                                                     println("DEBUG: Click event received in SubjectDetailsScreen for PDF ID: ${pdf.id}")
-                                                    viewModel.onPdfCardClick(pdf.id, pdf.pdfUrl)
+                                                    viewModel.onPdfCardClick(pdf) // ✅ تمرير الكائن كاملاً
                                                 }
                                             )
                                         }

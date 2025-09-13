@@ -1,5 +1,7 @@
 package com.example.saffieduapp.presentation.screens.student.subject_details.components
 
+import java.io.File
+
 
 /**
  * A data class representing a PDF lesson.
@@ -9,7 +11,6 @@ data class Lesson(
     val title: String,
     val subTitle: String,
     val duration: Int,
-    //val pagesCount: Int,
-    val imageUrl: String,
-    val progress: Float
+    val videoFile: File? = null,  // ✅ ملف الفيديو بعد فك Base64
+    val progress: Float = 0f
 )

@@ -35,25 +35,22 @@ sealed class DetailsUiEvent {
 @HiltViewModel
 class SubjectDetailsViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val firestore: FirebaseFirestore, // ✅ إضافة Firestore
+    private val firestore: FirebaseFirestore,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(SubjectDetailsState())
     val state = _state.asStateFlow()
 
-    // لتدفق الأحداث (فتح PDF، رسائل Toast...)
     private val _eventFlow = MutableSharedFlow<DetailsUiEvent>()
     val eventFlow = _eventFlow.asSharedFlow()
 
-    // المعرف القادم من Navigation
     private val subjectId: String = checkNotNull(savedStateHandle["subjectId"])
 
     init {
         loadSubjectDetails()
         loadVideoLessons()
         loadAlerts()
-        println("ViewModel: Received and will search for ID -> $subjectId")
     }
 
     fun onSearchQueryChanged(query: String) {
@@ -88,63 +85,64 @@ class SubjectDetailsViewModel @Inject constructor(
         }
     }
 
+    // --- تحميل الفيديوهات والـ PDF ---
     private fun loadVideoLessons() {
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true) }
             try {
-                val lessonDocs = firestore.collection("lessons")
+                val lessonsDocs = firestore.collection("lessons")
                     .whereEqualTo("subjectId", subjectId)
-                    // جلب كل الدروس التي تاريخ نشرها >= اليوم الحالي
                     .get().await()
 
                 val videoLessons = mutableListOf<Lesson>()
                 val pdfLessons = mutableListOf<PdfLesson>()
 
-                val now = System.currentTimeMillis()
-
-                lessonDocs.documents.forEach { doc ->
+                lessonsDocs.documents.forEach { doc ->
                     val title = doc.getString("title") ?: return@forEach
-                    val description = doc.getString("description") ?: ""
-                    val videoUrl = doc.getString("videoUrl")
-                    val pdfUrl = doc.getString("pdfUrl")
+                    var description = doc.getString("description") ?: ""
+                    val videoBase64 = doc.getString("videoBase64")
+                    val pdfBase64 = doc.getString("pdfBase64")
                     val duration = (doc.getLong("duration") ?: 0).toInt()
                     val pagesCount = (doc.getLong("pagesCount") ?: 0).toInt()
-                    val publicationDate = doc.getLong("publicationDate") ?: 0
 
-                    // فقط الدروس التي تاريخ نشرها يساوي أو قبل اليوم الحالي
-                    if (publicationDate <= now) {
-                        if (!videoUrl.isNullOrEmpty()) {
-                            videoLessons.add(
-                                Lesson(
-                                    id = doc.id,
-                                    title = title,
-                                    subTitle = description,
-                                    duration = duration,
-                                    imageUrl = "",
-                                    progress = 0f
-                                )
+                    if (description.contains("df", ignoreCase = true)) description = ""
+
+                    if (!videoBase64.isNullOrEmpty()) {
+                        val videoFile = saveBase64ToFile(doc.id, videoBase64, "mp4")
+                        videoLessons.add(
+                            Lesson(
+                                id = doc.id,
+                                title = title,
+                                subTitle = description,
+                                duration = duration,
+                                videoFile = videoFile,
+                                progress = 0f
                             )
-                        }
-                        if (!pdfUrl.isNullOrEmpty()) {
-                            pdfLessons.add(
-                                PdfLesson(
-                                    id = doc.id,
-                                    title = title,
-                                    subTitle = description,
-                                    pagesCount = pagesCount,
-                                    isRead = false,
-                                    imageUrl = "",
-                                    pdfUrl = pdfUrl
-                                )
+                        )
+                    }
+
+                    if (!pdfBase64.isNullOrEmpty()) {
+                        pdfLessons.add(
+                            PdfLesson(
+                                id = doc.id,
+                                title = title,
+                                subTitle = description,
+                                pagesCount = pagesCount,
+                                isRead = false,
+                                pdfFile = saveBase64ToFile(doc.id, pdfBase64, "pdf"),
+                                base64 = pdfBase64
                             )
-                        }
+                        )
                     }
                 }
 
-                _state.update { it.copy(isLoading = false, videoLessons = videoLessons, pdfSummaries = pdfLessons) }
+                _state.update {
+                    it.copy(isLoading = false, videoLessons = videoLessons, pdfSummaries = pdfLessons)
+                }
+
             } catch (e: Exception) {
                 e.printStackTrace()
-                _state.update { it.copy(isLoading = false) }
+                _state.update { it.copy(isLoading = false, error = e.message) }
             }
         }
     }
@@ -160,9 +158,15 @@ class SubjectDetailsViewModel @Inject constructor(
 
                 val pdfs = pdfDocs.documents.mapNotNull { doc ->
                     val title = doc.getString("title") ?: return@mapNotNull null
-                    val subTitle = doc.getString("description") ?: ""
+                    var subTitle = doc.getString("description") ?: ""
                     val pdfUrl = doc.getString("pdfUrl") ?: return@mapNotNull null
                     val pagesCount = (doc.getLong("pagesCount") ?: 0).toInt()
+
+                    // ✅ تعطيل الوصف إذا يحتوي df
+                    if (subTitle.contains("df", ignoreCase = true)) {
+                        subTitle = ""
+                    }
+
                     PdfLesson(
                         id = doc.id,
                         title = title,
@@ -181,19 +185,30 @@ class SubjectDetailsViewModel @Inject constructor(
             }
         }
     }
+
     // --- التعامل مع فتح ملفات PDF ---
-    fun onPdfCardClick(pdfId: String, pdfUrl: String) {
+    fun onPdfCardClick(pdfLesson: PdfLesson) {
         viewModelScope.launch {
             try {
                 _eventFlow.emit(DetailsUiEvent.ShowToast("جاري تجهيز الملف..."))
-                val localFile = getOrDownloadFile(pdfId, pdfUrl)
-                val fileUri = FileProvider.getUriForFile(context, "${context.packageName}.provider", localFile)
-                _eventFlow.emit(DetailsUiEvent.OpenPdf(fileUri))
+                val file = saveBase64ToFile(pdfLesson.id, pdfLesson.base64 ?: "", "pdf")
+                val uri = FileProvider.getUriForFile(context, "${context.packageName}.provider", file)
+                _eventFlow.emit(DetailsUiEvent.OpenPdf(uri))
             } catch (e: Exception) {
-                _eventFlow.emit(DetailsUiEvent.ShowToast("فشل تحميل الملف"))
+                _eventFlow.emit(DetailsUiEvent.ShowToast("فشل فتح الملف"))
                 e.printStackTrace()
             }
         }
+    }
+    private suspend fun saveBase64ToFile(fileId: String, base64Data: String, extension: String): File {
+        val localFile = File(context.filesDir, "$fileId.$extension")
+        if (!localFile.exists()) {
+            val bytes = android.util.Base64.decode(base64Data, android.util.Base64.DEFAULT)
+            withContext(Dispatchers.IO) {
+                localFile.outputStream().use { it.write(bytes) }
+            }
+        }
+        return localFile
     }
 
     private suspend fun getOrDownloadFile(fileId: String, fileUrl: String): File {
@@ -212,7 +227,6 @@ class SubjectDetailsViewModel @Inject constructor(
         }
     }
 
-    // --- تحديث حالة قراءة PDF ---
     fun updatePdfLessonReadStatus(lesson: PdfLesson, isRead: Boolean) {
         viewModelScope.launch {
             _state.update { currentState ->
