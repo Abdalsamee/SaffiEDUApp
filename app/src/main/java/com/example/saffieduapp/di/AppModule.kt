@@ -1,5 +1,3 @@
-package com.example.saffieduapp.di
-
 import android.content.Context
 import com.example.saffieduapp.data.FireBase.LessonRepository
 import com.example.saffieduapp.data.local.preferences.OnboardingPreferences
@@ -8,6 +6,7 @@ import com.example.saffieduapp.domain.use_case.onboarding.GetOnboardingCompleted
 import com.example.saffieduapp.domain.use_case.onboarding.SetOnboardingCompletedUseCase
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.storage.FirebaseStorage
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -22,23 +21,27 @@ object AppModule {
     @Provides
     @Singleton
     fun provideOnboardingPreferences(@ApplicationContext context: Context): OnboardingPreferences {
-
         return OnboardingPreferences(context)
     }
 
     @Provides
     @Singleton
     fun provideGetOnboardingCompletedUseCase(preferences: OnboardingPreferences): GetOnboardingCompletedUseCase {
-
         return GetOnboardingCompletedUseCase(preferences)
     }
 
     @Provides
     @Singleton
     fun provideSetOnboardingCompletedUseCase(preferences: OnboardingPreferences): SetOnboardingCompletedUseCase {
-
         return SetOnboardingCompletedUseCase(preferences)
     }
+
+    @Provides
+    @Singleton
+    fun providePreferencesManager(@ApplicationContext context: Context): PreferencesManager {
+        return PreferencesManager(context)
+    }
+
     @Provides
     @Singleton
     fun provideFirebaseAuth(): FirebaseAuth = FirebaseAuth.getInstance()
@@ -47,19 +50,16 @@ object AppModule {
     @Singleton
     fun provideFirebaseFirestore(): FirebaseFirestore = FirebaseFirestore.getInstance()
 
-
-    @Module
-    @InstallIn(SingletonComponent::class)
-    object AppModule {
-        @Provides
-        @Singleton
-        fun providePreferencesManager(@ApplicationContext context: Context): PreferencesManager {
-            return PreferencesManager(context)
-        }
-    }
     @Provides
     @Singleton
-    fun provideLessonRepository(firestore: FirebaseFirestore): LessonRepository {
-        return LessonRepository(firestore)
+    fun provideFirebaseStorage(): FirebaseStorage = FirebaseStorage.getInstance()
+
+    @Provides
+    @Singleton
+    fun provideLessonRepository(storage: FirebaseStorage): LessonRepository {
+        return LessonRepository(
+            storage,
+            firestore = TODO()
+        )
     }
 }

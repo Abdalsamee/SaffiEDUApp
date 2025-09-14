@@ -23,7 +23,7 @@ class VideoPlayerViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
-    private val _state = MutableStateFlow(VideoPlayerState())
+    private val _state = MutableStateFlow(VideoPlayerState(errorMessage = "فشل تحميل الفيديو"))
     val state = _state.asStateFlow()
 
     val exoPlayer: ExoPlayer = ExoPlayer.Builder(context).build()
@@ -82,12 +82,21 @@ class VideoPlayerViewModel @Inject constructor(
     }
 
     fun loadVideo(videoUrl: String) {
-        val mediaItem = MediaItem.fromUri(videoUrl)
-        exoPlayer.setMediaItem(mediaItem)
-        exoPlayer.prepare()
-        exoPlayer.playWhenReady = true
-        _state.value = _state.value.copy(videoUrl = videoUrl, isLoading = true)
+        viewModelScope.launch {
+            try {
+                val mediaItem = MediaItem.fromUri(videoUrl) // ← هنا نستخدم Media3
+                exoPlayer.setMediaItem(mediaItem)
+                exoPlayer.prepare()
+            } catch (e: Exception) {
+                _state.value = _state.value.copy(
+                    hasError = true,
+                    errorMessage = "فشل تحميل الفيديو",
+                    isLoading = false
+                )
+            }
+        }
     }
+
 
     fun onFullscreenToggle() {
         _state.value = _state.value.copy(isFullscreen = !_state.value.isFullscreen)

@@ -24,29 +24,31 @@ import com.example.saffieduapp.presentation.screens.student.components.CommonTop
 import com.example.saffieduapp.presentation.screens.student.video_player.components.LessonInfoCard
 import com.example.saffieduapp.presentation.screens.student.video_player.components.VideoPlayerComponent
 import com.example.saffieduapp.ui.theme.AppBackground
-import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun VideoPlayerScreen(
     navController: NavController,
-    videoUrl: String?, // الآن نستقبل رابط الفيديو مباشرة
     onNavigateUp: () -> Unit,
-    viewModel: VideoPlayerViewModel = hiltViewModel(),
+    viewModel: VideoPlayerViewModel? = hiltViewModel(),
     onFullscreenChange: ((Boolean) -> Unit)? = null
 ) {
     val context = LocalContext.current
     val view = LocalView.current
-    val state by viewModel.state.collectAsState()
+    val state by viewModel?.state!!.collectAsState()
 
     // تحميل الفيديو من رابط Storage
-    LaunchedEffect(videoUrl) {
+    // ✅ قراءة URL من SavedStateHandle
+    LaunchedEffect(Unit) {
+        val videoUrl =
+            navController.previousBackStackEntry?.savedStateHandle?.get<String>("videoUrl")
         if (!videoUrl.isNullOrEmpty()) {
-            viewModel.loadVideo(videoUrl)
+            viewModel?.loadVideo(videoUrl) // استدعاء الدالة في ViewModel
         } else {
-            Toast.makeText(context,"لا يوجد فيديو للتشغيل", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context,"لا يوجد فيديو للتشغيل" , Toast.LENGTH_SHORT).show()
         }
     }
+
     LaunchedEffect(state.isFullscreen) {
         val activity = context as? Activity ?: return@LaunchedEffect
         val window = activity.window
@@ -110,14 +112,16 @@ fun VideoPlayerScreen(
                     .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                VideoPlayerComponent(
-                    exoPlayer = viewModel.exoPlayer,
-                    isFullscreen = false,
-                    onFullscreenToggle = viewModel::onFullscreenToggle,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .aspectRatio(16f / 9f)
-                )
+                viewModel?.let {
+                    VideoPlayerComponent(
+                        exoPlayer = viewModel.exoPlayer,
+                        isFullscreen = false,
+                        onFullscreenToggle = it::onFullscreenToggle,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .aspectRatio(16f / 9f)
+                    )
+                }
 
                 LessonInfoCard(
                     title = state.lessonTitle,
