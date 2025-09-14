@@ -9,7 +9,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -19,23 +18,37 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.NavController
 import com.example.saffieduapp.presentation.screens.student.components.CommonTopAppBar
 import com.example.saffieduapp.presentation.screens.student.video_player.components.LessonInfoCard
 import com.example.saffieduapp.presentation.screens.student.video_player.components.VideoPlayerComponent
 import com.example.saffieduapp.ui.theme.AppBackground
-import com.example.saffieduapp.ui.theme.AppPrimary
+import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun VideoPlayerScreen(
+    navController: NavController,       // ← نستخدم NavController لقراءة SavedStateHandle
+    base64String: String?, // ← هنا أصبح nullable
     onNavigateUp: () -> Unit,
     viewModel: VideoPlayerViewModel = hiltViewModel(),
     onFullscreenChange: ((Boolean) -> Unit)? = null
 ) {
-    val state by viewModel.state.collectAsState()
     val context = LocalContext.current
     val view = LocalView.current
+    val state by viewModel.state.collectAsState()
 
+
+    // ✅ قراءة Base64 من SavedStateHandle مرة واحدة
+    LaunchedEffect(Unit) {
+        val base64String =
+            navController.previousBackStackEntry?.savedStateHandle?.get<String>("videoBase64")
+        if (!base64String.isNullOrEmpty()) {
+            viewModel.loadVideoFromBase64(base64String)
+        } else {
+            viewModel.setError("لا يوجد فيديو للتشغيل")
+        }
+    }
     LaunchedEffect(state.isFullscreen) {
         val activity = context as? Activity ?: return@LaunchedEffect
         val window = activity.window
@@ -65,7 +78,6 @@ fun VideoPlayerScreen(
         }
     }
 
-    // شاشة ملء الشاشة بدون Dialog — طبقة كاملة تغطي الواجهة
     if (state.isFullscreen) {
         Box(
             modifier = Modifier
@@ -82,7 +94,6 @@ fun VideoPlayerScreen(
         return
     }
 
-    // الوضع العادي
     AnimatedVisibility(visible = !state.isFullscreen) {
         Scaffold(
             topBar = {
@@ -93,38 +104,31 @@ fun VideoPlayerScreen(
             },
             containerColor = AppBackground
         ) { innerPadding ->
-            if (state.isLoading) {
-                Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
-                    CircularProgressIndicator(color = AppPrimary)
-                }
-            } else {
-                Column(
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+                    .verticalScroll(rememberScrollState())
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                VideoPlayerComponent(
+                    exoPlayer = viewModel.exoPlayer,
+                    isFullscreen = false,
+                    onFullscreenToggle = viewModel::onFullscreenToggle,
                     modifier = Modifier
-                        .fillMaxSize()
-                        .padding(innerPadding)
-                        .verticalScroll(rememberScrollState())
-                        .padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    // نسبة 16:9 تضمن ثبات الشكل وتمركز الفيديو
-                    VideoPlayerComponent(
-                        exoPlayer = viewModel.exoPlayer,
-                        isFullscreen = false,
-                        onFullscreenToggle = viewModel::onFullscreenToggle,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .aspectRatio(16f / 9f)
-                    )
+                        .fillMaxWidth()
+                        .aspectRatio(16f / 9f)
+                )
 
-                    LessonInfoCard(
-                        title = state.lessonTitle,
-                        teacherName = state.teacherName,
-                        teacherImageUrl = state.teacherImageUrl,
-                        duration = state.videoDuration,
-                        publicationDate = state.publicationDate,
-                        description = state.lessonDescription
-                    )
-                }
+                LessonInfoCard(
+                    title = state.lessonTitle,
+                    teacherName = state.teacherName,
+                    teacherImageUrl = state.teacherImageUrl,
+                    duration = state.videoDuration,
+                    publicationDate = state.publicationDate,
+                    description = state.lessonDescription
+                )
             }
         }
     }

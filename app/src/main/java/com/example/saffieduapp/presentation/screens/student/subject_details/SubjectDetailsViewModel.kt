@@ -13,7 +13,6 @@ import com.google.firebase.firestore.FirebaseFirestore
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -23,12 +22,12 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 import java.io.File
-import java.net.URL
 import javax.inject.Inject
 
 // --- الأحداث التي سترسل للواجهة ---
 sealed class DetailsUiEvent {
     data class OpenPdf(val uri: Uri) : DetailsUiEvent()
+    data class OpenVideo(val uri: Uri) : DetailsUiEvent()
     data class ShowToast(val message: String) : DetailsUiEvent()
 }
 
@@ -49,7 +48,7 @@ class SubjectDetailsViewModel @Inject constructor(
 
     init {
         loadSubjectDetails()
-        loadVideoLessons()
+        loadLessons()
         loadAlerts()
     }
 
@@ -66,15 +65,11 @@ class SubjectDetailsViewModel @Inject constructor(
 
     fun onTabSelected(tab: SubjectTab) {
         _state.update { it.copy(selectedTab = tab) }
-        if (tab == SubjectTab.PDFS && state.value.pdfSummaries.isEmpty()) {
-            loadPdfSummaries()
-        }
     }
 
     private fun loadSubjectDetails() {
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true) }
-            delay(200)
             val allSubjects = listOf(
                 Subject("s1", "اللغة العربية", "خالد عبدالله", "الصف العاشر", 4.5f, "", 1),
                 Subject("s2", "التربية الإسلامية", "فراس شعبان", "الصف العاشر", 4.5f, "", 2),
@@ -85,19 +80,19 @@ class SubjectDetailsViewModel @Inject constructor(
         }
     }
 
-    // --- تحميل الفيديوهات والـ PDF ---
-    private fun loadVideoLessons() {
+    private fun loadLessons() {
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true) }
             try {
-                val lessonsDocs = firestore.collection("lessons")
+                val docs = firestore.collection("lessons")
                     .whereEqualTo("subjectId", subjectId)
                     .get().await()
 
                 val videoLessons = mutableListOf<Lesson>()
                 val pdfLessons = mutableListOf<PdfLesson>()
 
-                lessonsDocs.documents.forEach { doc ->
+                docs.documents.forEach { doc ->
+                    val id = doc.id
                     val title = doc.getString("title") ?: return@forEach
                     var description = doc.getString("description") ?: ""
                     val videoBase64 = doc.getString("videoBase64")
@@ -107,37 +102,45 @@ class SubjectDetailsViewModel @Inject constructor(
 
                     if (description.contains("df", ignoreCase = true)) description = ""
 
+                    // حفظ الفيديو
                     if (!videoBase64.isNullOrEmpty()) {
-                        val videoFile = saveBase64ToFile(doc.id, videoBase64, "mp4")
+                        val videoFile = saveBase64ToFile("${id}_${System.currentTimeMillis()}", videoBase64, "mp4")
                         videoLessons.add(
                             Lesson(
-                                id = doc.id,
+                                id = id,
                                 title = title,
                                 subTitle = description,
                                 duration = duration,
                                 videoFile = videoFile,
-                                progress = 0f
+                                progress = 0f,
+                                base64 = null
                             )
                         )
                     }
 
+                    // حفظ PDF
                     if (!pdfBase64.isNullOrEmpty()) {
+                        val pdfFile = saveBase64ToFile("${id}_${System.currentTimeMillis()}", pdfBase64, "pdf")
                         pdfLessons.add(
                             PdfLesson(
-                                id = doc.id,
+                                id = id,
                                 title = title,
                                 subTitle = description,
                                 pagesCount = pagesCount,
                                 isRead = false,
-                                pdfFile = saveBase64ToFile(doc.id, pdfBase64, "pdf"),
-                                base64 = pdfBase64
+                                pdfFile = pdfFile,
+                                base64 = null
                             )
                         )
                     }
                 }
 
                 _state.update {
-                    it.copy(isLoading = false, videoLessons = videoLessons, pdfSummaries = pdfLessons)
+                    it.copy(
+                        isLoading = false,
+                        videoLessons = videoLessons,
+                        pdfSummaries = pdfLessons
+                    )
                 }
 
             } catch (e: Exception) {
@@ -147,52 +150,10 @@ class SubjectDetailsViewModel @Inject constructor(
         }
     }
 
-    private fun loadPdfSummaries() {
-        viewModelScope.launch {
-            _state.update { it.copy(isLoading = true) }
-            try {
-                val pdfDocs = firestore.collection("lessons")
-                    .whereEqualTo("subjectId", subjectId)
-                    .whereLessThanOrEqualTo("publicationDate", System.currentTimeMillis())
-                    .get().await()
-
-                val pdfs = pdfDocs.documents.mapNotNull { doc ->
-                    val title = doc.getString("title") ?: return@mapNotNull null
-                    var subTitle = doc.getString("description") ?: ""
-                    val pdfUrl = doc.getString("pdfUrl") ?: return@mapNotNull null
-                    val pagesCount = (doc.getLong("pagesCount") ?: 0).toInt()
-
-                    // ✅ تعطيل الوصف إذا يحتوي df
-                    if (subTitle.contains("df", ignoreCase = true)) {
-                        subTitle = ""
-                    }
-
-                    PdfLesson(
-                        id = doc.id,
-                        title = title,
-                        subTitle = subTitle,
-                        pagesCount = pagesCount,
-                        isRead = false,
-                        imageUrl = "",
-                        pdfUrl = pdfUrl
-                    )
-                }
-
-                _state.update { it.copy(isLoading = false, pdfSummaries = pdfs) }
-            } catch (e: Exception) {
-                e.printStackTrace()
-                _state.update { it.copy(isLoading = false) }
-            }
-        }
-    }
-
-    // --- التعامل مع فتح ملفات PDF ---
     fun onPdfCardClick(pdfLesson: PdfLesson) {
         viewModelScope.launch {
             try {
-                _eventFlow.emit(DetailsUiEvent.ShowToast("جاري تجهيز الملف..."))
-                val file = saveBase64ToFile(pdfLesson.id, pdfLesson.base64 ?: "", "pdf")
-                val uri = FileProvider.getUriForFile(context, "${context.packageName}.provider", file)
+                val uri = FileProvider.getUriForFile(context, "${context.packageName}.provider", pdfLesson.pdfFile)
                 _eventFlow.emit(DetailsUiEvent.OpenPdf(uri))
             } catch (e: Exception) {
                 _eventFlow.emit(DetailsUiEvent.ShowToast("فشل فتح الملف"))
@@ -200,44 +161,37 @@ class SubjectDetailsViewModel @Inject constructor(
             }
         }
     }
-    private suspend fun saveBase64ToFile(fileId: String, base64Data: String, extension: String): File {
-        val localFile = File(context.filesDir, "$fileId.$extension")
-        if (!localFile.exists()) {
-            val bytes = android.util.Base64.decode(base64Data, android.util.Base64.DEFAULT)
-            withContext(Dispatchers.IO) {
-                localFile.outputStream().use { it.write(bytes) }
+
+    fun onVideoCardClick(videoLesson: Lesson) {
+        viewModelScope.launch {
+            try {
+                val uri = FileProvider.getUriForFile(context, "${context.packageName}.provider", videoLesson.videoFile)
+                _eventFlow.emit(DetailsUiEvent.OpenVideo(uri))
+            } catch (e: Exception) {
+                _eventFlow.emit(DetailsUiEvent.ShowToast("فشل تشغيل الفيديو"))
+                e.printStackTrace()
             }
         }
-        return localFile
     }
 
-    private suspend fun getOrDownloadFile(fileId: String, fileUrl: String): File {
-        val localFile = File(context.filesDir, "$fileId.pdf")
-        if (localFile.exists()) {
-            return localFile
-        } else {
+    private suspend fun saveBase64ToFile(fileId: String, base64Data: String, extension: String): File {
+        val file = File(context.filesDir, "$fileId.$extension")
+        if (!file.exists()) {
+            val bytes = android.util.Base64.decode(base64Data, android.util.Base64.DEFAULT)
             withContext(Dispatchers.IO) {
-                URL(fileUrl).openStream().use { input ->
-                    localFile.outputStream().use { output ->
-                        input.copyTo(output)
-                    }
-                }
+                file.outputStream().use { it.write(bytes) }
             }
-            return localFile
         }
+        return file
     }
 
     fun updatePdfLessonReadStatus(lesson: PdfLesson, isRead: Boolean) {
         viewModelScope.launch {
-            _state.update { currentState ->
-                val updatedPdfs = currentState.pdfSummaries.map { pdf ->
-                    if (pdf.id == lesson.id) {
-                        pdf.copy(isRead = isRead)
-                    } else {
-                        pdf
-                    }
+            _state.update { current ->
+                val updated = current.pdfSummaries.map {
+                    if (it.id == lesson.id) it.copy(isRead = isRead) else it
                 }
-                currentState.copy(pdfSummaries = updatedPdfs)
+                current.copy(pdfSummaries = updated)
             }
         }
     }

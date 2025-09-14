@@ -151,7 +151,7 @@ class AddLessonViewModel @Inject constructor(
         viewModelScope.launch {
             val current = state.value
 
-            // تحقق من الحقول
+            // التحقق من الحقول
             if (current.lessonTitle.isBlank()) {
                 Toast.makeText(context, "يرجى إدخال عنوان الدرس", Toast.LENGTH_SHORT).show()
                 return@launch
@@ -170,45 +170,31 @@ class AddLessonViewModel @Inject constructor(
             try {
                 val (teacherId, subjectId) = fetchTeacherAndSubjectIds()
                 if (teacherId == null || subjectId == null) {
-                    Toast.makeText(
-                        context,
-                        "❌ لم يتم العثور على بيانات المعلم أو المادة",
-                        Toast.LENGTH_LONG
-                    ).show()
+                    Toast.makeText(context, "❌ لم يتم العثور على بيانات المعلم أو المادة", Toast.LENGTH_LONG).show()
                     _state.update { it.copy(isSaving = false) }
                     return@launch
                 }
 
-                // --- فحص PDF ---
-                val pdfBase64: String? = current.selectedPdfUri?.let { uri ->
-                    context.contentResolver.openInputStream(uri)?.use { inputStream ->
-                        val bytes = inputStream.readBytes()
-                        if (bytes.size > 1_000_000) { // أقل من 1 ميجا
-                            Toast.makeText(context, "❌ حجم PDF كبير جدًا", Toast.LENGTH_SHORT)
-                                .show()
-                            return@launch
-                        }
-                        Base64.encodeToString(bytes, Base64.DEFAULT)
-                    }
+                var pdfUrl: String? = null
+                var videoUrl: String? = null
+
+                // رفع PDF إذا موجود
+                current.selectedPdfUri?.let { uri ->
+                    pdfUrl = lessonRepository.uploadFile(
+                        "lessons/pdf/${System.currentTimeMillis()}_${getFileName(uri)}",
+                        uri
+                    )
                 }
 
-                // --- فحص الفيديو ---
-                val videoBase64: String? = current.selectedVideoUri?.let { uri ->
-                    context.contentResolver.openInputStream(uri)?.use { inputStream ->
-                        val bytes = inputStream.readBytes()
-                        if (bytes.size > 1_000_000) { // أقل من 1 ميجا
-                            Toast.makeText(
-                                context,
-                                "❌ حجم الفيديو كبير جدًا لا يمكن رفعه",
-                                Toast.LENGTH_LONG
-                            ).show()
-                            return@launch
-                        }
-                        Base64.encodeToString(bytes, Base64.DEFAULT)
-                    }
+                // رفع الفيديو إذا موجود
+                current.selectedVideoUri?.let { uri ->
+                    videoUrl = lessonRepository.uploadFile(
+                        "lessons/videos/${System.currentTimeMillis()}_${getFileName(uri)}",
+                        uri
+                    )
                 }
 
-                // حفظ البيانات في Firestore
+                // حفظ بيانات الدرس في Firestore
                 val lessonData = mapOf(
                     "title" to current.lessonTitle,
                     "description" to current.description,
@@ -217,17 +203,14 @@ class AddLessonViewModel @Inject constructor(
                     "notifyStudents" to current.notifyStudents,
                     "isDraft" to isDraft,
                     "createdAt" to System.currentTimeMillis(),
-                    "pdfBase64" to pdfBase64,
-                    "videoBase64" to videoBase64,
+                    "pdfUrl" to pdfUrl,
+                    "videoUrl" to videoUrl,
                     "subjectId" to subjectId,
                     "teacherId" to teacherId
                 )
 
-                firestore.collection("lessons")
-                    .add(lessonData)
-                    .await()
+                lessonRepository.saveLesson(lessonData as Map<String, Any>)
 
-                // إرسال إشعار إذا لزم الأمر
                 if (!isDraft && current.notifyStudents) {
                     lessonRepository.sendNotificationToStudents(
                         className = current.selectedClass,
@@ -261,10 +244,8 @@ class AddLessonViewModel @Inject constructor(
         }
     }
 
-
-    // --- تم نقل الدالة إلى داخل الكلاس ---
+    // الحصول على اسم الملف من Uri
     private fun getFileName(uri: Uri): String? {
-        // الآن يمكنها الوصول إلى context بشكل صحيح
         return context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
             val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
             cursor.moveToFirst()

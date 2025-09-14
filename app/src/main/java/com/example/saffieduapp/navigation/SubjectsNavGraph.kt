@@ -1,8 +1,8 @@
 package com.example.saffieduapp.navigation
 
+import android.net.Uri
 import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
-import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
@@ -11,8 +11,10 @@ import com.example.saffieduapp.presentation.screens.student.subject_details.Subj
 import com.example.saffieduapp.presentation.screens.student.subjects.SubjectsScreen
 import com.example.saffieduapp.presentation.screens.student.video_player.VideoPlayerScreen
 
-fun NavGraphBuilder.subjectsNavGraph(navController: NavController,
-                                     onFullscreenChange: ((Boolean) -> Unit)? = null) {
+fun NavGraphBuilder.subjectsNavGraph(
+    navController: NavController,
+    onFullscreenChange: ((Boolean) -> Unit)? = null
+) {
     navigation(
         startDestination = Routes.SUBJECTS_LIST_SCREEN,
         route = Routes.SUBJECTS_SCREEN
@@ -38,19 +40,40 @@ fun NavGraphBuilder.subjectsNavGraph(navController: NavController,
         ) {
             SubjectDetailsScreen(
                 onNavigateUp = { navController.popBackStack() },
-                navController = navController // <-- الإضافة المطلوبة هنا
+                navController = navController
             )
         }
 
-        // ٣. شاشة الفيديو
+        // ٣. شاشة الفيديو (Base64 كـ query parameter مشفر URI)
         composable(
-            route = "${Routes.VIDEO_PLAYER_SCREEN}/{videoId}",
-            arguments = listOf(navArgument("videoId") { type = NavType.StringType })
-        ) {
+            route = "${Routes.VIDEO_PLAYER_SCREEN}?videoBase64={videoBase64}",
+            arguments = listOf(
+                navArgument("videoBase64") {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                }
+            )
+        ) { backStackEntry ->
+            // فك ترميز URI للوصول للـ Base64 الأصلي
+            val encodedBase64 = backStackEntry.arguments?.getString("videoBase64")
+            val videoBase64 = encodedBase64?.let { Uri.decode(it) }
+
             VideoPlayerScreen(
+                base64String = videoBase64,
                 onNavigateUp = { navController.popBackStack() },
-                onFullscreenChange = onFullscreenChange
+                onFullscreenChange = onFullscreenChange,
+                navController = navController // ✅ تمرير navController هنا
             )
         }
     }
+}
+
+/**
+ * دالة مساعدة للتنقل إلى شاشة الفيديو
+ * تقوم بترميز Base64 قبل الإرسال لتجنب مشاكل URL الطويلة
+ */
+fun NavController.navigateToVideoScreen(base64String: String) {
+    val encodedBase64 = Uri.encode(base64String)
+    this.navigate("${Routes.VIDEO_PLAYER_SCREEN}?videoBase64=$encodedBase64")
 }

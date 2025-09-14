@@ -37,6 +37,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.example.saffieduapp.navigation.Routes
+import com.example.saffieduapp.navigation.navigateToVideoScreen
 import com.example.saffieduapp.presentation.screens.student.components.CommonTopAppBar
 import com.example.saffieduapp.presentation.screens.student.home.components.SearchBar
 import com.example.saffieduapp.presentation.screens.student.subject_details.components.LessonCard
@@ -62,16 +63,21 @@ fun SubjectDetailsScreen(
                     try {
                         val intent = Intent(Intent.ACTION_VIEW).apply {
                             setDataAndType(event.uri, "application/pdf")
-                            flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NO_HISTORY
+                            flags =
+                                Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NO_HISTORY
                         }
                         context.startActivity(intent)
                     } catch (e: Exception) {
-                        Toast.makeText(context, "لا يوجد تطبيق لفتح ملفات PDF", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, "لا يوجد تطبيق لفتح ملفات PDF", Toast.LENGTH_SHORT)
+                            .show()
                     }
                 }
+
                 is DetailsUiEvent.ShowToast -> {
                     Toast.makeText(context, event.message, Toast.LENGTH_SHORT).show()
                 }
+
+                is DetailsUiEvent.OpenVideo -> TODO()
             }
         }
     }
@@ -181,7 +187,11 @@ fun SubjectDetailsScreen(
                                             LessonCard(
                                                 lesson = lesson,
                                                 onClick = {
-                                                    navController.navigate("${Routes.VIDEO_PLAYER_SCREEN}/${lesson.id}")
+                                                    val base64String = lesson.base64 ?: lesson.videoFile?.let {
+                                                        String(android.util.Base64.encode(it.readBytes(), android.util.Base64.DEFAULT))
+                                                    } ?: ""
+                                                    navController.currentBackStackEntry?.savedStateHandle?.set("videoBase64", base64String)
+                                                    navController.navigate(Routes.VIDEO_PLAYER_SCREEN)
                                                 }
                                             )
                                         }
@@ -208,6 +218,7 @@ fun SubjectDetailsScreen(
                             }
                         }
                     }
+
                     SubjectTab.PDFS -> {
                         item {
                             Text(
