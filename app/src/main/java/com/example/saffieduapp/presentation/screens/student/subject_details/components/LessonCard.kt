@@ -58,7 +58,7 @@ fun LessonCard(
                     contentAlignment = Alignment.Center
                 ) {
                     AsyncImage(
-                        model = lesson.imageUrl, // 1. الرابط الفعلي للصورة
+                        model = lesson.videoFile, // 1. الرابط الفعلي للصورة
                         contentDescription = lesson.title,
                         modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Crop,
