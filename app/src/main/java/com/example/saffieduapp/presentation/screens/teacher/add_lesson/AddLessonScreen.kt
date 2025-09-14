@@ -22,21 +22,18 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.saffieduapp.R
-import com.example.saffieduapp.presentation.components.PrimaryButton
 import com.example.saffieduapp.presentation.screens.student.components.CommonTopAppBar
 import com.example.saffieduapp.presentation.screens.teacher.add_lesson.components.AddLessonTextField
-import com.example.saffieduapp.presentation.screens.teacher.add_lesson.components.AppButton
-import com.example.saffieduapp.presentation.screens.teacher.add_lesson.components.ClassDropdown
+import com.example.saffieduapp.presentation.screens.teacher.components.AppButton
+import com.example.saffieduapp.presentation.screens.teacher.components.ClassDropdown
 import com.example.saffieduapp.presentation.screens.teacher.add_lesson.components.FilePickerBox
 import com.example.saffieduapp.presentation.screens.teacher.add_lesson.components.LessonDatePicker
 import com.example.saffieduapp.presentation.screens.teacher.add_lesson.components.NotificationSwitch
 import com.example.saffieduapp.ui.theme.AppPrimary
-import com.example.saffieduapp.ui.theme.SaffiEDUAppTheme
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

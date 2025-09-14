@@ -1,6 +1,5 @@
-package com.example.saffieduapp.presentation.screens.teacher.add_lesson.components
+package com.example.saffieduapp.presentation.screens.teacher.components
 
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button

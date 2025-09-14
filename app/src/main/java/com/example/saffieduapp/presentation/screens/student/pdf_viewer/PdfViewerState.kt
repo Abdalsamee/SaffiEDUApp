@@ -4,6 +4,6 @@ import java.io.File
 
 data class PdfViewerState(
     val isLoading: Boolean = true,
-    val localFile: File? = null, // سيحتوي على الملف بعد تنزيله
+    val localFile: File? = null,
     val error: String? = null
 )
