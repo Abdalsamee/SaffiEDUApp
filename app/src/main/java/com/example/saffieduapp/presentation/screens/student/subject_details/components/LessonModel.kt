@@ -11,7 +11,6 @@ data class Lesson(
     val title: String,
     val subTitle: String,
     val duration: Int,
-    val videoFile: File? = null,      // ملف الفيديو بعد فك Base64
     val progress: Float = 0f,
-    val base64: String? = null        // ✅ إضافة هذا الحقل لتخزين Base64
+    val videoUrl: String
 )

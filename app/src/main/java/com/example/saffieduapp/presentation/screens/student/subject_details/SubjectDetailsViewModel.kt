@@ -22,12 +22,12 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.net.URL
 import javax.inject.Inject
 
-// --- الأحداث التي سترسل للواجهة ---
 sealed class DetailsUiEvent {
     data class OpenPdf(val uri: Uri) : DetailsUiEvent()
-    data class OpenVideo(val uri: Uri) : DetailsUiEvent()
+    data class OpenVideo(val url: String) : DetailsUiEvent()
     data class ShowToast(val message: String) : DetailsUiEvent()
 }
 
@@ -94,42 +94,34 @@ class SubjectDetailsViewModel @Inject constructor(
                 docs.documents.forEach { doc ->
                     val id = doc.id
                     val title = doc.getString("title") ?: return@forEach
-                    var description = doc.getString("description") ?: ""
-                    val videoBase64 = doc.getString("videoBase64")
-                    val pdfBase64 = doc.getString("pdfBase64")
+                    val description = doc.getString("description") ?: ""
                     val duration = (doc.getLong("duration") ?: 0).toInt()
                     val pagesCount = (doc.getLong("pagesCount") ?: 0).toInt()
 
-                    if (description.contains("df", ignoreCase = true)) description = ""
+                    val videoUrl = doc.getString("videoUrl")
+                    val pdfUrl = doc.getString("pdfUrl")
 
-                    // حفظ الفيديو
-                    if (!videoBase64.isNullOrEmpty()) {
-                        val videoFile = saveBase64ToFile("${id}_${System.currentTimeMillis()}", videoBase64, "mp4")
+                    if (!videoUrl.isNullOrEmpty()) {
                         videoLessons.add(
                             Lesson(
                                 id = id,
                                 title = title,
                                 subTitle = description,
                                 duration = duration,
-                                videoFile = videoFile,
-                                progress = 0f,
-                                base64 = null
+                                videoUrl = videoUrl
                             )
                         )
                     }
 
-                    // حفظ PDF
-                    if (!pdfBase64.isNullOrEmpty()) {
-                        val pdfFile = saveBase64ToFile("${id}_${System.currentTimeMillis()}", pdfBase64, "pdf")
+                    if (!pdfUrl.isNullOrEmpty()) {
                         pdfLessons.add(
                             PdfLesson(
                                 id = id,
                                 title = title,
                                 subTitle = description,
                                 pagesCount = pagesCount,
-                                isRead = false,
-                                pdfFile = pdfFile,
-                                base64 = null
+                                pdfUrl = pdfUrl,
+                                isRead = TODO()
                             )
                         )
                     }
@@ -153,7 +145,8 @@ class SubjectDetailsViewModel @Inject constructor(
     fun onPdfCardClick(pdfLesson: PdfLesson) {
         viewModelScope.launch {
             try {
-                val uri = FileProvider.getUriForFile(context, "${context.packageName}.provider", pdfLesson.pdfFile)
+                val localFile = downloadPdf(pdfLesson.pdfUrl!!, pdfLesson.id)
+                val uri = FileProvider.getUriForFile(context, "${context.packageName}.provider", localFile)
                 _eventFlow.emit(DetailsUiEvent.OpenPdf(uri))
             } catch (e: Exception) {
                 _eventFlow.emit(DetailsUiEvent.ShowToast("فشل فتح الملف"))
@@ -164,35 +157,25 @@ class SubjectDetailsViewModel @Inject constructor(
 
     fun onVideoCardClick(videoLesson: Lesson) {
         viewModelScope.launch {
-            try {
-                val uri = FileProvider.getUriForFile(context, "${context.packageName}.provider", videoLesson.videoFile)
-                _eventFlow.emit(DetailsUiEvent.OpenVideo(uri))
-            } catch (e: Exception) {
-                _eventFlow.emit(DetailsUiEvent.ShowToast("فشل تشغيل الفيديو"))
-                e.printStackTrace()
+            if (!videoLesson.videoUrl.isNullOrEmpty()) {
+                _eventFlow.emit(DetailsUiEvent.OpenVideo(videoLesson.videoUrl))
+            } else {
+                _eventFlow.emit(DetailsUiEvent.ShowToast("لا يوجد فيديو"))
             }
         }
     }
 
-    private suspend fun saveBase64ToFile(fileId: String, base64Data: String, extension: String): File {
-        val file = File(context.filesDir, "$fileId.$extension")
+    private suspend fun downloadPdf(pdfUrl: String, id: String): File {
+        val file = File(context.filesDir, "$id.pdf")
         if (!file.exists()) {
-            val bytes = android.util.Base64.decode(base64Data, android.util.Base64.DEFAULT)
             withContext(Dispatchers.IO) {
-                file.outputStream().use { it.write(bytes) }
+                URL(pdfUrl).openStream().use { input ->
+                    file.outputStream().use { output ->
+                        input.copyTo(output)
+                    }
+                }
             }
         }
         return file
-    }
-
-    fun updatePdfLessonReadStatus(lesson: PdfLesson, isRead: Boolean) {
-        viewModelScope.launch {
-            _state.update { current ->
-                val updated = current.pdfSummaries.map {
-                    if (it.id == lesson.id) it.copy(isRead = isRead) else it
-                }
-                current.copy(pdfSummaries = updated)
-            }
-        }
     }
 }

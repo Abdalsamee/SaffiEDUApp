@@ -2,13 +2,11 @@ package com.example.saffieduapp.data.FireBase
 
 import android.net.Uri
 import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.storage.FirebaseStorage
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 
 class LessonRepository @Inject constructor(
-    private val firestore: FirebaseFirestore,
-    private val storage: FirebaseStorage // ✅ أضفنا Storage
+    private val firestore: FirebaseFirestore
 ) {
 
 

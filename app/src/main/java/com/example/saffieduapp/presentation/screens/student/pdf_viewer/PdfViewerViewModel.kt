@@ -25,43 +25,38 @@ class PdfViewerViewModel @Inject constructor(
     val state = _state.asStateFlow()
 
     init {
-        // استلام البيانات التي تم تمريرها. لاحقًا ستأتي من شاشة تفاصيل المادة
-        val pdfUrl = savedStateHandle.get<String>("pdfUrl") ?: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf"
-        val pdfId = savedStateHandle.get<String>("pdfId") ?: "dummy_pdf_1"
+        val pdfUrl = savedStateHandle.get<String>("pdfUrl")
+        val pdfId = savedStateHandle.get<String>("pdfId") ?: "dummy_pdf"
 
-        loadPdf(pdfUrl, pdfId)
+        if (pdfUrl != null) {
+            loadPdf(pdfUrl, pdfId)
+        } else {
+            // يمكنك تعيين حالة الخطأ مباشرة
+            _state.value = _state.value.copy(isLoading = false, error = "لا يوجد رابط PDF")
+        }
     }
 
-    private fun loadPdf(pdfUrl: String, pdfId: String) {
+    fun loadPdf(pdfUrl: String, pdfId: String) {
         viewModelScope.launch {
             _state.value = _state.value.copy(isLoading = true, error = null)
-
-            // ١. تحديد مسار الملف في الذاكرة الداخلية للتطبيق
             val localFile = File(context.filesDir, "$pdfId.pdf")
 
-            // ٢. التحقق إذا كان الملف موجودًا (تم تنزيله مسبقًا)
-            if (localFile.exists()) {
-                _state.value = PdfViewerState(isLoading = false, localFile = localFile)
-                return@launch
-            }
-
-            // ٣. إذا لم يكن موجودًا، قم بتنزيله
-            try {
-                // نستخدم withContext(Dispatchers.IO) لأن عمليات الشبكة والملفات يجب أن تتم في الخلفية
-                withContext(Dispatchers.IO) {
-                    URL(pdfUrl).openStream().use { input ->
-                        localFile.outputStream().use { output ->
-                            input.copyTo(output)
+            if (!localFile.exists()) {
+                try {
+                    withContext(Dispatchers.IO) {
+                        URL(pdfUrl).openStream().use { input ->
+                            localFile.outputStream().use { output ->
+                                input.copyTo(output)
+                            }
                         }
                     }
+                } catch (e: Exception) {
+                    _state.value = _state.value.copy(isLoading = false, error = "فشل تحميل الملف")
+                    return@launch
                 }
-                // بعد نجاح التنزيل، قم بتحديث الحالة
-                _state.value = PdfViewerState(isLoading = false, localFile = localFile)
-            } catch (e: Exception) {
-                e.printStackTrace()
-                // في حالة فشل التنزيل
-                _state.value = PdfViewerState(isLoading = false, error = "فشل تحميل الملف.")
             }
+
+            _state.value = _state.value.copy(isLoading = false, localFile = localFile)
         }
     }
 }

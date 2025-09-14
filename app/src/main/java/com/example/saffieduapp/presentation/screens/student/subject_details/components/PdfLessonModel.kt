@@ -10,6 +10,4 @@ data class PdfLesson(
     val isRead: Boolean,
     val imageUrl: String = "",
     val pdfUrl: String = "",
-    val pdfFile: File? = null,     // ✅ ملف PDF محلي بعد فك الـ Base64
-    val base64: String? = null     // ✅ نص Base64 الأصلي
 )

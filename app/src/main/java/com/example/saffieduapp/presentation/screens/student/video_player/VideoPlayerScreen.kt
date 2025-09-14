@@ -2,6 +2,7 @@ package com.example.saffieduapp.presentation.screens.student.video_player
 
 import android.app.Activity
 import android.content.pm.ActivityInfo
+import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -28,8 +29,8 @@ import java.io.File
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun VideoPlayerScreen(
-    navController: NavController,       // ← نستخدم NavController لقراءة SavedStateHandle
-    base64String: String?, // ← هنا أصبح nullable
+    navController: NavController,
+    videoUrl: String?, // الآن نستقبل رابط الفيديو مباشرة
     onNavigateUp: () -> Unit,
     viewModel: VideoPlayerViewModel = hiltViewModel(),
     onFullscreenChange: ((Boolean) -> Unit)? = null
@@ -38,15 +39,12 @@ fun VideoPlayerScreen(
     val view = LocalView.current
     val state by viewModel.state.collectAsState()
 
-
-    // ✅ قراءة Base64 من SavedStateHandle مرة واحدة
-    LaunchedEffect(Unit) {
-        val base64String =
-            navController.previousBackStackEntry?.savedStateHandle?.get<String>("videoBase64")
-        if (!base64String.isNullOrEmpty()) {
-            viewModel.loadVideoFromBase64(base64String)
+    // تحميل الفيديو من رابط Storage
+    LaunchedEffect(videoUrl) {
+        if (!videoUrl.isNullOrEmpty()) {
+            viewModel.loadVideo(videoUrl)
         } else {
-            viewModel.setError("لا يوجد فيديو للتشغيل")
+            Toast.makeText(context,"لا يوجد فيديو للتشغيل", Toast.LENGTH_SHORT).show()
         }
     }
     LaunchedEffect(state.isFullscreen) {
