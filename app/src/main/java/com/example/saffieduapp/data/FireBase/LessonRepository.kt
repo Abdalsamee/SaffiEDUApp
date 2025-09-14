@@ -1,5 +1,6 @@
 package com.example.saffieduapp.data.FireBase
 
+import android.net.Uri
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.storage.FirebaseStorage
 import kotlinx.coroutines.tasks.await
@@ -7,7 +8,8 @@ import javax.inject.Inject
 
 class LessonRepository @Inject constructor(
     private val firestore: FirebaseFirestore,
-    ) {
+    private val storage: FirebaseStorage // ✅ أضفنا Storage
+) {
 
 
     suspend fun saveLesson(lessonData: Map<String, Any>) {
@@ -27,4 +29,13 @@ class LessonRepository @Inject constructor(
         firestore.collection("notifications").add(notification).await()
     }
 
+    // --- دالة لإرجاع مرجع في Storage ---
+    fun getStorageReference(path: String) = storage.getReference(path)
+
+    // --- دالة لرفع الملف واسترجاع الرابط ---
+    suspend fun uploadFile(path: String, fileUri: Uri): String {
+        val ref = getStorageReference(path)
+        ref.putFile(fileUri).await()
+        return ref.downloadUrl.await().toString()
+    }
 }

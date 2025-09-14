@@ -1,6 +1,8 @@
 package com.example.saffieduapp.presentation.screens.student.video_player
 
 import android.content.Context
+import android.net.Uri
+import androidx.core.net.toUri
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -10,10 +12,13 @@ import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.File
 import javax.inject.Inject
 import java.text.SimpleDateFormat
 import java.util.*
@@ -27,7 +32,7 @@ class VideoPlayerViewModel @Inject constructor(
     private val _state = MutableStateFlow(VideoPlayerState())
     val state = _state.asStateFlow()
 
-    val exoPlayer: ExoPlayer = ExoPlayer.Builder(context).build()
+     val exoPlayer: ExoPlayer = ExoPlayer.Builder(context).build() // ✅ هنا التهيئة مباشرة
 
     private val playerListener = object : Player.Listener {
         override fun onPlaybackStateChanged(playbackState: Int) {
@@ -36,23 +41,17 @@ class VideoPlayerViewModel @Inject constructor(
                     _state.value = _state.value.copy(
                         isLoading = false,
                         totalDuration = exoPlayer.duration.coerceAtLeast(0L),
+                        videoDuration = formatDuration(exoPlayer.duration),
                         hasError = false,
-                        errorMessage = null,
-                        videoDuration = formatDuration(exoPlayer.duration)
+                        errorMessage = null
                     )
                 }
-                Player.STATE_BUFFERING -> {
-                    _state.value = _state.value.copy(isLoading = true)
-                }
-                Player.STATE_ENDED -> {
-                    _state.value = _state.value.copy(
-                        isPlaying = false,
-                        currentPosition = exoPlayer.duration
-                    )
-                }
-                Player.STATE_IDLE -> {
-                    _state.value = _state.value.copy(isLoading = false)
-                }
+                Player.STATE_BUFFERING -> _state.value = _state.value.copy(isLoading = true)
+                Player.STATE_ENDED -> _state.value = _state.value.copy(
+                    isPlaying = false,
+                    currentPosition = exoPlayer.duration
+                )
+                Player.STATE_IDLE -> _state.value = _state.value.copy(isLoading = false)
             }
         }
 
@@ -63,16 +62,15 @@ class VideoPlayerViewModel @Inject constructor(
         override fun onPlayerError(error: PlaybackException) {
             _state.value = _state.value.copy(
                 hasError = true,
-                errorMessage = error.message ?: "Unknown error occurred",
+                errorMessage = error.message ?: "Unknown error",
                 isLoading = false
             )
         }
     }
 
     init {
-        exoPlayer.addListener(playerListener)
+        exoPlayer.addListener(playerListener) // ✅ الآن آمن
 
-        // تحديث موضع التشغيل بشكل دوري سواء كان Playing أم لا (لإظهار الشريط بدقة)
         viewModelScope.launch {
             while (true) {
                 _state.value = _state.value.copy(
@@ -82,48 +80,52 @@ class VideoPlayerViewModel @Inject constructor(
             }
         }
 
-        val videoId = savedStateHandle.get<String>("videoId")
-        if (videoId != null) {
-            loadVideoData(videoId)
+        // ✅ جلب Base64 من الـ SavedStateHandle
+        val videoBase64 = savedStateHandle.get<String>("videoBase64")
+        if (!videoBase64.isNullOrEmpty()) {
+            loadVideoFromBase64(videoBase64)
         } else {
-            loadVideoData("sample")
-        }
-    }
-
-    private fun loadVideoData(id: String) {
-        val sampleVideoUrl =
-            "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4"
-
-        try {
-            val mediaItem = MediaItem.fromUri(sampleVideoUrl)
-            exoPlayer.setMediaItem(mediaItem)
-            exoPlayer.prepare()
-            exoPlayer.playWhenReady = true
-
-            _state.value = _state.value.copy(
-                isLoading = true,
-                videoUrl = sampleVideoUrl,
-                lessonTitle = "قولو لعين الشمس",
-                lessonDescription = "هذا فيديو تعليمي يشرح كيفية استخدام التطبيق بطريقة سهلة ومبسطة",
-                teacherName = "المعلم أحمد محمد",
-                teacherImageUrl = "",
-                videoDuration = "--:--", // يتم تحديثه عند READY
-                publicationDate = getCurrentDate(),
-                hasError = false,
-                errorMessage = null
-            )
-        } catch (e: Exception) {
             _state.value = _state.value.copy(
                 hasError = true,
-                errorMessage = e.message ?: "Error loading video",
+                errorMessage = "لا يوجد فيديو للتشغيل",
                 isLoading = false
             )
         }
     }
 
+
+     fun loadVideoFromBase64(base64: String) {
+        viewModelScope.launch {
+            try {
+                val file = saveBase64ToFile("lesson_video", base64, "mp4")
+                val mediaItem = MediaItem.fromUri(file.toUri())
+                exoPlayer.setMediaItem(mediaItem)
+                exoPlayer.prepare()
+                exoPlayer.playWhenReady = true
+                _state.value = _state.value.copy(isLoading = true)
+            } catch (e: Exception) {
+                _state.value = _state.value.copy(
+                    hasError = true,
+                    errorMessage = e.message ?: "فشل تشغيل الفيديو",
+                    isLoading = false
+                )
+            }
+        }
+    }
+
+    private suspend fun saveBase64ToFile(fileName: String, base64Data: String, extension: String): File {
+        val file = File(context.filesDir, "$fileName.$extension")
+        if (!file.exists()) {
+            val bytes = android.util.Base64.decode(base64Data, android.util.Base64.DEFAULT)
+            withContext(Dispatchers.IO) {
+                file.outputStream().use { it.write(bytes) }
+            }
+        }
+        return file
+    }
+
     fun onFullscreenToggle() {
         _state.value = _state.value.copy(isFullscreen = !_state.value.isFullscreen)
-        // لا حاجة لتأخيرات هنا؛ PlayerView يتكيف فورًا مع تعديل الحجم
     }
 
     fun playVideo() = exoPlayer.play()
@@ -138,14 +140,16 @@ class VideoPlayerViewModel @Inject constructor(
         return String.format(Locale.getDefault(), "%02d:%02d", minutes, seconds)
     }
 
-    private fun getCurrentDate(): String {
-        val dateFormat = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
-        return dateFormat.format(Date())
-    }
-
     override fun onCleared() {
         exoPlayer.removeListener(playerListener)
         exoPlayer.release()
         super.onCleared()
+    }
+    fun setError(message: String) {
+        _state.value = _state.value.copy(
+            hasError = true,
+            errorMessage = message,
+            isLoading = false
+        )
     }
 }
