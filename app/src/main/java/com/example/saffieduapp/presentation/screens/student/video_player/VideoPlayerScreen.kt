@@ -2,6 +2,7 @@ package com.example.saffieduapp.presentation.screens.student.video_player
 
 import android.app.Activity
 import android.content.pm.ActivityInfo
+import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -23,32 +24,31 @@ import com.example.saffieduapp.presentation.screens.student.components.CommonTop
 import com.example.saffieduapp.presentation.screens.student.video_player.components.LessonInfoCard
 import com.example.saffieduapp.presentation.screens.student.video_player.components.VideoPlayerComponent
 import com.example.saffieduapp.ui.theme.AppBackground
-import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun VideoPlayerScreen(
-    navController: NavController,       // ← نستخدم NavController لقراءة SavedStateHandle
-    base64String: String?, // ← هنا أصبح nullable
+    navController: NavController,
     onNavigateUp: () -> Unit,
-    viewModel: VideoPlayerViewModel = hiltViewModel(),
+    viewModel: VideoPlayerViewModel? = hiltViewModel(),
     onFullscreenChange: ((Boolean) -> Unit)? = null
 ) {
     val context = LocalContext.current
     val view = LocalView.current
-    val state by viewModel.state.collectAsState()
+    val state by viewModel?.state!!.collectAsState()
 
-
-    // ✅ قراءة Base64 من SavedStateHandle مرة واحدة
+    // تحميل الفيديو من رابط Storage
+    // ✅ قراءة URL من SavedStateHandle
     LaunchedEffect(Unit) {
-        val base64String =
-            navController.previousBackStackEntry?.savedStateHandle?.get<String>("videoBase64")
-        if (!base64String.isNullOrEmpty()) {
-            viewModel.loadVideoFromBase64(base64String)
+        val videoUrl =
+            navController.previousBackStackEntry?.savedStateHandle?.get<String>("videoUrl")
+        if (!videoUrl.isNullOrEmpty()) {
+            viewModel?.loadVideo(videoUrl) // استدعاء الدالة في ViewModel
         } else {
-            viewModel.setError("لا يوجد فيديو للتشغيل")
+            Toast.makeText(context,"لا يوجد فيديو للتشغيل" , Toast.LENGTH_SHORT).show()
         }
     }
+
     LaunchedEffect(state.isFullscreen) {
         val activity = context as? Activity ?: return@LaunchedEffect
         val window = activity.window
@@ -112,14 +112,16 @@ fun VideoPlayerScreen(
                     .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                VideoPlayerComponent(
-                    exoPlayer = viewModel.exoPlayer,
-                    isFullscreen = false,
-                    onFullscreenToggle = viewModel::onFullscreenToggle,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .aspectRatio(16f / 9f)
-                )
+                viewModel?.let {
+                    VideoPlayerComponent(
+                        exoPlayer = viewModel.exoPlayer,
+                        isFullscreen = false,
+                        onFullscreenToggle = it::onFullscreenToggle,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .aspectRatio(16f / 9f)
+                    )
+                }
 
                 LessonInfoCard(
                     title = state.lessonTitle,

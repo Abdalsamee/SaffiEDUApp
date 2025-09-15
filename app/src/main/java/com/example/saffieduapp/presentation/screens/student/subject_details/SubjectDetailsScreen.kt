@@ -36,8 +36,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
-import com.example.saffieduapp.navigation.Routes
-import com.example.saffieduapp.navigation.navigateToVideoScreen
 import com.example.saffieduapp.presentation.screens.student.components.CommonTopAppBar
 import com.example.saffieduapp.presentation.screens.student.home.components.SearchBar
 import com.example.saffieduapp.presentation.screens.student.subject_details.components.LessonCard
@@ -50,7 +48,7 @@ import com.example.saffieduapp.ui.theme.AppTextSecondary
 fun SubjectDetailsScreen(
     onNavigateUp: () -> Unit,
     viewModel: SubjectDetailsViewModel = hiltViewModel(),
-    navController: NavController,
+    navController : NavController
 ) {
     val state by viewModel.state.collectAsState()
     val context = LocalContext.current
@@ -77,7 +75,10 @@ fun SubjectDetailsScreen(
                     Toast.makeText(context, event.message, Toast.LENGTH_SHORT).show()
                 }
 
-                is DetailsUiEvent.OpenVideo -> TODO()
+                is DetailsUiEvent.OpenVideo -> {
+                    navController.currentBackStackEntry?.savedStateHandle?.set("videoUrl", event.url)
+                    navController.navigate("videoPlayerScreen")
+                }
             }
         }
     }
@@ -186,13 +187,7 @@ fun SubjectDetailsScreen(
                                         Box(modifier = Modifier.weight(1f)) {
                                             LessonCard(
                                                 lesson = lesson,
-                                                onClick = {
-                                                    val base64String = lesson.base64 ?: lesson.videoFile?.let {
-                                                        String(android.util.Base64.encode(it.readBytes(), android.util.Base64.DEFAULT))
-                                                    } ?: ""
-                                                    navController.currentBackStackEntry?.savedStateHandle?.set("videoBase64", base64String)
-                                                    navController.navigate(Routes.VIDEO_PLAYER_SCREEN)
-                                                }
+                                                onClick = { viewModel.onVideoCardClick(lesson) } // استخدم videoUrl مباشرة
                                             )
                                         }
                                     }
@@ -241,10 +236,7 @@ fun SubjectDetailsScreen(
                                         Box(modifier = Modifier.weight(1f)) {
                                             PdfCard(
                                                 pdfLesson = pdf,
-                                                onClick = {
-                                                    println("DEBUG: Click event received in SubjectDetailsScreen for PDF ID: ${pdf.id}")
-                                                    viewModel.onPdfCardClick(pdf) // ✅ تمرير الكائن كاملاً
-                                                }
+                                                onClick = { viewModel.onPdfCardClick(pdf) }
                                             )
                                         }
                                     }

@@ -14,5 +14,5 @@ data class VideoPlayerState(
     val currentPosition: Long = 0L,
     val totalDuration: Long = 0L,
     val hasError: Boolean = false,
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
 )

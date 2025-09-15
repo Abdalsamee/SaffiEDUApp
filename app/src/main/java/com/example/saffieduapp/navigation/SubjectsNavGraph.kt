@@ -25,9 +25,7 @@ fun NavGraphBuilder.subjectsNavGraph(
                 onNavigateToSubjectDetails = { subjectId ->
                     navController.navigate("${Routes.SUBJECT_DETAILS_SCREEN}/$subjectId")
                 },
-                onNavigateUp = {
-                    navController.popBackStack()
-                }
+                onNavigateUp = { navController.popBackStack() }
             )
         }
 
@@ -44,26 +42,27 @@ fun NavGraphBuilder.subjectsNavGraph(
             )
         }
 
-        // ٣. شاشة الفيديو (Base64 كـ query parameter مشفر URI)
         composable(
-            route = "${Routes.VIDEO_PLAYER_SCREEN}?videoBase64={videoBase64}",
+            route = "${Routes.VIDEO_PLAYER_SCREEN}?videoUrl={videoUrl}",
             arguments = listOf(
-                navArgument("videoBase64") {
+                navArgument("videoUrl") {
                     type = NavType.StringType
                     nullable = true
                     defaultValue = null
                 }
             )
         ) { backStackEntry ->
-            // فك ترميز URI للوصول للـ Base64 الأصلي
-            val encodedBase64 = backStackEntry.arguments?.getString("videoBase64")
-            val videoBase64 = encodedBase64?.let { Uri.decode(it) }
+            val videoUrl = backStackEntry.arguments?.getString("videoUrl")?.let { Uri.decode(it) }
+
+            // تمرير videoUrl إلى ViewModel عبر SavedStateHandle
+            videoUrl?.let { url ->
+                backStackEntry.savedStateHandle["videoUrl"] = url
+            }
 
             VideoPlayerScreen(
-                base64String = videoBase64,
+                navController = navController,
                 onNavigateUp = { navController.popBackStack() },
-                onFullscreenChange = onFullscreenChange,
-                navController = navController // ✅ تمرير navController هنا
+                onFullscreenChange = onFullscreenChange
             )
         }
     }
@@ -71,9 +70,9 @@ fun NavGraphBuilder.subjectsNavGraph(
 
 /**
  * دالة مساعدة للتنقل إلى شاشة الفيديو
- * تقوم بترميز Base64 قبل الإرسال لتجنب مشاكل URL الطويلة
+ * تمرير Download URL مباشرة
  */
-fun NavController.navigateToVideoScreen(base64String: String) {
-    val encodedBase64 = Uri.encode(base64String)
-    this.navigate("${Routes.VIDEO_PLAYER_SCREEN}?videoBase64=$encodedBase64")
+fun NavController.navigateToVideoScreen(videoUrl: String) {
+    val encodedUrl = Uri.encode(videoUrl)
+    this.navigate("${Routes.VIDEO_PLAYER_SCREEN}?videoUrl=$encodedUrl")
 }

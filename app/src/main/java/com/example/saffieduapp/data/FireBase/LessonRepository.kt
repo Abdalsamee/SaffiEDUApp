@@ -7,8 +7,8 @@ import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 
 class LessonRepository @Inject constructor(
-    private val firestore: FirebaseFirestore,
-    private val storage: FirebaseStorage // ✅ أضفنا Storage
+    private val storage: FirebaseStorage,
+    private val firestore: FirebaseFirestore
 ) {
 
 
