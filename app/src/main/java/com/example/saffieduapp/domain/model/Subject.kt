@@ -10,6 +10,5 @@ data class Subject(
     val imageUrl: String = "",
     val totalLessons: Int = 0,
     val lessonCount: Int = 0 // <-- أضف هذا السطر
-
 )
 

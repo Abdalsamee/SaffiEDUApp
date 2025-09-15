@@ -1,7 +1,9 @@
 package com.example.saffieduapp.presentation.screens.teacher.add_lesson
 
 import android.content.Context
+import android.graphics.pdf.PdfRenderer
 import android.net.Uri
+import android.os.ParcelFileDescriptor
 import android.provider.OpenableColumns
 import android.widget.Toast
 import androidx.lifecycle.ViewModel
@@ -18,6 +20,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 import android.util.Base64
+import java.io.File
 
 @HiltViewModel
 class AddLessonViewModel @Inject constructor(
@@ -177,9 +180,22 @@ class AddLessonViewModel @Inject constructor(
 
                 var pdfUrl: String? = null
                 var videoUrl: String? = null
+                var pagesCount = 0
 
-                // رفع PDF إذا موجود
+                // رفع PDF إذا موجود وحساب عدد الصفحات
                 current.selectedPdfUri?.let { uri ->
+                    // حفظ الملف مؤقتًا لحساب الصفحات
+                    val tempFile = File(context.cacheDir, getFileName(uri)!!)
+                    context.contentResolver.openInputStream(uri)?.use { input ->
+                        tempFile.outputStream().use { output ->
+                            input.copyTo(output)
+                        }
+                    }
+
+                    // حساب عدد صفحات PDF
+                    pagesCount = getPdfPageCount(tempFile)
+
+                    // رفع الملف إلى Firebase Storage
                     pdfUrl = lessonRepository.uploadFile(
                         "lessons/pdf/${System.currentTimeMillis()}_${getFileName(uri)}",
                         uri
@@ -205,6 +221,7 @@ class AddLessonViewModel @Inject constructor(
                     "createdAt" to System.currentTimeMillis(),
                     "pdfUrl" to pdfUrl,
                     "videoUrl" to videoUrl,
+                    "pagesCount" to pagesCount, // ✅ عدد الصفحات
                     "subjectId" to subjectId,
                     "teacherId" to teacherId
                 )
@@ -251,5 +268,13 @@ class AddLessonViewModel @Inject constructor(
             cursor.moveToFirst()
             cursor.getString(nameIndex)
         }
+    }
+    fun getPdfPageCount(file: File): Int {
+        val parcelFileDescriptor = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY)
+        val pdfRenderer = PdfRenderer(parcelFileDescriptor)
+        val count = pdfRenderer.pageCount
+        pdfRenderer.close()
+        parcelFileDescriptor.close()
+        return count
     }
 }

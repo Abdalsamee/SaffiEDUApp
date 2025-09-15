@@ -36,6 +36,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.example.saffieduapp.navigation.navigateToVideoScreen
 import com.example.saffieduapp.presentation.screens.student.components.CommonTopAppBar
 import com.example.saffieduapp.presentation.screens.student.home.components.SearchBar
 import com.example.saffieduapp.presentation.screens.student.subject_details.components.LessonCard
@@ -76,8 +77,7 @@ fun SubjectDetailsScreen(
                 }
 
                 is DetailsUiEvent.OpenVideo -> {
-                    navController.currentBackStackEntry?.savedStateHandle?.set("videoUrl", event.url)
-                    navController.navigate("videoPlayerScreen")
+                    navController.navigateToVideoScreen(event.url)
                 }
             }
         }

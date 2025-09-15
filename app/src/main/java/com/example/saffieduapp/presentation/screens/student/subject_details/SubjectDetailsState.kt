@@ -21,8 +21,6 @@ data class SubjectDetailsState(
     // أبقيت على المتغيرات الأصلية وأضفت عليها
     val isLoading: Boolean = true,
     val subject: Subject? = null,
-
-
     val selectedTab: SubjectTab = SubjectTab.VIDEOS,
     val videoLessons: List<Lesson> = emptyList(),
     val pdfSummaries: List<PdfLesson> = emptyList(),
