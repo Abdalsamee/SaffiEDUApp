@@ -1,3 +1,5 @@
+package com.example.saffieduapp.di
+
 import android.content.Context
 import com.example.saffieduapp.data.FireBase.LessonRepository
 import com.example.saffieduapp.data.local.preferences.OnboardingPreferences
@@ -26,13 +28,17 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideGetOnboardingCompletedUseCase(preferences: OnboardingPreferences): GetOnboardingCompletedUseCase {
+    fun provideGetOnboardingCompletedUseCase(
+        preferences: OnboardingPreferences
+    ): GetOnboardingCompletedUseCase {
         return GetOnboardingCompletedUseCase(preferences)
     }
 
     @Provides
     @Singleton
-    fun provideSetOnboardingCompletedUseCase(preferences: OnboardingPreferences): SetOnboardingCompletedUseCase {
+    fun provideSetOnboardingCompletedUseCase(
+        preferences: OnboardingPreferences
+    ): SetOnboardingCompletedUseCase {
         return SetOnboardingCompletedUseCase(preferences)
     }
 
@@ -56,10 +62,10 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideLessonRepository(storage: FirebaseStorage): LessonRepository {
-        return LessonRepository(
-            storage,
-            firestore = TODO()
-        )
+    fun provideLessonRepository(
+        firestore: FirebaseFirestore,
+        storage: FirebaseStorage
+    ): LessonRepository {
+        return LessonRepository(storage, firestore)
     }
 }

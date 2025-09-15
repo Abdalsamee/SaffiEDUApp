@@ -121,7 +121,7 @@ class SubjectDetailsViewModel @Inject constructor(
                                 subTitle = description,
                                 pagesCount = pagesCount,
                                 pdfUrl = pdfUrl,
-                                isRead = TODO()
+                                isRead = false  // ✅ بدلاً من TODO()
                             )
                         )
                     }
