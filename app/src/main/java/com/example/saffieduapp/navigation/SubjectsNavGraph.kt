@@ -66,6 +66,7 @@ fun NavGraphBuilder.subjectsNavGraph(
             )
         }
     }
+
 }
 
 /**
