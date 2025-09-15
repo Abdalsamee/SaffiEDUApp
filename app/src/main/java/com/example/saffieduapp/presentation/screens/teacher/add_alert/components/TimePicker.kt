@@ -24,6 +24,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.material3.Icon
+import androidx.compose.material3.Text
 import com.example.saffieduapp.R
 import java.util.Calendar
 
@@ -42,6 +43,7 @@ fun TimePickerField(
         TextField(
             value = selectedTime,
             onValueChange = {},
+            placeholder = {Text("12:00 pm")},
             modifier = Modifier
                 .fillMaxWidth()
                 .height(56.dp)

@@ -7,6 +7,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -90,34 +91,49 @@ fun AddAlertScreen(
                 )
             }
             Spacer(modifier = Modifier.height(16.dp))
-        Row (
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(16.dp), // المسافة بين العناصر
+                verticalAlignment = Alignment.CenterVertically      // محاذاة العناصر عموديًا
+            ) {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ){
 
-        ){
-            TimePickerField(
-                selectedTime = state.sendTime,
-                onTimeSelected = {}
-            )
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)){
+                    Text(
+                        text = "وقت الارسال",
+                        fontWeight = FontWeight.Normal,
+                        fontSize = 18.sp,
+                        color = Color.Black
+                    )
 
-                Text(
-                    text = "تاريخ الارسال",
-                    fontWeight = FontWeight.Normal,
-                    fontSize = 18.sp,
-                    color = Color.Black
-                )
-                LessonDatePicker(
-                    selectedDate = state.sendTime,
-                    onDateSelected = {}
-                )
+                    TimePickerField(
+                        selectedTime = state.sendTime,
+                        onTimeSelected = {},
+                        modifier = Modifier.fillMaxWidth(0.3f)
+                    )
+                }
+                
+
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Text(
+                        text = "تاريخ الارسال",
+                        fontWeight = FontWeight.Normal,
+                        fontSize = 18.sp,
+                        color = Color.Black
+                    )
+                    LessonDatePicker(
+                        selectedDate = state.sendTime,
+                        onDateSelected = {}
+                    )
+                }
             }
 
-
-
-}
-
-            // ... يمكنك إضافة بقية الحقول هنا (اختيار الصف، التاريخ، إلخ)
-
-            Spacer(modifier = Modifier.weight(1f)) // لدفع الزر للأسفل
+            Spacer(modifier = Modifier.height(20.dp))
 
             AppButton(
                 text = "إرسال التنبيه",
@@ -132,7 +148,6 @@ fun AddAlertScreen(
 @Composable
 private fun AddAlertScreenPreview() {
     SaffiEDUAppTheme {
-        // نمرر حالة افتراضية مباشرة للمعاينات
         val previewState = AddAlertState()
         AddAlertScreenContent(
             state = previewState,
