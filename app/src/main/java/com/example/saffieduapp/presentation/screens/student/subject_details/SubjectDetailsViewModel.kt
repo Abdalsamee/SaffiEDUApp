@@ -45,6 +45,7 @@ class SubjectDetailsViewModel @Inject constructor(
     val eventFlow = _eventFlow.asSharedFlow()
 
     private val subjectId: String = checkNotNull(savedStateHandle["subjectId"])
+    private val studentClass: String = checkNotNull(savedStateHandle["studentClass"])
 
     init {
         loadSubjectDetails()
@@ -86,7 +87,9 @@ class SubjectDetailsViewModel @Inject constructor(
             try {
                 val docs = firestore.collection("lessons")
                     .whereEqualTo("subjectId", subjectId)
+                    .whereEqualTo("className", studentClass) // تضيف هنا صف الطالب
                     .get().await()
+
 
                 val videoLessons = mutableListOf<Lesson>()
                 val pdfLessons = mutableListOf<PdfLesson>()
@@ -121,7 +124,7 @@ class SubjectDetailsViewModel @Inject constructor(
                                 subTitle = description,
                                 pagesCount = pagesCount,
                                 pdfUrl = pdfUrl,
-                                isRead = false  // ✅ بدلاً من TODO()
+                                isRead = false
                             )
                         )
                     }
