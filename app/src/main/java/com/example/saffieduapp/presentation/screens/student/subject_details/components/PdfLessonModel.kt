@@ -1,6 +1,7 @@
 package com.example.saffieduapp.presentation.screens.student.subject_details.components
 
-import java.io.File
+import android.R
+import android.R.bool
 
 data class PdfLesson(
     val id: String,
