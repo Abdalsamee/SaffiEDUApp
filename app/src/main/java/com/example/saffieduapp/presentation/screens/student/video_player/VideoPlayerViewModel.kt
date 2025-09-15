@@ -8,20 +8,23 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
+import com.google.firebase.firestore.FirebaseFirestore
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 import java.util.*
 
 @HiltViewModel
 class VideoPlayerViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
+    private val firestore: FirebaseFirestore,
     savedStateHandle: SavedStateHandle
-) : ViewModel() {
+    ) : ViewModel() {
 
     private val _state = MutableStateFlow(VideoPlayerState(errorMessage = "فشل تحميل الفيديو"))
     val state = _state.asStateFlow()
@@ -70,14 +73,42 @@ class VideoPlayerViewModel @Inject constructor(
             }
         }
 
-        savedStateHandle.get<String>("videoUrl")?.let {
-            loadVideo(it)
-        } ?: run {
+        // جلب videoUrl و lessonId من SavedStateHandle
+        val videoUrl = savedStateHandle.get<String>("videoUrl")
+        val lessonId = savedStateHandle.get<String>("lessonId")
+
+        if (!lessonId.isNullOrEmpty()) {
+            loadLessonData(lessonId, videoUrl)
+        } else {
             _state.value = _state.value.copy(
                 hasError = true,
-                errorMessage = "لا يوجد فيديو للتشغيل",
+                errorMessage = "لا يوجد درس محدد",
                 isLoading = false
             )
+        }
+    }
+    private fun loadLessonData(lessonId: String, videoUrl: String?) {
+        viewModelScope.launch {
+            try {
+                val doc = firestore.collection("lessons").document(lessonId).get().await()
+                val description = doc.getString("description") ?: ""
+                val publicationDate = doc.getString("publicationDate") ?: ""
+
+                _state.value = _state.value.copy(
+                    lessonDescription = description,
+                    publicationDate = publicationDate
+                )
+
+                // تحميل الفيديو إذا كان موجود
+                videoUrl?.let { loadVideo(it) }
+
+            } catch (e: Exception) {
+                _state.value = _state.value.copy(
+                    hasError = true,
+                    errorMessage = "فشل جلب بيانات الدرس",
+                    isLoading = false
+                )
+            }
         }
     }
 
