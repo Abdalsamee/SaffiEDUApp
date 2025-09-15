@@ -20,8 +20,10 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.saffieduapp.R
+import com.example.saffieduapp.navigation.Routes
 import com.example.saffieduapp.presentation.screens.student.component.ProgressBarWithPercentage
 import com.example.saffieduapp.ui.theme.AppPrimary
 import com.example.saffieduapp.ui.theme.AppTextPrimary
@@ -34,7 +36,7 @@ import kotlin.math.roundToInt
 fun LessonCard(
     lesson: Lesson,
     onClick: () -> Unit,
-
+    navController: NavController
 ) {
     Card(
         shape = RoundedCornerShape(12.dp),
@@ -119,7 +121,18 @@ fun LessonCard(
                     color = Color.Black
                 )
                 Button(
-                    onClick = onClick,
+                    onClick = {
+                        // هنا فقط نفذ التنقل
+                        navController.currentBackStackEntry?.savedStateHandle?.set(
+                            "lessonId",
+                            lesson.id
+                        )
+                        navController.currentBackStackEntry?.savedStateHandle?.set(
+                            "videoUrl",
+                            lesson.videoUrl
+                        )
+                        navController.navigate(Routes.VIDEO_PLAYER_SCREEN)
+                    },
                     shape = RoundedCornerShape(50),
                     colors = ButtonDefaults.buttonColors(containerColor = AppPrimary),
                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),

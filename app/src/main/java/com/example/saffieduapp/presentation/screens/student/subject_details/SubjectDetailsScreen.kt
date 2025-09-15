@@ -187,7 +187,8 @@ fun SubjectDetailsScreen(
                                         Box(modifier = Modifier.weight(1f)) {
                                             LessonCard(
                                                 lesson = lesson,
-                                                onClick = { viewModel.onVideoCardClick(lesson) } // استخدم videoUrl مباشرة
+                                                onClick = { viewModel.onVideoCardClick(lesson) },
+                                                navController = navController   // استخدم videoUrl مباشرة
                                             )
                                         }
                                     }

@@ -9,6 +9,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.saffieduapp.domain.model.Subject
 import com.example.saffieduapp.presentation.screens.student.subject_details.components.Lesson
 import com.example.saffieduapp.presentation.screens.student.subject_details.components.PdfLesson
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -46,6 +47,7 @@ class SubjectDetailsViewModel @Inject constructor(
 
     private val subjectId: String = checkNotNull(savedStateHandle["subjectId"])
 
+
     init {
         loadSubjectDetails()
         loadLessons()
@@ -79,15 +81,51 @@ class SubjectDetailsViewModel @Inject constructor(
             _state.update { it.copy(subject = subject) }
         }
     }
-
+    private suspend fun getStudentClass(studentId: String): String? {
+        return try {
+            val doc = firestore.collection("students").document(studentId).get().await()
+            doc.getString("grade")
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
     private fun loadLessons() {
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true) }
+
             try {
+                val email = FirebaseAuth.getInstance().currentUser?.email
+                val querySnapshot = firestore.collection("students")
+                    .whereEqualTo("email", email)
+                    .get()
+                    .await()
+
+                if (querySnapshot.isEmpty) {
+                    _state.update { it.copy(isLoading = false, error = "لم يتم العثور على بيانات الطالب") }
+                    return@launch
+                }
+
+                // جلب بيانات الطالب من Firestore باستخدام UID
+                val studentDoc2 = querySnapshot.documents[0]
+                val studentNationalId = studentDoc2.id // هنا رقم الهوية كـ Document ID
+                val studentDoc = firestore.collection("students")
+                    .document(studentNationalId)  // هنا رقم الهوية مباشرة
+                    .get()
+                    .await()
+
+                val grade = studentDoc.getString("grade")?.trim()
+                if (grade.isNullOrEmpty()) {
+                    _state.update { it.copy(isLoading = false, error = "الصف الخاص بالطالب غير موجود") }
+                    return@launch
+                }
+
+                // جلب الدروس حسب المادة والصف
                 val docs = firestore.collection("lessons")
                     .whereEqualTo("subjectId", subjectId)
-                    .get().await()
-
+                    .whereEqualTo("className", grade)
+                    .get()
+                    .await()
 
                 val videoLessons = mutableListOf<Lesson>()
                 val pdfLessons = mutableListOf<PdfLesson>()
