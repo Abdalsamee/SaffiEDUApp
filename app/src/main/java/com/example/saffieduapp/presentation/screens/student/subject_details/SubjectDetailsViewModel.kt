@@ -81,6 +81,7 @@ class SubjectDetailsViewModel @Inject constructor(
             _state.update { it.copy(subject = subject) }
         }
     }
+
     private suspend fun getStudentClass(studentId: String): String? {
         return try {
             val doc = firestore.collection("students").document(studentId).get().await()
@@ -90,6 +91,7 @@ class SubjectDetailsViewModel @Inject constructor(
             null
         }
     }
+
     private fun loadLessons() {
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true) }
@@ -102,7 +104,12 @@ class SubjectDetailsViewModel @Inject constructor(
                     .await()
 
                 if (querySnapshot.isEmpty) {
-                    _state.update { it.copy(isLoading = false, error = "لم يتم العثور على بيانات الطالب") }
+                    _state.update {
+                        it.copy(
+                            isLoading = false,
+                            error = "لم يتم العثور على بيانات الطالب"
+                        )
+                    }
                     return@launch
                 }
 
@@ -116,7 +123,12 @@ class SubjectDetailsViewModel @Inject constructor(
 
                 val grade = studentDoc.getString("grade")?.trim()
                 if (grade.isNullOrEmpty()) {
-                    _state.update { it.copy(isLoading = false, error = "الصف الخاص بالطالب غير موجود") }
+                    _state.update {
+                        it.copy(
+                            isLoading = false,
+                            error = "الصف الخاص بالطالب غير موجود"
+                        )
+                    }
                     return@launch
                 }
 
@@ -151,7 +163,7 @@ class SubjectDetailsViewModel @Inject constructor(
                             )
                         )
                     }
-
+                    val isRead = doc.getBoolean("isRead") ?: false
                     if (!pdfUrl.isNullOrEmpty()) {
                         pdfLessons.add(
                             PdfLesson(
@@ -160,7 +172,7 @@ class SubjectDetailsViewModel @Inject constructor(
                                 subTitle = description,
                                 pagesCount = pagesCount,
                                 pdfUrl = pdfUrl,
-                                isRead = false
+                                isRead = isRead
                             )
                         )
                     }
@@ -181,19 +193,6 @@ class SubjectDetailsViewModel @Inject constructor(
         }
     }
 
-    fun onPdfCardClick(pdfLesson: PdfLesson) {
-        viewModelScope.launch {
-            try {
-                val localFile = downloadPdf(pdfLesson.pdfUrl!!, pdfLesson.id)
-                val uri = FileProvider.getUriForFile(context, "${context.packageName}.provider", localFile)
-                _eventFlow.emit(DetailsUiEvent.OpenPdf(uri))
-            } catch (e: Exception) {
-                _eventFlow.emit(DetailsUiEvent.ShowToast("فشل فتح الملف"))
-                e.printStackTrace()
-            }
-        }
-    }
-
     fun onVideoCardClick(videoLesson: Lesson) {
         viewModelScope.launch {
             if (!videoLesson.videoUrl.isNullOrEmpty()) {
@@ -203,6 +202,40 @@ class SubjectDetailsViewModel @Inject constructor(
             }
         }
     }
+
+    fun onPdfCardClick(pdfLesson: PdfLesson) {
+        viewModelScope.launch {
+            try {
+                // ✅ تحديث حالة الملف كمقروء في Firestore
+                firestore.collection("lessons")
+                    .document(pdfLesson.id)
+                    .update("isRead", true)
+                    .await()
+
+                // ✅ تحديث الـ State محليًا
+                _state.update { currentState ->
+                    currentState.copy(
+                        pdfSummaries = currentState.pdfSummaries.map {
+                            if (it.id == pdfLesson.id) it.copy(isRead = true) else it
+                        }
+                    )
+                }
+
+                // فتح الملف فعليًا
+                val localFile = downloadPdf(pdfLesson.pdfUrl!!, pdfLesson.id)
+                val uri = FileProvider.getUriForFile(
+                    context,
+                    "${context.packageName}.provider",
+                    localFile
+                )
+                _eventFlow.emit(DetailsUiEvent.OpenPdf(uri))
+            } catch (e: Exception) {
+                _eventFlow.emit(DetailsUiEvent.ShowToast("فشل فتح الملف"))
+                e.printStackTrace()
+            }
+        }
+    }
+
 
     private suspend fun downloadPdf(pdfUrl: String, id: String): File {
         val file = File(context.filesDir, "$id.pdf")
@@ -217,4 +250,18 @@ class SubjectDetailsViewModel @Inject constructor(
         }
         return file
     }
+
+    fun markPdfAsRead(pdfLesson: PdfLesson) {
+        _state.update { currentState ->
+            val updatedList = currentState.pdfSummaries.map {
+                if (it.id == pdfLesson.id) {
+                    it.copy(isRead = true) // نعدل فقط الملف المضغوط عليه
+                } else {
+                    it
+                }
+            }
+            currentState.copy(pdfSummaries = updatedList)
+        }
+    }
+
 }
