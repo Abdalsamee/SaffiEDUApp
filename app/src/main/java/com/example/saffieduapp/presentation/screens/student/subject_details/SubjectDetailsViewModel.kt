@@ -24,6 +24,9 @@ import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.net.URL
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Locale
 import javax.inject.Inject
 
 sealed class DetailsUiEvent {
@@ -142,15 +145,32 @@ class SubjectDetailsViewModel @Inject constructor(
                 val videoLessons = mutableListOf<Lesson>()
                 val pdfLessons = mutableListOf<PdfLesson>()
 
+                // الحصول على التاريخ الحالي
+                val currentDate = Calendar.getInstance().time
+                val dateFormat = SimpleDateFormat("d/M/yyyy", Locale.getDefault())
+
                 docs.documents.forEach { doc ->
                     val id = doc.id
                     val title = doc.getString("title") ?: return@forEach
                     val description = doc.getString("description") ?: ""
                     val duration = (doc.getLong("duration") ?: 0).toInt()
                     val pagesCount = (doc.getLong("pagesCount") ?: 0).toInt()
-
+                    val publicationDateStr = doc.getString("publicationDate") ?: ""
                     val videoUrl = doc.getString("videoUrl")
                     val pdfUrl = doc.getString("pdfUrl")
+
+                    // تحقق من صحة تاريخ النشر
+                    try {
+                        val publicationDate = dateFormat.parse(publicationDateStr)
+
+                        // إذا كان تاريخ النشر بعد التاريخ الحالي، تخطى هذا الدرس
+                        if (publicationDate != null && publicationDate.after(currentDate)) {
+                            return@forEach
+                        }
+                    } catch (e: Exception) {
+                        // إذا كان هناك خطأ في تحليل التاريخ، تخطى هذا الدرس
+                        return@forEach
+                    }
 
                     if (!videoUrl.isNullOrEmpty()) {
                         videoLessons.add(
