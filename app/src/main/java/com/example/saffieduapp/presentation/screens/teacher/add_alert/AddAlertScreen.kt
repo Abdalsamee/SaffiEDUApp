@@ -144,16 +144,16 @@ fun AddAlertScreen(
     }
 }
 
-@Preview(showBackground = true, locale = "ar")
-@Composable
-private fun AddAlertScreenPreview() {
-    SaffiEDUAppTheme {
-        val previewState = AddAlertState()
-        AddAlertScreenContent(
-            state = previewState,
-            onNavigateUp = {},
-            onDescriptionChange = {},
-            onSendClick = {}
-        )
-    }
-}
+//@Preview(showBackground = true, locale = "ar")
+//@Composable
+//private fun AddAlertScreenPreview() {
+//    SaffiEDUAppTheme {
+//        val previewState = AddAlertState()
+//        AddAlertScreenContent(
+//            state = previewState,
+//            onNavigateUp = {},
+//            onDescriptionChange = {},
+//            onSendClick = {}
+//        )
+//    }
+//}

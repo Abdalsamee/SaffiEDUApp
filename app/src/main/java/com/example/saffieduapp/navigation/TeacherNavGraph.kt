@@ -9,6 +9,7 @@ import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import com.example.saffieduapp.presentation.screens.teacher.add_alert.AddAlertScreen
 import com.example.saffieduapp.presentation.screens.teacher.add_lesson.AddLessonScreen
 import com.example.saffieduapp.presentation.screens.teacher.calsses.TeacherClassesScreen
 import com.example.saffieduapp.presentation.screens.teacher.home.TeacherHomeScreen
@@ -39,13 +40,6 @@ fun TeacherNavGraph(navController: NavHostController, modifier: Modifier = Modif
         }
         composable(Routes.TEACHER_PROFILE_SCREEN) {
             PlaceholderScreen("Teacher Profile Screen")
-        }
-        composable(Routes.TEACHER_ADD_LESSON_SCREEN) {
-            AddLessonScreen(
-                onNavigateUp = {
-                    navController.popBackStack()
-                }
-            )
         }
     }
 }

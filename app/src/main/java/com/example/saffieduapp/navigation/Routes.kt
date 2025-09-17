@@ -22,8 +22,6 @@ object Routes {
     const val SUBJECTS_LIST_SCREEN    = "subjects_list_screen"
     const val SUBJECT_DETAILS_SCREEN  = "subject_details_screen"
     const val VIDEO_PLAYER_SCREEN = "video_player_screen"
-    const val PDF_VIEWER_SCREEN = "pdf_viewer_screen"  // ← تعريف شاشة PDF
-
 
     //Teacher  للمعلم
     const val TEACHER_MAIN_SCREEN = "teacher_main_screen"
@@ -33,5 +31,7 @@ object Routes {
     const val TEACHER_CHAT_SCREEN = "teacher_chat_screen"
     const val TEACHER_PROFILE_SCREEN = "teacher_profile_screen"
     const val TEACHER_ADD_LESSON_SCREEN = "teacher_add_lesson_screen"
+    const val TEACHER_ADD_ALERT_SCREEN = "teacher_add_alert_screen"
+    const val TEACHER_ADD_ASSIGNMENT_SCREEN = "teacher_add_assignmnet_screen"
 
 }

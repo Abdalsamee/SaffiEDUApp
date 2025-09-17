@@ -22,6 +22,8 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
+import androidx.navigation.NavController
+import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.saffieduapp.R
@@ -33,7 +35,11 @@ import com.example.saffieduapp.presentation.screens.teacher.home.component.Expan
 import com.example.saffieduapp.presentation.screens.teacher.home.component.FabActionItem
 
 @Composable
-fun TeacherMainScreen() {
+fun TeacherMainScreen(navController: NavHostController,
+                      onNavigateToAddLesson: () -> Unit,
+                      onNavigateToAddAlert: () -> Unit,
+                      onNavigateToAddAssignmnet: () -> Unit
+) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
@@ -162,21 +168,14 @@ fun TeacherMainScreen() {
 
                         // Handle navigation based on action
                         when (action.label) {
-                            "إضافة درس" -> {
-                                navController.navigate(Routes.TEACHER_ADD_LESSON_SCREEN)
-                            }
-                            "إضافة واجب" -> {
-                                // Handle assignment creation
-                                println("Clicked on: إضافة واجب")
-                            }
+                            "إضافة درس" -> onNavigateToAddLesson()
+
+                            "إضافة واجب" -> onNavigateToAddAssignmnet()
                             "إضافة اختبار" -> {
                                 // Handle exam creation
                                 println("Clicked on: إضافة اختبار")
                             }
-                            "إضافة تنبيه" -> {
-                                // Handle alert creation
-                                println("Clicked on: إضافة تنبيه")
-                            }
+                            "إضافة تنبيه" -> onNavigateToAddAlert()
                         }
                     }
                 )

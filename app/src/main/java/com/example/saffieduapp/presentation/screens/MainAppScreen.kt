@@ -22,7 +22,7 @@ import com.example.saffieduapp.navigation.Routes
 fun MainAppScreen() {
     val navController: NavHostController = rememberNavController()
     var isVideoFullscreen by remember { mutableStateOf(false) }
-    // تعريف جميع عناصر شريط التنقل كما في التصميم
+
     val bottomNavItems = listOf(
         BottomNavItem(
             title = "الرئيسية",
