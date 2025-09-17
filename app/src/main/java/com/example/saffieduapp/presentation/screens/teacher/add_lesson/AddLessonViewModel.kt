@@ -19,19 +19,22 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
-import android.util.Base64
 import java.io.File
 
 @HiltViewModel
 class AddLessonViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val lessonRepository: LessonRepository, // ✅ لازم تنحقن
+    private val lessonRepository: LessonRepository,
     private val firestore: FirebaseFirestore,
     private val auth: FirebaseAuth
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(AddLessonState())
     val state = _state.asStateFlow()
+
+    // الحد الأقصى لحجم الملف: 200 ميغابايت
+    private val MAX_FILE_SIZE = 200L * 1024L * 1024L
+
     val availableGrades = listOf(
         "الصف الأول", "الصف الثاني", "الصف الثالث", "الصف الرابع",
         "الصف الخامس", "الصف السادس", "الصف السابع", "الصف الثامن",
@@ -40,30 +43,24 @@ class AddLessonViewModel @Inject constructor(
 
     private suspend fun fetchTeacherAndSubjectIds(): Pair<String?, String?> {
         return try {
-            val currentUserEmail = auth.currentUser?.email
-            if (currentUserEmail.isNullOrEmpty()) return null to null
+            val currentUserEmail = auth.currentUser?.email ?: return null to null
 
-            // جلب المستند الخاص بالمعلم
             val teacherSnapshot = firestore.collection("teachers")
                 .whereEqualTo("email", currentUserEmail)
                 .get()
                 .await()
 
             if (teacherSnapshot.isEmpty) return null to null
-
             val teacherDoc = teacherSnapshot.documents[0]
             val teacherId = teacherDoc.id
 
-            // جلب أول مادة مرتبطة بهذا المعلم
             val subjectsSnapshot = firestore.collection("subjects")
                 .whereEqualTo("teacherId", teacherId)
                 .get()
                 .await()
 
             val subjectId = if (subjectsSnapshot.isEmpty) null else subjectsSnapshot.documents[0].id
-
             teacherId to subjectId
-
         } catch (e: Exception) {
             e.printStackTrace()
             null to null
@@ -71,82 +68,46 @@ class AddLessonViewModel @Inject constructor(
     }
 
     fun onEvent(event: AddLessonEvent) {
-        // --- تم تنظيف جملة when من التكرار ---
         when (event) {
-            is AddLessonEvent.TitleChanged -> {
-                _state.update { it.copy(lessonTitle = event.title) }
+            is AddLessonEvent.TitleChanged -> _state.update { it.copy(lessonTitle = event.title) }
+            is AddLessonEvent.DescriptionChanged -> _state.update { it.copy(description = event.description) }
+            is AddLessonEvent.ClassSelected -> _state.update { it.copy(selectedClass = event.className) }
+            is AddLessonEvent.VideoSelected -> _state.update {
+                it.copy(
+                    selectedVideoUri = event.uri,
+                    selectedVideoName = event.uri?.let { uri -> getFileName(uri) },
+                    selectedContentType = if (event.uri != null) ContentType.VIDEO else ContentType.NONE,
+                    selectedPdfUri = null,
+                    selectedPdfName = null
+                )
             }
-
-            is AddLessonEvent.DescriptionChanged -> {
-                _state.update { it.copy(description = event.description) }
+            is AddLessonEvent.PdfSelected -> _state.update {
+                it.copy(
+                    selectedPdfUri = event.uri,
+                    selectedPdfName = event.uri?.let { uri -> getFileName(uri) },
+                    selectedContentType = if (event.uri != null) ContentType.PDF else ContentType.NONE,
+                    selectedVideoUri = null,
+                    selectedVideoName = null,
+                    description = ""
+                )
             }
-
-            is AddLessonEvent.ClassSelected -> {
-                _state.update { it.copy(selectedClass = event.className) }
+            is AddLessonEvent.ClearVideoSelection -> _state.update {
+                it.copy(
+                    selectedVideoUri = null,
+                    selectedVideoName = null,
+                    selectedContentType = if (it.selectedPdfUri == null) ContentType.NONE else ContentType.PDF
+                )
             }
-
-            is AddLessonEvent.VideoSelected -> {
-                _state.update {
-                    it.copy(
-                        selectedVideoUri = event.uri,
-                        selectedVideoName = event.uri?.let { uri -> getFileName(uri) },
-                        selectedContentType = if (event.uri != null) ContentType.VIDEO else ContentType.NONE,
-                        selectedPdfUri = null,
-                        selectedPdfName = null
-                    )
-                }
+            is AddLessonEvent.ClearPdfSelection -> _state.update {
+                it.copy(
+                    selectedPdfUri = null,
+                    selectedPdfName = null,
+                    selectedContentType = if (it.selectedVideoUri == null) ContentType.NONE else ContentType.VIDEO
+                )
             }
-
-            is AddLessonEvent.PdfSelected -> {
-                _state.update {
-                    it.copy(
-                        selectedPdfUri = event.uri,
-                        selectedPdfName = event.uri?.let { uri -> getFileName(uri) },
-                        selectedContentType = if (event.uri != null) ContentType.PDF else ContentType.NONE,
-                        selectedVideoUri = null,
-                        selectedVideoName = null,
-                        description = "" // مسح أي محتوى في الوصف عند اختيار PDF
-                    )
-                }
-            }
-
-            is AddLessonEvent.ClearVideoSelection -> {
-                _state.update {
-                    it.copy(
-                        selectedVideoUri = null,
-                        selectedVideoName = null,
-                        // أعد النوع إلى "لا شيء" إذا لم يكن هناك ملف PDF مختار
-                        selectedContentType = if (it.selectedPdfUri == null) ContentType.NONE else ContentType.PDF
-                    )
-                }
-            }
-
-            is AddLessonEvent.ClearPdfSelection -> {
-                _state.update {
-                    it.copy(
-                        selectedPdfUri = null,
-                        selectedPdfName = null,
-                        // أعد النوع إلى "لا شيء" إذا لم يكن هناك فيديو مختار
-                        selectedContentType = if (it.selectedVideoUri == null) ContentType.NONE else ContentType.VIDEO
-                    )
-                }
-            }
-
-            is AddLessonEvent.SaveClicked -> {
-                saveLesson()
-            }
-
-            is AddLessonEvent.DateChanged -> {
-                _state.update { it.copy(publicationDate = event.date) }
-            }
-
-            is AddLessonEvent.NotifyStudentsToggled -> {
-                _state.update { it.copy(notifyStudents = event.isEnabled) }
-            }
-
-            is AddLessonEvent.SaveClicked -> {
-                saveLesson()
-            }
+            is AddLessonEvent.DateChanged -> _state.update { it.copy(publicationDate = event.date) }
+            is AddLessonEvent.NotifyStudentsToggled -> _state.update { it.copy(notifyStudents = event.isEnabled) }
+            is AddLessonEvent.SaveClicked -> saveLesson()
         }
     }
 
@@ -154,19 +115,10 @@ class AddLessonViewModel @Inject constructor(
         viewModelScope.launch {
             val current = state.value
 
-            // التحقق من الحقول
-            if (current.lessonTitle.isBlank()) {
-                Toast.makeText(context, "يرجى إدخال عنوان الدرس", Toast.LENGTH_SHORT).show()
-                return@launch
-            }
-            if (current.selectedClass.isBlank()) {
-                Toast.makeText(context, "يرجى اختيار الصف", Toast.LENGTH_SHORT).show()
-                return@launch
-            }
-            if (current.publicationDate.isBlank()) {
-                Toast.makeText(context, "يرجى اختيار تاريخ النشر", Toast.LENGTH_SHORT).show()
-                return@launch
-            }
+            // التحقق من الحقول الأساسية
+            if (current.lessonTitle.isBlank()) { Toast.makeText(context, "يرجى إدخال عنوان الدرس", Toast.LENGTH_SHORT).show(); return@launch }
+            if (current.selectedClass.isBlank()) { Toast.makeText(context, "يرجى اختيار الصف", Toast.LENGTH_SHORT).show(); return@launch }
+            if (current.publicationDate.isBlank()) { Toast.makeText(context, "يرجى اختيار تاريخ النشر", Toast.LENGTH_SHORT).show(); return@launch }
 
             _state.update { it.copy(isSaving = true) }
 
@@ -182,30 +134,36 @@ class AddLessonViewModel @Inject constructor(
                 var videoUrl: String? = null
                 var pagesCount = 0
 
-                // رفع PDF إذا موجود وحساب عدد الصفحات
-                current.selectedPdfUri?.let { uri ->
-                    // حفظ الملف مؤقتًا لحساب الصفحات
-                    val tempFile = File(context.cacheDir, getFileName(uri)!!)
-                    context.contentResolver.openInputStream(uri)?.use { input ->
-                        tempFile.outputStream().use { output ->
-                            input.copyTo(output)
-                        }
+                // التحقق من حجم الفيديو قبل الرفع
+                // رفع الفيديو مباشرة بدون نسخ
+                current.selectedVideoUri?.let { uri ->
+                    val fileSize = getFileSize(uri)
+                    if (fileSize > MAX_FILE_SIZE) {
+                        Toast.makeText(context, "حجم الفيديو كبير جداً. الحد الأقصى 200 ميغابايت", Toast.LENGTH_LONG).show()
+                        _state.update { it.copy(isSaving = false) }
+                        return@launch
                     }
-
-                    // حساب عدد صفحات PDF
-                    pagesCount = getPdfPageCount(tempFile)
-
-                    // رفع الملف إلى Firebase Storage
-                    pdfUrl = lessonRepository.uploadFile(
-                        "lessons/pdf/${System.currentTimeMillis()}_${getFileName(uri)}",
+                    videoUrl = lessonRepository.uploadFile(
+                        "lessons/videos/${System.currentTimeMillis()}_${getFileName(uri)}",
                         uri
                     )
                 }
 
-                // رفع الفيديو إذا موجود
-                current.selectedVideoUri?.let { uri ->
-                    videoUrl = lessonRepository.uploadFile(
-                        "lessons/videos/${System.currentTimeMillis()}_${getFileName(uri)}",
+                // رفع PDF إذا موجود
+                current.selectedPdfUri?.let { uri ->
+                    val fileSize = getFileSize(uri)
+                    if (fileSize > MAX_FILE_SIZE) {
+                        Toast.makeText(
+                            context,
+                            "حجم الملف كبير جداً. الحد الأقصى 200 ميغابايت",
+                            Toast.LENGTH_LONG
+                        ).show()
+                        _state.update { it.copy(isSaving = false) }
+                        return@launch
+                    }
+                    // رفع الملف بعد التحقق
+                    pdfUrl = lessonRepository.uploadFile(
+                        "lessons/pdf/${System.currentTimeMillis()}_${getFileName(uri)}",
                         uri
                     )
                 }
@@ -221,16 +179,16 @@ class AddLessonViewModel @Inject constructor(
                     "createdAt" to System.currentTimeMillis(),
                     "pdfUrl" to pdfUrl,
                     "videoUrl" to videoUrl,
-                    "pagesCount" to pagesCount, // ✅ عدد الصفحات
+                    "pagesCount" to pagesCount,
                     "subjectId" to subjectId,
                     "teacherId" to teacherId
                 )
 
-                lessonRepository.saveLesson(lessonData as Map<String, Any>)
+                lessonRepository.saveLessonAndReturnId(lessonData as Map<String, Any>)
 
                 if (!isDraft && current.notifyStudents) {
                     lessonRepository.sendNotificationToStudents(
-                        className = current.selectedClass,
+                        subjectId = subjectId!!,
                         title = current.lessonTitle,
                         description = current.description
                     )
@@ -269,6 +227,17 @@ class AddLessonViewModel @Inject constructor(
             cursor.getString(nameIndex)
         }
     }
+
+    // الحصول على حجم الملف
+    private fun getFileSize(uri: Uri): Long {
+        return context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+            val sizeIndex = cursor.getColumnIndex(OpenableColumns.SIZE)
+            cursor.moveToFirst()
+            cursor.getLong(sizeIndex)
+        } ?: 0L
+    }
+
+    // حساب عدد صفحات PDF
     fun getPdfPageCount(file: File): Int {
         val parcelFileDescriptor = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY)
         val pdfRenderer = PdfRenderer(parcelFileDescriptor)

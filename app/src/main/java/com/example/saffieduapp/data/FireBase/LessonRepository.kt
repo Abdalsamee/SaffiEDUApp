@@ -11,22 +11,30 @@ class LessonRepository @Inject constructor(
     private val firestore: FirebaseFirestore
 ) {
 
-
-    suspend fun saveLesson(lessonData: Map<String, Any>) {
-        firestore.collection("lessons")
+    // حفظ الدرس وإرجاع مستند ID
+    suspend fun saveLessonAndReturnId(lessonData: Map<String, Any>): String {
+        val docRef = firestore.collection("lessons")
             .add(lessonData)
             .await()
+        return docRef.id
     }
-
     // هذه فقط مثال بسيط، لاحقًا ممكن نستبدلها بـ FCM
-    suspend fun sendNotificationToStudents(className: String, title: String, description: String) {
-        val notification = mapOf(
-            "className" to className,
-            "title" to title,
-            "message" to description,
-            "timestamp" to System.currentTimeMillis()
-        )
-        firestore.collection("notifications").add(notification).await()
+    suspend fun sendNotificationToStudents(subjectId: String, title: String, description: String) {
+        val studentsSnapshot = firestore.collection("students")
+            .whereArrayContains("subjects", subjectId)
+            .get()
+            .await()
+
+        for (studentDoc in studentsSnapshot.documents) {
+            val studentId = studentDoc.id
+            val notification = mapOf(
+                "studentId" to studentId,
+                "title" to title,
+                "message" to description,
+                "timestamp" to System.currentTimeMillis()
+            )
+            firestore.collection("notifications").add(notification).await()
+        }
     }
 
     // --- دالة لإرجاع مرجع في Storage ---
