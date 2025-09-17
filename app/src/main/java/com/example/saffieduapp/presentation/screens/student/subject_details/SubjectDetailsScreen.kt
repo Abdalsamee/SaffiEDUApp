@@ -49,10 +49,15 @@ import com.example.saffieduapp.ui.theme.AppTextSecondary
 fun SubjectDetailsScreen(
     onNavigateUp: () -> Unit,
     viewModel: SubjectDetailsViewModel = hiltViewModel(),
-    navController : NavController
+    navController : NavController,
+    subjectId: String,   // 👈 أضف هذا
 ) {
     val state by viewModel.state.collectAsState()
     val context = LocalContext.current
+    // بمجرد الدخول للشاشة، اطلب تحميل بيانات المادة
+    LaunchedEffect(subjectId) {
+        viewModel.loadSubjectDetails(subjectId)
+    }
 
     // --- معالج الأحداث ---
     LaunchedEffect(Unit) {
