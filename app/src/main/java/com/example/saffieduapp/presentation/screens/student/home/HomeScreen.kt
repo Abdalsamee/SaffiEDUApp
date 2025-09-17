@@ -90,7 +90,7 @@ fun HomeScreen(
                 EnrolledSubjectsSection(
                     subjects = state.enrolledSubjects,
                     onSubjectClick = { subjectId ->
-                        Toast.makeText(context, "Clicked Subject ID: $subjectId", Toast.LENGTH_SHORT).show()
+                        navController.navigate(Routes.SUBJECT_DETAILS_SCREEN + "/$subjectId")
                     },
                     onMoreClick = onNavigateToSubjects
                 )

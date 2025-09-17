@@ -52,7 +52,7 @@ class SubjectDetailsViewModel @Inject constructor(
 
 
     init {
-        loadSubjectDetails()
+        loadSubjectDetails(subjectId)
         loadLessons()
         loadAlerts()
     }
@@ -72,7 +72,7 @@ class SubjectDetailsViewModel @Inject constructor(
         _state.update { it.copy(selectedTab = tab) }
     }
 
-    private fun loadSubjectDetails() {
+     fun loadSubjectDetails(subjectId: String) {
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true) }
             val allSubjects = listOf(

@@ -31,14 +31,14 @@ fun NavGraphBuilder.subjectsNavGraph(
 
         // ٢. شاشة تفاصيل المادة
         composable(
-            route = "${Routes.SUBJECT_DETAILS_SCREEN}/{subjectId}",
-            arguments = listOf(
-                navArgument("subjectId") { type = NavType.StringType }
-            )
-        ) {
+            route = Routes.SUBJECT_DETAILS_SCREEN + "/{subjectId}"
+        ) { backStackEntry ->
+            val subjectId = backStackEntry.arguments?.getString("subjectId") ?: ""
+
             SubjectDetailsScreen(
                 onNavigateUp = { navController.popBackStack() },
-                navController = navController
+                navController = navController,
+                subjectId = subjectId   // مرر الـ id
             )
         }
 
