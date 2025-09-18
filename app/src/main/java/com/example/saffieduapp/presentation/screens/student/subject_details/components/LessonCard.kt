@@ -88,7 +88,7 @@ fun LessonCard(
                 // --- العنوان الرئيسي والفرعي ---
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = lesson.title,
+                        text = lesson.title.toString(),
 
                         fontWeight = FontWeight.Normal,
                         fontSize = 12.sp,
@@ -97,7 +97,7 @@ fun LessonCard(
                         overflow = TextOverflow.Ellipsis
                     )
                     Text(
-                        text = lesson.subTitle,
+                        text = lesson.subTitle.toString(),
                         fontWeight = FontWeight.SemiBold,
                         fontSize = 14.sp,
                         color = AppTextPrimary,
@@ -145,7 +145,7 @@ fun LessonCard(
             Spacer(modifier = Modifier.height(12.dp))
 
             ProgressBarWithPercentage(
-                progress = lesson.progress.toInt(),
+                progress = lesson.progress,
                 modifier = Modifier.fillMaxWidth()
             )
         }

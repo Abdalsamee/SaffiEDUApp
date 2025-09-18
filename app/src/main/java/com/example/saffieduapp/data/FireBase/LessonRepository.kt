@@ -19,12 +19,23 @@ class LessonRepository @Inject constructor(
         return docRef.id
     }
     // هذه فقط مثال بسيط، لاحقًا ممكن نستبدلها بـ FCM
-    suspend fun sendNotificationToStudents(subjectId: String, title: String, description: String) {
-        val studentsSnapshot = firestore.collection("students")
-            .whereArrayContains("subjects", subjectId)
+    suspend fun sendNotificationToStudents(subjectId: String, grade: String, title: String, description: String) {
+        // 1️⃣ جلب الـ subject لمعرفة الصف
+        val subjectSnapshot = firestore.collection("subjects")
+            .document(subjectId)
             .get()
             .await()
 
+        val subjectGrade = subjectSnapshot.getString("className") ?: return
+        if (subjectGrade != grade) return
+
+        // 2️⃣ جلب الطلاب في الصف
+        val studentsSnapshot = firestore.collection("students")
+            .whereEqualTo("grade", grade)
+            .get()
+            .await()
+
+        // 3️⃣ إرسال الإشعار لكل طالب
         for (studentDoc in studentsSnapshot.documents) {
             val studentId = studentDoc.id
             val notification = mapOf(
