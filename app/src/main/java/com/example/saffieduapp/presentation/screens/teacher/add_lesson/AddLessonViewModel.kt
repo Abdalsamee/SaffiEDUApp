@@ -8,6 +8,10 @@ import android.provider.OpenableColumns
 import android.widget.Toast
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
+import androidx.work.workDataOf
+import com.example.saffieduapp.data.FireBase.LessonPublishWorker
 import com.example.saffieduapp.data.FireBase.LessonRepository
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
@@ -20,6 +24,11 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Locale
+import java.util.concurrent.TimeUnit
+import kotlin.math.max
+
 
 @HiltViewModel
 class AddLessonViewModel @Inject constructor(
@@ -115,14 +124,24 @@ class AddLessonViewModel @Inject constructor(
         viewModelScope.launch {
             val current = state.value
 
-            // التحقق من الحقول الأساسية
-            if (current.lessonTitle.isBlank()) { Toast.makeText(context, "يرجى إدخال عنوان الدرس", Toast.LENGTH_SHORT).show(); return@launch }
-            if (current.selectedClass.isBlank()) { Toast.makeText(context, "يرجى اختيار الصف", Toast.LENGTH_SHORT).show(); return@launch }
-            if (current.publicationDate.isBlank()) { Toast.makeText(context, "يرجى اختيار تاريخ النشر", Toast.LENGTH_SHORT).show(); return@launch }
+            // 1️⃣ التحقق من الحقول الأساسية
+            if (current.lessonTitle.isBlank()) {
+                Toast.makeText(context, "يرجى إدخال عنوان الدرس", Toast.LENGTH_SHORT).show()
+                return@launch
+            }
+            if (current.selectedClass.isBlank()) {
+                Toast.makeText(context, "يرجى اختيار الصف", Toast.LENGTH_SHORT).show()
+                return@launch
+            }
+            if (current.publicationDate.isBlank()) {
+                Toast.makeText(context, "يرجى اختيار تاريخ النشر", Toast.LENGTH_SHORT).show()
+                return@launch
+            }
 
             _state.update { it.copy(isSaving = true) }
 
             try {
+                // 2️⃣ جلب بيانات المعلم والمادة
                 val (teacherId, subjectId) = fetchTeacherAndSubjectIds()
                 if (teacherId == null || subjectId == null) {
                     Toast.makeText(context, "❌ لم يتم العثور على بيانات المعلم أو المادة", Toast.LENGTH_LONG).show()
@@ -134,8 +153,7 @@ class AddLessonViewModel @Inject constructor(
                 var videoUrl: String? = null
                 var pagesCount = 0
 
-                // التحقق من حجم الفيديو قبل الرفع
-                // رفع الفيديو مباشرة بدون نسخ
+                // 3️⃣ رفع الفيديو إذا موجود
                 current.selectedVideoUri?.let { uri ->
                     val fileSize = getFileSize(uri)
                     if (fileSize > MAX_FILE_SIZE) {
@@ -149,26 +167,21 @@ class AddLessonViewModel @Inject constructor(
                     )
                 }
 
-                // رفع PDF إذا موجود
+                // 4️⃣ رفع PDF إذا موجود
                 current.selectedPdfUri?.let { uri ->
                     val fileSize = getFileSize(uri)
                     if (fileSize > MAX_FILE_SIZE) {
-                        Toast.makeText(
-                            context,
-                            "حجم الملف كبير جداً. الحد الأقصى 200 ميغابايت",
-                            Toast.LENGTH_LONG
-                        ).show()
+                        Toast.makeText(context, "حجم الملف كبير جداً. الحد الأقصى 200 ميغابايت", Toast.LENGTH_LONG).show()
                         _state.update { it.copy(isSaving = false) }
                         return@launch
                     }
-                    // رفع الملف بعد التحقق
                     pdfUrl = lessonRepository.uploadFile(
                         "lessons/pdf/${System.currentTimeMillis()}_${getFileName(uri)}",
                         uri
                     )
                 }
 
-                // حفظ بيانات الدرس في Firestore
+                // 5️⃣ حفظ بيانات الدرس في Firestore
                 val lessonData = mapOf(
                     "title" to current.lessonTitle,
                     "description" to current.description,
@@ -181,20 +194,32 @@ class AddLessonViewModel @Inject constructor(
                     "videoUrl" to videoUrl,
                     "pagesCount" to pagesCount,
                     "subjectId" to subjectId,
-                    "teacherId" to teacherId
+                    "teacherId" to teacherId,
+                    "notificationStatus" to "pending" // جديد: إشعار لم يُرسل بعد
                 )
 
-                lessonRepository.saveLessonAndReturnId(lessonData as Map<String, Any>)
+                // 6️⃣ حفظ الدرس واسترجاع ID
+                val lessonId = lessonRepository.saveLessonAndReturnId(lessonData as Map<String, Any>)
 
-                if (!isDraft && current.notifyStudents) {
-                    lessonRepository.sendNotificationToStudents(
-                        subjectId = subjectId!!,
-                        title = current.lessonTitle,
-                        description = current.description
-                    )
+                // 7️⃣ جدولة نشر الدرس باستخدام WorkManager
+                val delay = try {
+                    val publicationMillis = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+                        .parse(current.publicationDate)?.time ?: 0L
+                    max(0L, publicationMillis - System.currentTimeMillis())
+                } catch (e: Exception) {
+                    0L
                 }
 
+                val workData = workDataOf("lessonId" to lessonId)
+                val workRequest = OneTimeWorkRequestBuilder<LessonPublishWorker>()
+                    .setInitialDelay(delay, TimeUnit.MILLISECONDS)
+                    .setInputData(workData)
+                    .build()
+                WorkManager.getInstance(context).enqueue(workRequest)
+
                 Toast.makeText(context, "✅ تم حفظ الدرس بنجاح", Toast.LENGTH_SHORT).show()
+
+                // 8️⃣ إعادة تعيين الحالة بعد الحفظ
                 _state.update {
                     it.copy(
                         lessonTitle = "",
@@ -206,18 +231,19 @@ class AddLessonViewModel @Inject constructor(
                         selectedPdfUri = null,
                         selectedPdfName = null,
                         selectedContentType = ContentType.NONE,
-                        notifyStudents = false
+                        notifyStudents = false,
+                        isSaving = false
                     )
                 }
 
             } catch (e: Exception) {
                 e.printStackTrace()
                 Toast.makeText(context, "❌ فشل حفظ الدرس: ${e.message}", Toast.LENGTH_LONG).show()
-            } finally {
                 _state.update { it.copy(isSaving = false) }
             }
         }
     }
+
 
     // الحصول على اسم الملف من Uri
     private fun getFileName(uri: Uri): String? {

@@ -111,6 +111,8 @@ dependencies {
     // When using the BoM, don't specify versions in Firebase dependencies
     implementation("com.google.firebase:firebase-analytics")
     implementation ("com.google.firebase:firebase-storage-ktx")
+    implementation ("com.google.firebase:firebase-messaging:23.4.1")
+    implementation ("com.google.firebase:firebase-messaging-ktx:23.4.1")
 
     implementation ("androidx.datastore:datastore-preferences:1.0.0")
     implementation ("androidx.security:security-crypto:1.1.0-alpha06")
