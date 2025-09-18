@@ -5,6 +5,7 @@ data class AddExamState(
     val examTitle: String = "",
     val examType: String = "",
     val examDate: String = "",
+    val examStartTime: String = "",
     val examTime: String = "",
     val randomQuestions: Boolean = false,
     val showResultsImmediately: Boolean = false,

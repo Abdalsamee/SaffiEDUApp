@@ -19,6 +19,7 @@ class AddExamViewModel @Inject constructor() : ViewModel() {
             is AddExamEvent.TitleChanged -> _state.update { it.copy(examTitle = event.title) }
             is AddExamEvent.TypeChanged -> _state.update { it.copy(examType = event.type) }
             is AddExamEvent.DateChanged -> _state.update { it.copy(examDate = event.date) }
+            is AddExamEvent.StartTimeChanged -> _state.update { it.copy(examStartTime = event.time) }
             is AddExamEvent.TimeChanged -> _state.update { it.copy(examTime = event.time) }
             is AddExamEvent.RandomQuestionsToggled -> _state.update { it.copy(randomQuestions = event.isEnabled) }
             is AddExamEvent.ShowResultsToggled -> _state.update { it.copy(showResultsImmediately = event.isEnabled) }

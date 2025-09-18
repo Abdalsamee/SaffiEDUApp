@@ -38,7 +38,8 @@ import com.example.saffieduapp.presentation.screens.teacher.home.component.FabAc
 fun TeacherMainScreen(navController: NavHostController,
                       onNavigateToAddLesson: () -> Unit,
                       onNavigateToAddAlert: () -> Unit,
-                      onNavigateToAddAssignmnet: () -> Unit
+                      onNavigateToAddAssignmnet: () -> Unit,
+                      onNavigateToAddExam: () -> Unit
 ) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
@@ -171,10 +172,7 @@ fun TeacherMainScreen(navController: NavHostController,
                             "إضافة درس" -> onNavigateToAddLesson()
 
                             "إضافة واجب" -> onNavigateToAddAssignmnet()
-                            "إضافة اختبار" -> {
-                                // Handle exam creation
-                                println("Clicked on: إضافة اختبار")
-                            }
+                            "إضافة اختبار" -> onNavigateToAddExam()
                             "إضافة تنبيه" -> onNavigateToAddAlert()
                         }
                     }

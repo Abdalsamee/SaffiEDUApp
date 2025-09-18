@@ -17,6 +17,7 @@ import com.example.saffieduapp.presentation.screens.student.video_player.VideoPl
 import com.example.saffieduapp.presentation.screens.teacher.TeacherMainScreen
 import com.example.saffieduapp.presentation.screens.teacher.add_alert.AddAlertScreen
 import com.example.saffieduapp.presentation.screens.teacher.add_assignment.AddAssignmentScreen
+import com.example.saffieduapp.presentation.screens.teacher.add_exam.AddExamScreen
 import com.example.saffieduapp.presentation.screens.teacher.add_lesson.AddLessonScreen
 
 fun NavGraphBuilder.authNavGraph(navController: NavController) {
@@ -94,6 +95,9 @@ fun NavGraphBuilder.authNavGraph(navController: NavController) {
                 },
                 onNavigateToAddAssignmnet = {
                     navController.navigate(Routes.TEACHER_ADD_ASSIGNMENT_SCREEN)
+                },
+                onNavigateToAddExam = {
+                    navController.navigate(Routes.TEACHER_ADD_EXAM_SCREEN)
                 }
             )
         }
@@ -106,6 +110,9 @@ fun NavGraphBuilder.authNavGraph(navController: NavController) {
         }
         composable(route = Routes.TEACHER_ADD_ASSIGNMENT_SCREEN) {
             AddAssignmentScreen(onNavigateUp = { navController.popBackStack() })
+        }
+        composable(route = Routes.TEACHER_ADD_EXAM_SCREEN) {
+            AddExamScreen(onNavigateUp = { navController.popBackStack() })
         }
     }
 

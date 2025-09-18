@@ -17,8 +17,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.saffieduapp.presentation.screens.student.components.CommonTopAppBar
+import com.example.saffieduapp.presentation.screens.teacher.add_alert.components.TimePickerField
 import com.example.saffieduapp.presentation.screens.teacher.add_exam.components.ExamTypeDropdown
+import com.example.saffieduapp.presentation.screens.teacher.add_exam.components.TimeDurationPicker
 import com.example.saffieduapp.presentation.screens.teacher.add_lesson.components.AddLessonTextField
+import com.example.saffieduapp.presentation.screens.teacher.add_lesson.components.LessonDatePicker
+import com.example.saffieduapp.presentation.screens.teacher.add_lesson.components.NotificationSwitch
+import com.example.saffieduapp.presentation.screens.teacher.components.AppButton
 import com.example.saffieduapp.presentation.screens.teacher.components.ClassDropdown
 import com.example.saffieduapp.ui.theme.AppPrimary
 import com.example.saffieduapp.ui.theme.SaffiEDUAppTheme
@@ -87,7 +92,86 @@ fun AddExamScreen(
                         }
                     )
                 }
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp), // المسافة بين العناصر
+                    verticalAlignment = Alignment.CenterVertically      // محاذاة العناصر عموديًا
+                ) {
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ){
 
+                        Text(
+                            text = "وقت بدء الاختبار",
+                            fontWeight = FontWeight.Normal,
+                            fontSize = 18.sp,
+                            color = Color.Black,
+
+                        )
+
+                        TimePickerField(
+                            selectedTime = state.examStartTime,
+                            onTimeSelected = {
+                                viewModel.onEvent(AddExamEvent.StartTimeChanged(it))
+                            },
+                            modifier = Modifier.fillMaxWidth(0.4f)
+                        )
+                    }
+
+
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Text(
+                            text = "اضافة تاريخ الاختبار",
+                            fontWeight = FontWeight.Normal,
+                            fontSize = 18.sp,
+                            color = Color.Black,
+                            modifier = Modifier.padding(start = 20.dp)
+                        )
+                        LessonDatePicker(
+                            selectedDate = state.examDate,
+                            onDateSelected = {
+                                viewModel.onEvent(AddExamEvent.DateChanged(it))
+                            }
+                        )
+                    }
+                }
+
+                Column() {
+                    Text(text = "إضافة مدة زمنية",
+                        fontWeight = FontWeight.Normal
+                        , fontSize = 18.sp)
+                    TimeDurationPicker(
+                        value = state.examTime,
+                        onValueChange = {
+                            viewModel.onEvent(AddExamEvent.TimeChanged(it))
+                        }
+                    )
+                }
+                NotificationSwitch(
+                    text = "ترتيب الأسئلة عشوائيًا",
+                    isChecked = state.randomQuestions,
+                    onCheckedChange = { isEnabled ->
+                        viewModel.onEvent(AddExamEvent.RandomQuestionsToggled(isEnabled))
+                    }
+                )
+                NotificationSwitch(
+                    text = "عرض النتائج مباشرة بعد الانتهاء",
+                    isChecked = state.showResultsImmediately,
+                    onCheckedChange = { isEnabled ->
+                        viewModel.onEvent(AddExamEvent.ShowResultsToggled(isEnabled))
+                    }
+                )
+                Spacer(modifier = Modifier.weight(1f))
+                AppButton(
+                    text = "التالي",
+                    onClick ={  viewModel.onEvent(AddExamEvent.NextClicked)} ,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(modifier = Modifier.height(20.dp))
 
             }
 
@@ -105,12 +189,12 @@ fun AddExamScreen(
         }
     }
 }
-@Preview(showBackground = true, locale = "ar")
-@Composable
-private fun AddExamScreenPreview() {
-    SaffiEDUAppTheme {
-        AddExamScreen(
-            onNavigateUp = {}
-        )
-    }
-}
+//@Preview(showBackground = true, locale = "ar")
+//@Composable
+//private fun AddExamScreenPreview() {
+//    SaffiEDUAppTheme {
+//        AddExamScreen(
+//            onNavigateUp = {}
+//        )
+//    }
+//}
