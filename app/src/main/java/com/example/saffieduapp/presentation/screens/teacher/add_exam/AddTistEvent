@@ -1,0 +1,25 @@
+package com.example.saffieduapp.presentation.screens.teacher.add_tist
+
+
+// File: app/src/main/java/com/example/saffieduapp/presentation/screens/teacher/add_test/CreateExamEvent.kt
+
+import android.net.Uri
+
+sealed interface CreateExamEvent {
+    // أحداث تتعلق بالمدخلات الأساسية للاختبار
+    data class ClassSelected(val className: String) : CreateExamEvent
+    data class TitleChanged(val title: String) : CreateExamEvent
+    data class TestTypeSelected(val type: com.example.saffieduapp.data.model.TestType) : CreateExamEvent
+    data class DateChanged(val dateString: String) : CreateExamEvent // تاريخ الاختبار (يستخدم String الآن)
+    data class DurationChanged(val durationMinutes: Int) : CreateExamEvent // مدة الاختبار بالدقائق
+
+    // أحداث تتعلق بالخيارات/الإعدادات
+    data class ShuffleQuestionsToggled(val isEnabled: Boolean) : CreateExamEvent
+    data class ShowResultsImmediatelyToggled(val isEnabled: Boolean) : CreateExamEvent
+
+    // أحداث الأزرار
+    data object SaveAsDraftClicked : CreateExamEvent // لزر "حفظ كمسودة"
+    data object NextStepClicked : CreateExamEvent    // لزر "التالي"
+    // يمكنك إضافة المزيد من الأحداث هنا إذا كانت الشاشة تتضمن ميزات أخرى
+    // مثل إضافة أسئلة، اختيار صورة للاختبار، إلخ.
+}

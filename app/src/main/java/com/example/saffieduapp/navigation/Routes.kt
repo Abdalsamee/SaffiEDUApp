@@ -31,8 +31,4 @@ object Routes {
     const val TEACHER_CHAT_SCREEN = "teacher_chat_screen"
     const val TEACHER_PROFILE_SCREEN = "teacher_profile_screen"
     const val TEACHER_ADD_LESSON_SCREEN = "teacher_add_lesson_screen"
-    const val TEACHER_ADD_ALERT_SCREEN = "teacher_add_alert_screen"
-    const val TEACHER_ADD_ASSIGNMENT_SCREEN = "teacher_add_assignmnet_screen"
-    const val TEACHER_ADD_EXAM_SCREEN = "teacher_add_exam_screen"
-
 }
