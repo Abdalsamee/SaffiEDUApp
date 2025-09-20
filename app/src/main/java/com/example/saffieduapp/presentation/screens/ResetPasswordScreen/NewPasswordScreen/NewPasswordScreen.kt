@@ -1,136 +1,120 @@
 package com.example.saffieduapp.presentation.screens
 
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
+import android.annotation.SuppressLint
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.input.VisualTransformation
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.tooling.preview.Preview
+import com.example.saffieduapp.presentation.screens.ResetPasswordScreen.OtpVerificationScreen.componente.OtpVerificationTopBar
+import com.example.saffieduapp.ui.theme.AppBackground
+import com.example.saffieduapp.ui.theme.AppPrimary
 import com.example.saffieduapp.R
-import com.example.saffieduapp.ui.theme.*
+import com.example.saffieduapp.presentation.screens.ResetPasswordScreen.NewPasswordScreen.comomnente.NewPassWoredTextField
+import androidx.compose.foundation.layout.BoxWithConstraints
 
+@SuppressLint("UnusedBoxWithConstraintsScope")
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun NewPasswordScreen() {
+fun NewPasswordScreen(
+    onBackClicked: () -> Unit,
+    onContinueClicked: (String, String) -> Unit
+) {
     var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
     var confirmPasswordVisible by remember { mutableStateOf(false) }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(AppBackground)
-            .padding(horizontal = 24.dp, vertical = 32.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
+    BoxWithConstraints(
+        modifier = Modifier.fillMaxSize()
     ) {
-        // العنوان
-        Text(
-            text = "كلمة المرور الجديدة",
-            style = MaterialTheme.typography.titleLarge.copy(
-                color = AppPrimary,
-                textAlign = TextAlign.Center
-            ),
-            modifier = Modifier.fillMaxWidth()
-        )
+        val screenWidth = maxWidth
+        val screenHeight = maxHeight
 
-        Spacer(modifier = Modifier.height(48.dp))
+        val paddingHorizontal = screenWidth * 0.06f
+        val paddingVertical = screenHeight * 0.03f
+        val textFieldHeight = screenHeight * 0.11f
+        val buttonHeight = screenHeight * 0.07f
+        val spacerSmall = screenHeight * 0.02f
+        val spacerLarge = screenHeight * 0.04f
+        val fontSize = (screenWidth.value * 0.045).sp
 
-        // حقل كلمة المرور
-        OutlinedTextField(
-            value = password,
-            onValueChange = { password = it },
-            label = {
-                Text(
-                    text = "كلمة المرور",
-                    style = MaterialTheme.typography.bodyMedium.copy(color = AppTextSecondary)
+        Scaffold(
+            topBar = {
+                OtpVerificationTopBar(
+                    title = "كلمة المرور الجديدة",
+                    onBackClicked = onBackClicked
                 )
             },
-            visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-            trailingIcon = {
-                IconButton(onClick = { passwordVisible = !passwordVisible }) {
-                    val iconRes = if (passwordVisible) R.drawable.visepel else R.drawable.notvisipel
-                    Image(
-                        painter = painterResource(id = iconRes),
-                        contentDescription = "Toggle Password",
-                        modifier = Modifier.size(24.dp)
-                    )
+            containerColor = AppBackground
+        ) { paddingValues ->
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+                    .padding(horizontal = paddingHorizontal, vertical = paddingVertical)
+                    .verticalScroll(rememberScrollState()), // ✅ إضافة التمرير
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Spacer(modifier = Modifier.height(spacerSmall))
+
+                NewPassWoredTextField(
+                    value = password,
+                    onValueChange = { password = it },
+                    label = "كلمة المرور",
+                    placeholder = "أدخل كلمة المرور",
+                    isPassword = true,
+                    isPasswordVisible = passwordVisible,
+                    onToggleVisibility = { passwordVisible = !passwordVisible },
+                    icon = R.drawable.visepel,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = textFieldHeight)
+                )
+
+                Spacer(modifier = Modifier.height(spacerSmall))
+
+                NewPassWoredTextField(
+                    value = confirmPassword,
+                    onValueChange = { confirmPassword = it },
+                    label = "تأكيد كلمة المرور",
+                    placeholder = "أعد كتابة كلمة المرور",
+                    isPassword = true,
+                    isPasswordVisible = confirmPasswordVisible,
+                    onToggleVisibility = { confirmPasswordVisible = !confirmPasswordVisible },
+                    icon = R.drawable.visepel,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = textFieldHeight)
+                )
+
+                Spacer(modifier = Modifier.height(spacerLarge))
+
+                Button(
+                    onClick = { onContinueClicked(password, confirmPassword) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(buttonHeight),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = AppPrimary,
+                        contentColor = AppBackground
+                    ),
+                    shape = MaterialTheme.shapes.medium
+                ) {
+                    Text(text = "متابعة", fontSize = fontSize)
                 }
-            },
-            modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(min = 56.dp),
-            shape = RoundedCornerShape(12.dp),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = AppPrimary,
-                unfocusedBorderColor = AppTextSecondary,
-                cursorColor = AppPrimary
-            )
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // حقل تأكيد كلمة المرور
-        OutlinedTextField(
-            value = confirmPassword,
-            onValueChange = { confirmPassword = it },
-            label = {
-                Text(
-                    text = "تأكيد كلمة المرور",
-                    style = MaterialTheme.typography.bodyMedium.copy(color = AppTextSecondary)
-                )
-            },
-            visualTransformation = if (confirmPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-            trailingIcon = {
-                IconButton(onClick = { confirmPasswordVisible = !confirmPasswordVisible }) {
-                    val iconRes = if (confirmPasswordVisible) R.drawable.visepel else R.drawable.notvisipel
-                    Image(
-                        painter = painterResource(id = iconRes),
-                        contentDescription = "Toggle Confirm Password",
-                        modifier = Modifier.size(24.dp)
-                    )
-                }
-            },
-            modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(min = 56.dp),
-            shape = RoundedCornerShape(12.dp),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = AppPrimary,
-                unfocusedBorderColor = AppTextSecondary,
-                cursorColor = AppPrimary
-            )
-        )
-
-        Spacer(modifier = Modifier.height(32.dp))
-
-        // زر المتابعة
-        Button(
-            onClick = {
-                // TODO: تنفيذ العملية بعد الضغط
-            },
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(48.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = AppPrimary,
-                contentColor = AppBackground
-            ),
-            shape = RoundedCornerShape(8.dp)
-        ) {
-            Text(
-                text = "متابعة",
-                style = MaterialTheme.typography.bodyLarge.copy(
-                    color = AppBackground
-                )
-            )
+            }
         }
     }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun PreviewNewPasswordScreen() {
+    NewPasswordScreen(onBackClicked = {}, onContinueClicked = { _, _ -> })
 }
