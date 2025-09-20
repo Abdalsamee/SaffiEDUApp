@@ -8,10 +8,6 @@ import android.provider.OpenableColumns
 import android.widget.Toast
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.work.OneTimeWorkRequestBuilder
-import androidx.work.WorkManager
-import androidx.work.workDataOf
-import com.example.saffieduapp.data.FireBase.LessonPublishWorker
 import com.example.saffieduapp.data.FireBase.LessonRepository
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
@@ -24,10 +20,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 import java.io.File
-import java.text.SimpleDateFormat
-import java.util.Locale
-import java.util.concurrent.TimeUnit
-import kotlin.math.max
 
 
 @HiltViewModel
@@ -151,7 +143,6 @@ class AddLessonViewModel @Inject constructor(
 
                 var pdfUrl: String? = null
                 var videoUrl: String? = null
-                var pagesCount = 0
 
                 // 3️⃣ رفع الفيديو إذا موجود
                 current.selectedVideoUri?.let { uri ->
@@ -181,41 +172,28 @@ class AddLessonViewModel @Inject constructor(
                     )
                 }
 
-                // 5️⃣ حفظ بيانات الدرس في Firestore
+                // 5️⃣ تحويل التاريخ العربي إلى إنجليزي
+                val englishDate = convertArabicNumbersToEnglish(current.publicationDate)
+
+                // 6️⃣ حفظ بيانات الدرس في Firestore
                 val lessonData = mapOf(
                     "title" to current.lessonTitle,
                     "description" to current.description,
                     "className" to current.selectedClass,
-                    "publicationDate" to current.publicationDate,
+                    "publicationDate" to englishDate, // استخدام التاريخ الإنجليزي
                     "notifyStudents" to current.notifyStudents,
                     "isDraft" to isDraft,
                     "createdAt" to System.currentTimeMillis(),
                     "pdfUrl" to pdfUrl,
                     "videoUrl" to videoUrl,
-                    "pagesCount" to pagesCount,
+                    "pagesCount" to 0,
                     "subjectId" to subjectId,
                     "teacherId" to teacherId,
-                    "notificationStatus" to "pending" // جديد: إشعار لم يُرسل بعد
+                    "notificationStatus" to "pending"
                 )
 
-                // 6️⃣ حفظ الدرس واسترجاع ID
-                val lessonId = lessonRepository.saveLessonAndReturnId(lessonData as Map<String, Any>)
-
-                // 7️⃣ جدولة نشر الدرس باستخدام WorkManager
-                val delay = try {
-                    val publicationMillis = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-                        .parse(current.publicationDate)?.time ?: 0L
-                    max(0L, publicationMillis - System.currentTimeMillis())
-                } catch (e: Exception) {
-                    0L
-                }
-
-                val workData = workDataOf("lessonId" to lessonId)
-                val workRequest = OneTimeWorkRequestBuilder<LessonPublishWorker>()
-                    .setInitialDelay(delay, TimeUnit.MILLISECONDS)
-                    .setInputData(workData)
-                    .build()
-                WorkManager.getInstance(context).enqueue(workRequest)
+                // 7️⃣ حفظ الدرس
+                val lessonId = lessonRepository.saveLessonAndReturnId(lessonData)
 
                 Toast.makeText(context, "✅ تم حفظ الدرس بنجاح", Toast.LENGTH_SHORT).show()
 
@@ -243,7 +221,24 @@ class AddLessonViewModel @Inject constructor(
             }
         }
     }
-
+    // دالة لتحويل الأرقام العربية إلى إنجليزية
+    private fun convertArabicNumbersToEnglish(arabicDate: String): String {
+        return arabicDate.map { char ->
+            when (char) {
+                '٠' -> '0'
+                '١' -> '1'
+                '٢' -> '2'
+                '٣' -> '3'
+                '٤' -> '4'
+                '٥' -> '5'
+                '٦' -> '6'
+                '٧' -> '7'
+                '٨' -> '8'
+                '٩' -> '9'
+                else -> char
+            }
+        }.joinToString("")
+    }
 
     // الحصول على اسم الملف من Uri
     private fun getFileName(uri: Uri): String? {
