@@ -74,7 +74,7 @@ class DailyLessonReceiver : BroadcastReceiver() {
     }
 
     private fun getTodayDateFormatted(): String {
-        val dateFormat = SimpleDateFormat("yyyy/MM/dd", Locale.getDefault())
+        val dateFormat = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
         return dateFormat.format(Date())
     }
 }
