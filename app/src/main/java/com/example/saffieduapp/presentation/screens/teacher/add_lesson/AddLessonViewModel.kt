@@ -5,6 +5,7 @@ import android.graphics.pdf.PdfRenderer
 import android.net.Uri
 import android.os.ParcelFileDescriptor
 import android.provider.OpenableColumns
+import android.util.Log
 import android.widget.Toast
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -175,13 +176,13 @@ class AddLessonViewModel @Inject constructor(
                 // 5️⃣ تحويل التاريخ العربي إلى إنجليزي
                 val englishDate = convertArabicNumbersToEnglish(current.publicationDate)
 
-                // 6️⃣ حفظ بيانات الدرس في Firestore
+                // 7️⃣ حفظ الدرس
                 val lessonData = mapOf(
                     "title" to current.lessonTitle,
                     "description" to current.description,
                     "className" to current.selectedClass,
-                    "publicationDate" to englishDate, // استخدام التاريخ الإنجليزي
-                    "notifyStudents" to current.notifyStudents,
+                    "publicationDate" to englishDate,
+                    "notifyStudents" to current.notifyStudents, // ← حفظ اختيار الإشعار
                     "isDraft" to isDraft,
                     "createdAt" to System.currentTimeMillis(),
                     "pdfUrl" to pdfUrl,
@@ -189,12 +190,24 @@ class AddLessonViewModel @Inject constructor(
                     "pagesCount" to 0,
                     "subjectId" to subjectId,
                     "teacherId" to teacherId,
-                    "notificationStatus" to "pending"
+                    "notificationStatus" to "pending",
+                    "isNotified" to false
                 )
 
                 // 7️⃣ حفظ الدرس
                 val lessonId = lessonRepository.saveLessonAndReturnId(lessonData)
 
+                // 8️⃣ إرسال إشعار فوري فقط إذا اختار المعلم "إشعار للطلاب"
+                if (current.notifyStudents) { // ← الشرط هنا
+                    sendInstantNotification(
+                        grade = current.selectedClass,
+                        title = current.lessonTitle,
+                        message = current.description
+                    )
+                    Log.d("Notification", "✅ تم إرسال إشعار للطلاب")
+                } else {
+                    Log.d("Notification", "⏸️ لم يتم إرسال إشعار (لم يختر المعلم)")
+                }
                 Toast.makeText(context, "✅ تم حفظ الدرس بنجاح", Toast.LENGTH_SHORT).show()
 
                 // 8️⃣ إعادة تعيين الحالة بعد الحفظ
@@ -220,6 +233,22 @@ class AddLessonViewModel @Inject constructor(
                 _state.update { it.copy(isSaving = false) }
             }
         }
+    }
+    private fun sendInstantNotification(grade: String, title: String, message: String) {
+        val database = com.google.firebase.database.FirebaseDatabase.getInstance()
+        val notificationsRef = database.getReference("instant_notifications").push()
+
+        val notificationData = mapOf(
+            "grade" to grade,
+            "title" to title,
+            "message" to message,
+            "shouldNotify" to true, // ← إشارة أن هذا الإشعار معتمد
+            "timestamp" to System.currentTimeMillis(),
+            "type" to "new_lesson"
+        )
+
+        notificationsRef.setValue(notificationData)
+        Log.d("Notification", "📤 تم إرسال إشعار معتمد للصف: $grade")
     }
     // دالة لتحويل الأرقام العربية إلى إنجليزية
     private fun convertArabicNumbersToEnglish(arabicDate: String): String {

@@ -4,10 +4,10 @@
     <selectionStates>
       <SelectionState runConfigName="SaffiEDUApp.app">
         <option name="selectionMode" value="DROPDOWN" />
-        <DropdownSelection timestamp="2025-09-18T11:29:37.747867300Z">
+        <DropdownSelection timestamp="2025-09-20T11:46:21.830914400Z">
           <Target type="DEFAULT_BOOT">
             <handle>
-              <DeviceId pluginId="Default" identifier="serial=emulator-5554;connection=c514d925" />
+              <DeviceId pluginId="Default" identifier="serial=emulator-5554;connection=9aba793d" />
             </handle>
           </Target>
         </DropdownSelection>

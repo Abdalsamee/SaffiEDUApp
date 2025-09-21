@@ -13,7 +13,6 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.annotation.RequiresApi
 import androidx.core.app.NotificationCompat
-import androidx.core.os.postDelayed
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -21,6 +20,10 @@ import com.example.saffieduapp.navigation.authNavGraph
 import com.example.saffieduapp.presentation.screens.MainAppScreen
 import com.example.saffieduapp.ui.theme.SaffiEDUAppTheme
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.database.ChildEventListener
+import com.google.firebase.database.DataSnapshot
+import com.google.firebase.database.DatabaseError
+import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.firestore.DocumentChange
 import com.google.firebase.firestore.FirebaseFirestore
 import dagger.hilt.android.AndroidEntryPoint
@@ -28,7 +31,8 @@ import dagger.hilt.android.AndroidEntryPoint
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
-    @RequiresApi(Build.VERSION_CODES.JELLY_BEAN_MR1)
+    private lateinit var notificationListener: ChildEventListener
+
     override fun attachBaseContext(newBase: Context) {
         val config = Configuration(newBase.resources.configuration)
         config.fontScale = 1.0f
@@ -70,45 +74,26 @@ class MainActivity : ComponentActivity() {
             .addOnSuccessListener { studentDocument ->
                 val studentGrade = studentDocument.getString("grade") ?: return@addOnSuccessListener
 
-                // 2. الاستماع للدروس المجدولة لهذا الصف
+                // 2. الاستماع للدروس الجديدة لهذا الصف
                 listenForScheduledLessons(studentGrade)
+
+                // 3. الاستماع للإشعارات الفورية
+                listenForInstantNotifications(studentGrade)
             }
             .addOnFailureListener {
                 // إذا فشل جلب grade، حاول بالقيمة الافتراضية
                 listenForScheduledLessons("الصف الرابع")
+                listenForInstantNotifications("الصف الرابع")
             }
     }
 
     private fun listenForScheduledLessons(studentGrade: String) {
-
-        Log.d("Notifications", "🔍 جلب الدروس للصف: $studentGrade")
-
-        // استخدم get() بدلاً من addSnapshotListener للتحقق الفوري
-        FirebaseFirestore.getInstance().collection("lessons")
-            .whereEqualTo("className", studentGrade)
-            .get()
-            .addOnSuccessListener { documents ->
-                Log.d("Notifications", "✅ عدد الدروس الموجودة: ${documents.size()}")
-
-                documents.forEach { document ->
-                    val lesson = document.data
-                    val title = lesson["title"] as? String ?: "درس جديد"
-                    val description = lesson["description"] as? String ?: ""
-
-                    Log.d("Notifications", "📖 عرض درس: $title")
-                    showLessonNotification(title, description)
-                }
-            }
-            .addOnFailureListener { e ->
-                Log.e("Notifications", "❌ فشل جلب الدروس: ${e.message}")
-            }
-
-        // الاستماع للتغييرات الجديدة فقط
+        // الاستماع للتغييرات الجديدة فقط (الدروس المضافة حديثاً)
         FirebaseFirestore.getInstance().collection("lessons")
             .whereEqualTo("className", studentGrade)
             .addSnapshotListener { snapshots, error ->
                 if (error != null) {
-                    Log.e("Notifications", "❌ خطأ في الاستماع: ${error.message}")
+                    Log.e("Notifications", "❌ خطأ في الاستماع للدروس: ${error.message}")
                     return@addSnapshotListener
                 }
 
@@ -118,17 +103,61 @@ class MainActivity : ComponentActivity() {
                         val title = lesson["title"] as? String ?: "درس جديد"
                         val description = lesson["description"] as? String ?: ""
 
-                        Log.d("Notifications", "🎯 درس جديد مضاف: $title")
+                        Log.d("Notifications", "📚 درس جديد: $title")
                         showLessonNotification(title, description)
                     }
                 }
             }
     }
 
+    private fun listenForInstantNotifications(studentGrade: String) {
+        val database = FirebaseDatabase.getInstance()
+        val notificationsRef = database.getReference("instant_notifications")
+
+        notificationListener = object : ChildEventListener {
+            override fun onChildAdded(snapshot: DataSnapshot, previousChildName: String?) {
+                val notification = snapshot.getValue(Map::class.java)
+                val grade = notification?.get("grade") as? String ?: ""
+                val title = notification?.get("title") as? String ?: "إشعار جديد"
+                val message = notification?.get("message") as? String ?: ""
+                val shouldNotify = notification?.get("shouldNotify") as? Boolean ?: true
+
+                // التحقق من تطابق الصف وإذن الإشعار
+                if (grade == studentGrade && shouldNotify) {
+                    Log.d("InstantNotify", "🎯 إشعار فوري: $title")
+                    showLessonNotification(title, message)
+
+                    // حذف الإشعار بعد المعالجة لمنع التكرار
+                    snapshot.ref.removeValue()
+                } else {
+                    Log.d("InstantNotify", "⏸️ تم تجاهل الإشعار (عدم تطابق الصف أو shouldNotify = false)")
+                }
+            }
+
+            override fun onChildChanged(snapshot: DataSnapshot, previousChildName: String?) {
+                // لا داعي للتعامل مع التغييرات
+            }
+
+            override fun onChildRemoved(snapshot: DataSnapshot) {
+                // لا داعي للتعامل مع الحذف
+            }
+
+            override fun onChildMoved(snapshot: DataSnapshot, previousChildName: String?) {
+                // لا داعي للتعامل مع الحركة
+            }
+
+            override fun onCancelled(error: DatabaseError) {
+                Log.e("InstantNotify", "❌ خطأ في الاستماع للإشعارات الفورية: ${error.message}")
+            }
+        }
+
+        // بدء الاستماع للإشعارات الفورية
+        notificationsRef.addChildEventListener(notificationListener)
+    }
+
     private fun showLessonNotification(title: String, message: String) {
-        // تأخير بسيط لضمان تحميل التطبيق بالكامل
         Handler(Looper.getMainLooper()).postDelayed({
-            val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            val notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
 
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 val channel = NotificationChannel(
@@ -141,7 +170,7 @@ class MainActivity : ComponentActivity() {
 
             val builder = NotificationCompat.Builder(this, "lesson_channel")
                 .setSmallIcon(R.drawable.alert)
-                .setContentTitle("📚 درس جديد: $title")
+                .setContentTitle("📚 $title")
                 .setContentText(message)
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
                 .setAutoCancel(true)
@@ -149,8 +178,18 @@ class MainActivity : ComponentActivity() {
             val notificationId = System.currentTimeMillis().toInt()
             notificationManager.notify(notificationId, builder.build())
 
-            Log.d("Notifications", "📢 تم عرض الإشعار برقم: $notificationId")
+        }, 2000) // تأخير 2 ثانية لضمان تحميل التطبيق
+    }
 
-        }, 2000) // تأخير 2 ثانية
+    override fun onDestroy() {
+        super.onDestroy()
+        // إيقاف الاستماع للإشعارات عند إغلاق التطبيق
+        try {
+            val database = FirebaseDatabase.getInstance()
+            val notificationsRef = database.getReference("instant_notifications")
+            notificationsRef.removeEventListener(notificationListener)
+        } catch (e: Exception) {
+            Log.e("MainActivity", "Error removing listener: ${e.message}")
+        }
     }
 }
