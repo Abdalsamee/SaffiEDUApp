@@ -34,5 +34,10 @@ object Routes {
     const val TEACHER_ADD_ALERT_SCREEN = "teacher_add_alert_screen"
     const val TEACHER_ADD_ASSIGNMENT_SCREEN = "teacher_add_assignmnet_screen"
     const val TEACHER_ADD_EXAM_SCREEN = "teacher_add_exam_screen"
+    //CREAT EXAM
+    const val CREATE_QUIZ_GRAPH = "create_quiz_graph"
+    const val ADD_EXAM_SCREEN = "add_exam_screen"
+    const val ADD_QUESTION_SCREEN = "add_question_screen"
+    const val QUIZ_SUMMARY_SCREEN = "quiz_summary_screen"
 
 }
