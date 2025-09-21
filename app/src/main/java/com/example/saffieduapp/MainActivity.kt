@@ -1,8 +1,11 @@
 package com.example.saffieduapp
 
+import android.app.AlarmManager
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.PendingIntent
 import android.content.Context
+import android.content.Intent
 import android.content.res.Configuration
 import android.os.Build
 import android.os.Bundle
@@ -27,6 +30,11 @@ import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.firestore.DocumentChange
 import com.google.firebase.firestore.FirebaseFirestore
 import dagger.hilt.android.AndroidEntryPoint
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Date
+import java.util.Locale
+import kotlin.jvm.java
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -44,6 +52,19 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        startDailyLessonCheck()
+
+        // تشغيل فحص اليوم مباشرة عند فتح التطبيق (اختياري)
+        val userId = FirebaseAuth.getInstance().currentUser?.uid
+        userId?.let {
+            FirebaseFirestore.getInstance().collection("students")
+                .document(it)
+                .get()
+                .addOnSuccessListener { studentDocument ->
+                    val grade = studentDocument.getString("grade") ?: "الصف الرابع"
+                    checkTodaysLessons(grade)
+                }
+        }
         setContent {
             SaffiEDUAppTheme {
                 val navController = rememberNavController()
@@ -130,7 +151,10 @@ class MainActivity : ComponentActivity() {
                     // حذف الإشعار بعد المعالجة لمنع التكرار
                     snapshot.ref.removeValue()
                 } else {
-                    Log.d("InstantNotify", "⏸️ تم تجاهل الإشعار (عدم تطابق الصف أو shouldNotify = false)")
+                    Log.d(
+                        "InstantNotify",
+                        "⏸️ تم تجاهل الإشعار (عدم تطابق الصف أو shouldNotify = false)"
+                    )
                 }
             }
 
@@ -191,5 +215,96 @@ class MainActivity : ComponentActivity() {
         } catch (e: Exception) {
             Log.e("MainActivity", "Error removing listener: ${e.message}")
         }
+    }
+
+    private fun startDailyLessonCheck() {
+        val alarmManager = getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        val intent = Intent(this, DailyLessonReceiver::class.java)
+        val pendingIntent = PendingIntent.getBroadcast(
+            this,
+            0,
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        // تحديد وقت التشغيل: الساعة 12 ظهراً
+        val calendar = Calendar.getInstance().apply {
+            timeInMillis = System.currentTimeMillis()
+            set(Calendar.HOUR_OF_DAY, 12) // 12 ظهراً
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+        }
+
+        // إذا كانت الساعة قد تجاوزت 12 اليوم، نحددها لليوم التالي
+        if (calendar.timeInMillis <= System.currentTimeMillis()) {
+            calendar.add(Calendar.DAY_OF_YEAR, 1)
+        }
+
+        // جدولة الفحص اليومي
+        alarmManager.setInexactRepeating(
+            AlarmManager.RTC_WAKEUP,
+            calendar.timeInMillis,
+            AlarmManager.INTERVAL_DAY, // يتكرر كل يوم
+            pendingIntent
+        )
+
+        Log.d("DailyCheck", "⏰ تم جدولة الفحص اليومي للساعة 12 ظهراً")
+    }
+
+    // دالة للفحص اليومي للدروس
+    fun checkTodaysLessons(studentGrade: String) {
+        val todayDate = getTodayDateFormatted()
+
+        FirebaseFirestore.getInstance().collection("lessons")
+            .whereEqualTo("className", studentGrade)
+            .whereEqualTo("publicationDate", todayDate)
+            .whereEqualTo("isNotified", false) // فقط الدروس التي لم يُشعر بها
+            .get()
+            .addOnSuccessListener { documents ->
+                for (document in documents) {
+                    val lesson = document.data
+                    val title = lesson["title"] as? String ?: "درس جديد"
+                    val description = lesson["description"] as? String ?: ""
+
+                    Log.d("DailyCheck", "📚 درس اليوم: $title")
+                    showLessonNotification(title, description)
+
+                    // تحديث حالة الإشعار لمنع التكرار
+                    document.reference.update("isNotified", true)
+                }
+
+                if (documents.isEmpty) {
+                    Log.d("DailyCheck", "📅 لا يوجد دروس لليوم")
+                }
+            }
+            .addOnFailureListener { e ->
+                Log.e("DailyCheck", "❌ خطأ في فحص دروس اليوم: ${e.message}")
+            }
+    }
+
+    // دالة للحصول على تاريخ اليوم بالتنسيق الصحيح
+    private fun getTodayDateFormatted(): String {
+        val dateFormat = SimpleDateFormat("yyyy/MM/dd", Locale.getDefault())
+        return dateFormat.format(Date())
+    }
+    // أضف هذه الدالة في MainActivity للاختبار
+    private fun testDailyCheck() {
+        val alarmManager = getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        val intent = Intent(this, DailyLessonReceiver::class.java)
+        val pendingIntent = PendingIntent.getBroadcast(
+            this,
+            0,
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        // تشغيل بعد 10 ثواني للاختبار
+        alarmManager.set(
+            AlarmManager.RTC_WAKEUP,
+            System.currentTimeMillis() + 10000,
+            pendingIntent
+        )
+
+        Log.d("Test", "⏰ سيتم التشغيل بعد 10 ثواني للاختبار")
     }
 }
