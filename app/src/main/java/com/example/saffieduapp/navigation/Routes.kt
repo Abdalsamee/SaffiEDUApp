@@ -4,7 +4,7 @@ object Routes {
     // جذور الجرافات
     const val AUTH_GRAPH  = "auth_graph"
     const val MAIN_GRAPH  = "main_graph"
-
+    const val TEACHER_GRAPH = "teacher_graph"
     // شاشات auth
     const val SPLASH_SCREEN     = "splash_screen"
     const val ONBOARDING_SCREEN = "onboarding_screen"
@@ -30,10 +30,11 @@ object Routes {
     const val TEACHER_TASKS_SCREEN = "teacher_tasks_screen"
     const val TEACHER_CHAT_SCREEN = "teacher_chat_screen"
     const val TEACHER_PROFILE_SCREEN = "teacher_profile_screen"
+
+
     const val TEACHER_ADD_LESSON_SCREEN = "teacher_add_lesson_screen"
     const val TEACHER_ADD_ALERT_SCREEN = "teacher_add_alert_screen"
-    const val TEACHER_ADD_ASSIGNMENT_SCREEN = "teacher_add_assignmnet_screen"
-    const val TEACHER_ADD_EXAM_SCREEN = "teacher_add_exam_screen"
+    const val TEACHER_ADD_ASSIGNMENT_SCREEN = "teacher_add_assignment_screen"
     //CREAT EXAM
     const val CREATE_QUIZ_GRAPH = "create_quiz_graph"
     const val ADD_EXAM_SCREEN = "add_exam_screen"

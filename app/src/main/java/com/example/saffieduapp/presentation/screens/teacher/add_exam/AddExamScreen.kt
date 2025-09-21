@@ -32,6 +32,7 @@ import com.example.saffieduapp.ui.theme.SaffiEDUAppTheme
 @Composable
 fun AddExamScreen(
     onNavigateUp: () -> Unit,
+    onNavigateToNext: () -> Unit,
     viewModel: AddExamViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
@@ -168,7 +169,7 @@ fun AddExamScreen(
                 Spacer(modifier = Modifier.weight(1f))
                 AppButton(
                     text = "التالي",
-                    onClick ={  viewModel.onEvent(AddExamEvent.NextClicked)} ,
+                    onClick = onNavigateToNext ,
                     modifier = Modifier.fillMaxWidth()
                 )
                 Spacer(modifier = Modifier.height(20.dp))

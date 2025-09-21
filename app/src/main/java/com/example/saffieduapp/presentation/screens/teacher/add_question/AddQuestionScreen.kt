@@ -36,13 +36,16 @@ import kotlinx.coroutines.flow.collectLatest
 @Composable
 fun AddQuestionScreen(
     onNavigateUp: () -> Unit,
-    viewModel: AddQuestionViewModel = hiltViewModel()
+    viewModel: AddQuestionViewModel = hiltViewModel(),
+    onNavigateToSummary:()->Unit
+
 ) {
     val state by viewModel.state.collectAsState()
     AddQuestionScreenContent(
         state = state,
         onNavigateUp = onNavigateUp,
-        onEvent = viewModel::onEvent
+        onEvent = viewModel::onEvent,
+        onNavigateToSummary=onNavigateToSummary
     )
 }
 
@@ -51,7 +54,8 @@ fun AddQuestionScreen(
 private fun AddQuestionScreenContent(
     state: AddQuestionState,
     onNavigateUp: () -> Unit,
-    onEvent: (AddQuestionEvent) -> Unit
+    onEvent: (AddQuestionEvent) -> Unit,
+    onNavigateToSummary:()->Unit
 ) {
     Scaffold(
         topBar = {
@@ -140,7 +144,7 @@ private fun AddQuestionScreenContent(
                         )
                     }
                     Button(
-                        onClick = { /* TODO: Save and publish all questions */ },
+                        onClick = onNavigateToSummary,
                         modifier = Modifier.fillMaxWidth(0.7f),
                         shape = RoundedCornerShape(12.dp)
                     ) {

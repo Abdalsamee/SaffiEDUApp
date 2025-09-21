@@ -10,10 +10,10 @@ import androidx.annotation.RequiresApi
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.example.saffieduapp.navigation.Routes
 import com.example.saffieduapp.navigation.authNavGraph
 import com.example.saffieduapp.presentation.screens.MainAppScreen
-import com.example.saffieduapp.presentation.screens.teacher.add_question.AddQuestionScreen
-import com.example.saffieduapp.presentation.screens.teacher.add_question.AddQuestionState
+import com.example.saffieduapp.presentation.screens.teacher.TeacherMainScreen
 import com.example.saffieduapp.ui.theme.SaffiEDUAppTheme
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -37,12 +37,17 @@ class MainActivity : ComponentActivity() {
                 val navController = rememberNavController()
                 NavHost(
                     navController = navController,
-                    startDestination = "auth_graph"
+                    startDestination = Routes.AUTH_GRAPH
                 ) {
                     authNavGraph(navController)
 
-                    composable(route = "main_graph") {
-                       MainAppScreen()
+                    composable(route = Routes.MAIN_GRAPH) {
+                        MainAppScreen()
+                    }
+
+                    // Define the teacher main screen here instead of teacherGraph
+                    composable(route = Routes.TEACHER_GRAPH) {
+                        TeacherMainScreen(navController = rememberNavController())
                     }
                 }
             }

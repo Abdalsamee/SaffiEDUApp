@@ -29,7 +29,6 @@ fun NavGraphBuilder.createQuizNavGraph(navController: NavController) {
             AddQuestionScreen(
                 onNavigateUp = { navController.popBackStack() },
                 onNavigateToSummary = {
-
                     navController.navigate(Routes.QUIZ_SUMMARY_SCREEN)
                 }
             )
@@ -40,7 +39,7 @@ fun NavGraphBuilder.createQuizNavGraph(navController: NavController) {
             QuizSummaryScreen(
                 onNavigateUp = { navController.popBackStack() },
                 onPublish = {
-                    // عند النشر، أغلق مسار إنشاء الاختبار بالكامل وعد للخلف
+
                     navController.popBackStack(Routes.CREATE_QUIZ_GRAPH, inclusive = true)
                 }
             )

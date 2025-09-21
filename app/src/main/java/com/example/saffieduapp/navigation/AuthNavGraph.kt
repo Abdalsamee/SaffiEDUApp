@@ -59,7 +59,7 @@ fun NavGraphBuilder.authNavGraph(navController: NavController) {
                     }
                 },
                 onTeacherLogin = {
-                    navController.navigate(Routes.TEACHER_MAIN_SCREEN) {
+                    navController.navigate(Routes.TEACHER_GRAPH) {
                         popUpTo(Routes.AUTH_GRAPH) { inclusive = true }
                     }
                 },
@@ -84,36 +84,7 @@ fun NavGraphBuilder.authNavGraph(navController: NavController) {
         }
 
 
-        composable(Routes.TEACHER_MAIN_SCREEN) {
-            TeacherMainScreen(
-                navController = navController as NavHostController,
-                onNavigateToAddLesson = {
-                    navController.navigate(Routes.TEACHER_ADD_LESSON_SCREEN)
-                },
-                onNavigateToAddAlert = {
-                    navController.navigate(Routes.TEACHER_ADD_ALERT_SCREEN)
-                },
-                onNavigateToAddAssignmnet = {
-                    navController.navigate(Routes.TEACHER_ADD_ASSIGNMENT_SCREEN)
-                },
-                onNavigateToAddExam = {
-                    navController.navigate(Routes.TEACHER_ADD_EXAM_SCREEN)
-                }
-            )
-        }
-        composable(route = Routes.TEACHER_ADD_LESSON_SCREEN) {
-            AddLessonScreen(onNavigateUp = { navController.popBackStack() })
-        }
-
-        composable(route = Routes.TEACHER_ADD_ALERT_SCREEN) {
-            AddAlertScreen(onNavigateUp = { navController.popBackStack() })
-        }
-        composable(route = Routes.TEACHER_ADD_ASSIGNMENT_SCREEN) {
-            AddAssignmentScreen(onNavigateUp = { navController.popBackStack() })
-        }
-        composable(route = Routes.TEACHER_ADD_EXAM_SCREEN) {
-            AddExamScreen(onNavigateUp = { navController.popBackStack() })
-        }
+     
     }
 
 }

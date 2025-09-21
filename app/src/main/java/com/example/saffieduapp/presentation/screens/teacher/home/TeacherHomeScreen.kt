@@ -10,6 +10,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.NavController
 import com.example.saffieduapp.presentation.screens.student.home.components.HomeTopSection
 import com.example.saffieduapp.presentation.screens.student.home.components.SearchBar
 import com.example.saffieduapp.presentation.screens.teacher.home.component.TeacherClassesSection
@@ -19,7 +20,8 @@ import com.example.saffieduapp.ui.theme.AppPrimary
 
 @Composable
 fun TeacherHomeScreen(
-    viewModel: TeacherHomeViewModel = hiltViewModel()
+    viewModel: TeacherHomeViewModel = hiltViewModel(),
+    navController: NavController
 ) {
     val state by viewModel.state.collectAsState()
 

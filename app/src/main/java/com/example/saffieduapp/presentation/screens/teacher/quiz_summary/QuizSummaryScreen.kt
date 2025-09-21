@@ -17,7 +17,8 @@ import com.example.saffieduapp.ui.theme.SaffiEDUAppTheme
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun QuizSummaryScreen(
-    onNavigateUp: () -> Unit
+    onNavigateUp: () -> Unit,
+    onPublish:() ->Unit
     // TODO: Add ViewModel
 ) {
     var showDeleteConfirmationDialog by remember { mutableStateOf(false) }
@@ -75,7 +76,7 @@ fun QuizSummaryScreen(
 
             AppButton(
                 text = "نشر الاختبار",
-                onClick = { /* TODO: Publish the quiz */ },
+                onClick = onPublish,
                 modifier = Modifier.fillMaxWidth()
                     .padding(bottom = 32.dp)
             )
