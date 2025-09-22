@@ -21,7 +21,7 @@ import androidx.compose.ui.unit.sp
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddLessonTextField(
-    title: String,
+    title: String? = null,
     value: String,
     onValueChange: (String) -> Unit,
     placeholder: String,
@@ -30,12 +30,13 @@ fun AddLessonTextField(
     enabled: Boolean = true
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        if (!title.isNullOrBlank()) {
         Text(
             text = title,
             fontWeight = FontWeight.Normal,
             fontSize = 18.sp,
             color = if (enabled) Color.Black else Color.Gray
-        )
+        )}
         TextField(
             value = value,
             onValueChange = onValueChange,

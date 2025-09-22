@@ -61,7 +61,7 @@ fun CommonTopAppBar(
             fontSize = 20.sp,
             fontWeight = FontWeight.SemiBold,
             fontFamily = Cairo,
-            modifier = Modifier.padding(bottom = 18.dp)
+            modifier = Modifier.padding(bottom = 24.dp)
         )
     }
 }

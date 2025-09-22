@@ -29,18 +29,16 @@ import androidx.navigation.compose.rememberNavController
 import com.example.saffieduapp.R
 import com.example.saffieduapp.navigation.BottomNavItem
 import com.example.saffieduapp.navigation.Routes
-import com.example.saffieduapp.navigation.TeacherNavGraph
+import com.example.saffieduapp.navigation.TeacherNavHost
 import com.example.saffieduapp.presentation.components.AppBottomNavigationBar
 import com.example.saffieduapp.presentation.screens.teacher.home.component.ExpandableFab
 import com.example.saffieduapp.presentation.screens.teacher.home.component.FabActionItem
-
 @Composable
-fun TeacherMainScreen(navController: NavHostController,
-                      onNavigateToAddLesson: () -> Unit,
-                      onNavigateToAddAlert: () -> Unit,
-                      onNavigateToAddAssignmnet: () -> Unit
+fun TeacherMainScreen(
+    navController: NavHostController,
+
 ) {
-    val navController = rememberNavController()
+
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
 
@@ -60,7 +58,8 @@ fun TeacherMainScreen(navController: NavHostController,
             Routes.TEACHER_TASKS_SCREEN,
             painterResource(id = R.drawable.tasks)
         ),
-        BottomNavItem("الدردشة", Routes.TEACHER_CHAT_SCREEN, painterResource(id = R.drawable.chat)),
+        BottomNavItem("الدردشة", Routes.TEACHER_CHAT_SCREEN,
+            painterResource(id = R.drawable.chat)),
         BottomNavItem(
             "الملف الشخصي",
             Routes.TEACHER_PROFILE_SCREEN,
@@ -120,15 +119,15 @@ fun TeacherMainScreen(navController: NavHostController,
             bottomBar = {
                 AppBottomNavigationBar(items = bottomNavItems, navController = navController)
             },
-            // Remove FAB from Scaffold to handle it manually with proper layering
+
         ) { innerPadding ->
-            TeacherNavGraph(
-                navController = navController,
+            TeacherNavHost(
+                navController = navController ,
                 modifier = Modifier.padding(innerPadding)
             )
         }
 
-        // Scrim layer - appears above content but below FAB
+
         AnimatedVisibility(
             visible = isFabExpanded,
             enter = fadeIn(animationSpec = tween(300)),
@@ -168,14 +167,10 @@ fun TeacherMainScreen(navController: NavHostController,
 
                         // Handle navigation based on action
                         when (action.label) {
-                            "إضافة درس" -> onNavigateToAddLesson()
-
-                            "إضافة واجب" -> onNavigateToAddAssignmnet()
-                            "إضافة اختبار" -> {
-                                // Handle exam creation
-                                println("Clicked on: إضافة اختبار")
-                            }
-                            "إضافة تنبيه" -> onNavigateToAddAlert()
+                            "إضافة درس" -> navController.navigate(Routes.TEACHER_ADD_LESSON_SCREEN)
+                            "إضافة واجب" -> navController.navigate(Routes.TEACHER_ADD_ASSIGNMENT_SCREEN)
+                            "إضافة اختبار" -> navController.navigate(Routes.CREATE_QUIZ_GRAPH)
+                            "إضافة تنبيه" -> navController.navigate(Routes.TEACHER_ADD_ALERT_SCREEN)
                         }
                     }
                 )

@@ -17,6 +17,7 @@ import com.example.saffieduapp.presentation.screens.student.video_player.VideoPl
 import com.example.saffieduapp.presentation.screens.teacher.TeacherMainScreen
 import com.example.saffieduapp.presentation.screens.teacher.add_alert.AddAlertScreen
 import com.example.saffieduapp.presentation.screens.teacher.add_assignment.AddAssignmentScreen
+import com.example.saffieduapp.presentation.screens.teacher.add_exam.AddExamScreen
 import com.example.saffieduapp.presentation.screens.teacher.add_lesson.AddLessonScreen
 
 fun NavGraphBuilder.authNavGraph(navController: NavController) {
@@ -58,7 +59,7 @@ fun NavGraphBuilder.authNavGraph(navController: NavController) {
                     }
                 },
                 onTeacherLogin = {
-                    navController.navigate(Routes.TEACHER_MAIN_SCREEN) {
+                    navController.navigate(Routes.TEACHER_GRAPH) {
                         popUpTo(Routes.AUTH_GRAPH) { inclusive = true }
                     }
                 },
@@ -83,30 +84,7 @@ fun NavGraphBuilder.authNavGraph(navController: NavController) {
         }
 
 
-        composable(Routes.TEACHER_MAIN_SCREEN) {
-            TeacherMainScreen(
-                navController = navController as NavHostController,
-                onNavigateToAddLesson = {
-                    navController.navigate(Routes.TEACHER_ADD_LESSON_SCREEN)
-                },
-                onNavigateToAddAlert = {
-                    navController.navigate(Routes.TEACHER_ADD_ALERT_SCREEN)
-                },
-                onNavigateToAddAssignmnet = {
-                    navController.navigate(Routes.TEACHER_ADD_ASSIGNMENT_SCREEN)
-                }
-            )
-        }
-        composable(route = Routes.TEACHER_ADD_LESSON_SCREEN) {
-            AddLessonScreen(onNavigateUp = { navController.popBackStack() })
-        }
-
-        composable(route = Routes.TEACHER_ADD_ALERT_SCREEN) {
-            AddAlertScreen(onNavigateUp = { navController.popBackStack() })
-        }
-        composable(route = Routes.TEACHER_ADD_ASSIGNMENT_SCREEN) {
-            AddAssignmentScreen(onNavigateUp = { navController.popBackStack() })
-        }
+     
     }
 
 }
