@@ -27,7 +27,6 @@ import kotlinx.coroutines.flow.collectLatest
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SubjectsScreen(
-    // --- ١. قمنا بحذف NavController واكتفينا بالـ lambdas ---
     onNavigateToSubjectDetails: (subjectId: String) -> Unit,
     onNavigateUp: () -> Unit,
     viewModel: SubjectsViewModel = hiltViewModel()
