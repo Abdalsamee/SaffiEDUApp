@@ -89,24 +89,25 @@ class SubjectsViewModel @Inject constructor(
                 firestore.collection("subjects").get().await()
             }
 
-            val subjectsList = query.documents.mapNotNull { doc ->
-                val subjectName = doc.getString("subjectName") ?: return@mapNotNull null
+            val subjectsList = mutableListOf<Subject>()
+            for (doc in query.documents) {
+                val subjectName = doc.getString("subjectName") ?: continue
                 val teacherName = doc.getString("teacherName") ?: "غير معروف"
                 val grade = doc.getString("className") ?: "غير محدد"
-                val lessonsCount = (doc.getLong("lessonsCount") ?: 0).toInt()
+                val lessonsCount = getLessonsCount(doc.id)
                 val rating = (doc.getDouble("rating") ?: 0.0).toFloat()
-
-                // ✅ تحويل اسم المعلم لعرض الأول والأخير فقط
                 val formattedUserName = formatUserName(teacherName)
 
-                Subject(
-                    id = doc.id,
-                    name = subjectName,
-                    teacherName = formattedUserName,
-                    grade = grade,
-                    rating = rating,
-                    imageUrl = "",
-                    totalLessons = lessonsCount
+                subjectsList.add(
+                    Subject(
+                        id = doc.id,
+                        name = subjectName,
+                        teacherName = formattedUserName,
+                        grade = grade,
+                        rating = rating,
+                        imageUrl = "",
+                        totalLessons = lessonsCount
+                    )
                 )
             }
 
@@ -159,6 +160,19 @@ class SubjectsViewModel @Inject constructor(
             }
         } catch (e: Exception) {
             "غير معروف"
+        }
+    }
+    private suspend fun getLessonsCount(subjectId: String): Int {
+        return try {
+            val querySnapshot = firestore.collection("lessons")
+                .whereEqualTo("subjectId", subjectId)
+                .get()
+                .await()
+
+            val count = querySnapshot.documents.size
+            count
+        } catch (e: Exception) {
+            0 // في حالة الخطأ
         }
     }
 }
