@@ -11,20 +11,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.saffieduapp.presentation.screens.student.components.CommonTopAppBar
 import com.example.saffieduapp.presentation.screens.teacher.add_alert.components.TimePickerField
-import com.example.saffieduapp.presentation.screens.teacher.add_lesson.AddLessonEvent
-import com.example.saffieduapp.presentation.screens.teacher.add_lesson.ContentType
 import com.example.saffieduapp.presentation.screens.teacher.add_lesson.components.AddLessonTextField
 import com.example.saffieduapp.presentation.screens.teacher.add_lesson.components.LessonDatePicker
 import com.example.saffieduapp.presentation.screens.teacher.components.AppButton
 import com.example.saffieduapp.presentation.screens.teacher.components.ClassDropdown
-import com.example.saffieduapp.ui.theme.SaffiEDUAppTheme
 
 
 @Composable
@@ -138,7 +133,8 @@ fun AddAlertScreen(
             AppButton(
                 text = "إرسال التنبيه",
                 onClick = onSendClick,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !state.isSaving
             )
         }
     }

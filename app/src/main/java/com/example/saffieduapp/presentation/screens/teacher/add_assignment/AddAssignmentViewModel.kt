@@ -4,20 +4,31 @@ import android.content.Context
 import android.net.Uri
 import android.provider.OpenableColumns
 import androidx.lifecycle.ViewModel
+import com.example.saffieduapp.data.repository.AssignmentRepository
+import com.google.firebase.firestore.FirebaseFirestore
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
 class AddAssignmentViewModel @Inject constructor(
-    @ApplicationContext private val context: Context
+    @ApplicationContext private val context: Context,
+    private val firestore: FirebaseFirestore
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(AddAssignmentState())
     val state = _state.asStateFlow()
+
+    private val _eventFlow = MutableSharedFlow<String>() // لإرسال الرسائل
+    val eventFlow = _eventFlow.asSharedFlow()
+
+    private val assigrepository = AssignmentRepository() // الكلاس الجديد
 
     fun onEvent(event: AddAssignmentEvent) {
         when (event) {
@@ -42,8 +53,34 @@ class AddAssignmentViewModel @Inject constructor(
                 }
             }
             is AddAssignmentEvent.SaveClicked -> {
-                // TODO: Add save logic
-                println("Saving assignment: ${state.value}")
+                saveAssignment()
+            }
+        }
+    }
+    private fun saveAssignment() {
+        val currentState = state.value
+        if (currentState.title.isBlank() || currentState.description.isBlank() || currentState.selectedClass.isBlank()) {
+            return
+        }
+
+        _state.update { it.copy(isSaving = true) }
+
+        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+            val success = assigrepository.saveAssignment(
+                title = currentState.title,
+                description = currentState.description,
+                dueDate = currentState.dueDate,
+                className = currentState.selectedClass,
+                imageUri = currentState.selectedImageUri,
+                imageName = currentState.selectedImageName
+            )
+
+            if (success) {
+                _eventFlow.emit("تم حفظ الواجب بنجاح!") // إرسال رسالة النجاح
+                _state.update { AddAssignmentState() } // إعادة تعيين الحقول
+            } else {
+                _eventFlow.emit("حدث خطأ أثناء حفظ الواجب") // إرسال رسالة الفشل
+                _state.update { it.copy(isSaving = false) }
             }
         }
     }

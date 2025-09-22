@@ -5,5 +5,6 @@ data class AddAlertState(
     val targetClass: String = "", // الصف المستهدف
     val sendDate: String = "",
     val sendTime: String = "",
-    val isSending: Boolean = false
+    val isSending: Boolean = false,
+    val isSaving: Boolean = false // ✅ هذا هو الحقل المطلوب
 )
