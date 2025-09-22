@@ -1,53 +1,35 @@
 package com.example.saffieduapp.navigation
 
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
+import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
-import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.navigation
 import com.example.saffieduapp.presentation.screens.teacher.add_alert.AddAlertScreen
+import com.example.saffieduapp.presentation.screens.teacher.add_assignment.AddAssignmentScreen
 import com.example.saffieduapp.presentation.screens.teacher.add_lesson.AddLessonScreen
-import com.example.saffieduapp.presentation.screens.teacher.calsses.TeacherClassesScreen
 import com.example.saffieduapp.presentation.screens.teacher.home.TeacherHomeScreen
 
-// استورد شاشة المعلم الرئيسية هنا
-// import com.example.saffieduapp.presentation.screens.teacher.home.TeacherHomeScreen
-
-@Composable
-fun TeacherNavGraph(navController: NavHostController, modifier: Modifier = Modifier) {
-    NavHost(
-        navController = navController,
-        startDestination = Routes.TEACHER_HOME_SCREEN, // نقطة البداية هي شاشة المعلم الرئيسية
-        route = "teacher_main_graph",
-        modifier = modifier
+// --- ١. تم تغيير اسم ووظيفة الملف ---
+// هذا هو المسار الرئيسي للمعلم الذي يتم استدعاؤه من MainActivity
+fun NavGraphBuilder.teacherGraph(navController: NavHostController) {
+    navigation(
+        startDestination = Routes.TEACHER_HOME_SCREEN, // نقطة البداية هي الشاشة الرئيسية
+        route = Routes.TEACHER_GRAPH
     ) {
-        composable(Routes.TEACHER_HOME_SCREEN) {
-             TeacherHomeScreen()
+        // --- ٢. هنا نعرّف كل شاشات المعلم ---
+        composable(Routes.TEACHER_HOME_SCREEN) { TeacherHomeScreen(navController = navController) }
+        composable(Routes.TEACHER_CLASSES_SCREEN) { /* ... */ }
+        composable(Routes.TEACHER_TASKS_SCREEN) { /* ... */ }
+        composable(Routes.TEACHER_CHAT_SCREEN) { /* ... */ }
+        composable(Routes.TEACHER_PROFILE_SCREEN) { /* ... */ }
 
-        }
-        composable(Routes.TEACHER_CLASSES_SCREEN) {
-            TeacherClassesScreen()
-        }
-        composable(Routes.TEACHER_TASKS_SCREEN) {
-            PlaceholderScreen("Teacher Tasks Screen")
-        }
-        composable(Routes.TEACHER_CHAT_SCREEN) {
-            PlaceholderScreen("Teacher Chat Screen")
-        }
-        composable(Routes.TEACHER_PROFILE_SCREEN) {
-            PlaceholderScreen("Teacher Profile Screen")
-        }
-    }
-}
+        // شاشات الإضافة
+        composable(Routes.TEACHER_ADD_LESSON_SCREEN) { AddLessonScreen(onNavigateUp = { navController.popBackStack() }) }
+        composable(Routes.TEACHER_ADD_ASSIGNMENT_SCREEN) { AddAssignmentScreen(onNavigateUp = { navController.popBackStack() }) }
+        composable(Routes.TEACHER_ADD_ALERT_SCREEN) { AddAlertScreen(onNavigateUp = { navController.popBackStack() }) }
 
-// مكون مؤقت للشاشات التي لم نقم ببنائها بعد
-@Composable
-private fun PlaceholderScreen(screenName: String) {
-    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Text(text = screenName)
+        // مسار إنشاء الاختبار
+        createQuizNavGraph(navController)
     }
 }
