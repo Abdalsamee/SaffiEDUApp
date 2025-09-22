@@ -63,7 +63,7 @@ class SplashViewModel @Inject constructor(
 
                 if (!teacherQuery.isEmpty || (teacherByEmail != null && !teacherByEmail.isEmpty)) {
                     // 🔹 المعلم لا يحتاج تحقق من البريد
-                    _startDestination.value = Routes.TEACHER_MAIN_SCREEN
+                    _startDestination.value = Routes.TEACHER_GRAPH
                     return@launch
                 }
 
