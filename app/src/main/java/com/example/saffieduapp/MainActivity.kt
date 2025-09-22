@@ -218,7 +218,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun startDailyLessonCheck() {
-        val alarmManager = getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        val alarmManager = getSystemService(ALARM_SERVICE) as AlarmManager
         val intent = Intent(this, DailyLessonReceiver::class.java)
         val pendingIntent = PendingIntent.getBroadcast(
             this,
@@ -227,28 +227,15 @@ class MainActivity : ComponentActivity() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        // تحديد وقت التشغيل: الساعة 12 ظهراً
-        val calendar = Calendar.getInstance().apply {
-            timeInMillis = System.currentTimeMillis()
-            set(Calendar.HOUR_OF_DAY, 12) // 12 ظهراً
-            set(Calendar.MINUTE, 0)
-            set(Calendar.SECOND, 0)
-        }
-
-        // إذا كانت الساعة قد تجاوزت 12 اليوم، نحددها لليوم التالي
-        if (calendar.timeInMillis <= System.currentTimeMillis()) {
-            calendar.add(Calendar.DAY_OF_YEAR, 1)
-        }
-
-        // جدولة الفحص اليومي
-        alarmManager.setInexactRepeating(
+        // بدء الفحص فوراً ثم كل 30 ثانية
+        alarmManager.setRepeating(
             AlarmManager.RTC_WAKEUP,
-            calendar.timeInMillis,
-            AlarmManager.INTERVAL_DAY, // يتكرر كل يوم
+            System.currentTimeMillis(), // يبدأ فوراً
+            30 * 1000, // كل 30 ثانية (30 * 1000 مللي ثانية)
             pendingIntent
         )
 
-        Log.d("DailyCheck", "⏰ تم جدولة الفحص اليومي للساعة 12 ظهراً")
+        Log.d("DailyCheck", "⏰ تم جدولة الفحص كل 30 ثانية")
     }
 
     // دالة للفحص اليومي للدروس

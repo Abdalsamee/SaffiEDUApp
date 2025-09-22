@@ -17,10 +17,21 @@ import java.util.Date
 import java.util.Locale
 
 class DailyLessonReceiver : BroadcastReceiver() {
-    override fun onReceive(context: Context, intent: Intent) {
-        Log.d("DailyCheck", "🔔 تم استدعاء الفحص اليومي")
+    // لمنع التكرار السريع للإشعارات
+    private var lastNotificationTime: Long = 0
+    private val NOTIFICATION_COOLDOWN = 30 * 1000 // 30 ثانية
 
-        // استخدام Context مباشرة للوصول إلى Resources والخدمات
+    override fun onReceive(context: Context, intent: Intent) {
+        val currentTime = System.currentTimeMillis()
+
+        // التحقق من عدم تكرار الإشعارات بسرعة
+        if (currentTime - lastNotificationTime < NOTIFICATION_COOLDOWN) {
+            Log.d("DailyCheck", "⏸️ تم تجاوز الفحص (التبريد)")
+            return
+        }
+
+        lastNotificationTime = currentTime
+        Log.d("DailyCheck", "🔔 تم استدعاء الفحص كل 30 ثانية")
         checkTodaysLessons(context)
     }
 
