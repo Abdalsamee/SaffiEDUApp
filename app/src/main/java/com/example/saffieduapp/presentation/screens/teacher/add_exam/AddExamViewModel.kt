@@ -24,8 +24,6 @@ class AddExamViewModel @Inject constructor() : ViewModel() {
             is AddExamEvent.RandomQuestionsToggled -> _state.update { it.copy(randomQuestions = event.isEnabled) }
             is AddExamEvent.ShowResultsToggled -> _state.update { it.copy(showResultsImmediately = event.isEnabled) }
             is AddExamEvent.NextClicked -> {
-                // TODO: Validate data and navigate to the next screen (Add Questions)
-                println("Navigating to next step with state: ${state.value}")
             }
         }
     }

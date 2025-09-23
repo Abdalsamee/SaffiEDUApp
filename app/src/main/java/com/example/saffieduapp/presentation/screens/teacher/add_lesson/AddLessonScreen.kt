@@ -34,6 +34,9 @@ import com.example.saffieduapp.presentation.screens.teacher.add_lesson.component
 import com.example.saffieduapp.presentation.screens.teacher.add_lesson.components.LessonDatePicker
 import com.example.saffieduapp.presentation.screens.teacher.add_lesson.components.NotificationSwitch
 import com.example.saffieduapp.ui.theme.AppPrimary
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -168,7 +171,10 @@ fun AddLessonScreen(
                     )
                     LessonDatePicker(
                         selectedDate = state.publicationDate,
-                        onDateSelected = { viewModel.onEvent(AddLessonEvent.DateChanged(it)) },
+                        onDateSelected = { millis ->
+                            val formatted = SimpleDateFormat("yyyy-MM-dd", Locale.ENGLISH).format(Date(millis))
+                            viewModel.onEvent(AddLessonEvent.DateChanged(formatted))
+                        },
                         modifier = Modifier.fillMaxWidth()
                     )
                 }

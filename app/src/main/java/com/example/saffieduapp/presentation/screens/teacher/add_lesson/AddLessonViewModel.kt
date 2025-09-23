@@ -195,19 +195,8 @@ class AddLessonViewModel @Inject constructor(
                 )
 
                 // 7️⃣ حفظ الدرس
-                val lessonId = lessonRepository.saveLessonAndReturnId(lessonData)
+                 lessonRepository.saveLessonAndReturnId(lessonData)
 
-                // 8️⃣ إرسال إشعار فوري فقط إذا اختار المعلم "إشعار للطلاب"
-                if (current.notifyStudents) { // ← الشرط هنا
-                    sendInstantNotification(
-                        grade = current.selectedClass,
-                        title = current.lessonTitle,
-                        message = current.description
-                    )
-                    Log.d("Notification", "✅ تم إرسال إشعار للطلاب")
-                } else {
-                    Log.d("Notification", "⏸️ لم يتم إرسال إشعار (لم يختر المعلم)")
-                }
                 Toast.makeText(context, "✅ تم حفظ الدرس بنجاح", Toast.LENGTH_SHORT).show()
 
                 // 8️⃣ إعادة تعيين الحالة بعد الحفظ
@@ -233,22 +222,6 @@ class AddLessonViewModel @Inject constructor(
                 _state.update { it.copy(isSaving = false) }
             }
         }
-    }
-    private fun sendInstantNotification(grade: String, title: String, message: String) {
-        val database = com.google.firebase.database.FirebaseDatabase.getInstance()
-        val notificationsRef = database.getReference("instant_notifications").push()
-
-        val notificationData = mapOf(
-            "grade" to grade,
-            "title" to title,
-            "message" to message,
-            "shouldNotify" to true, // ← إشارة أن هذا الإشعار معتمد
-            "timestamp" to System.currentTimeMillis(),
-            "type" to "new_lesson"
-        )
-
-        notificationsRef.setValue(notificationData)
-        Log.d("Notification", "📤 تم إرسال إشعار معتمد للصف: $grade")
     }
     // دالة لتحويل الأرقام العربية إلى إنجليزية
     private fun convertArabicNumbersToEnglish(arabicDate: String): String {

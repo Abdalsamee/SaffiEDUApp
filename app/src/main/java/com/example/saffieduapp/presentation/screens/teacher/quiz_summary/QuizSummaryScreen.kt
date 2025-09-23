@@ -79,7 +79,7 @@ fun QuizSummaryScreen(
                 onClick = onPublish,
                 modifier = Modifier.fillMaxWidth()
                     .padding(bottom = 32.dp),
-                enabled = true
+                enabled = false
             )
 
         }

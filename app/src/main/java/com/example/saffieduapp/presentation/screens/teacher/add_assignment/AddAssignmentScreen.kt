@@ -135,9 +135,15 @@ private fun AddAssignmentScreenContent(
                     Text(text = "إضافة تاريخ التسليم", fontWeight = FontWeight.Normal, fontSize = 18.sp)
                     LessonDatePicker(
                         selectedDate = state.dueDate,
-                        onDateSelected = onDateSelected, // ٤. ربط اختيار التاريخ
+                        onDateSelected = { millis ->
+                            // تحويل Long إلى String بصيغة yyyy-MM-dd
+                            val formatted = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.ENGLISH)
+                                .format(java.util.Date(millis))
+                            onDateSelected(formatted)
+                        },
                         modifier = Modifier.fillMaxWidth()
                     )
+
                 }
             }
             ImagePickerBox(
