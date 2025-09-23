@@ -1,6 +1,7 @@
 package com.example.saffieduapp.di
 
 import android.content.Context
+import com.example.saffieduapp.data.FireBase.AlertRepository
 import com.example.saffieduapp.data.FireBase.LessonRepository
 import com.example.saffieduapp.data.local.preferences.OnboardingPreferences
 import com.example.saffieduapp.data.local.preferences.PreferencesManager
@@ -67,5 +68,10 @@ object AppModule {
         storage: FirebaseStorage
     ): LessonRepository {
         return LessonRepository(storage, firestore)
+    }
+    @Provides
+    @Singleton
+    fun provideAlertRepository(firestore: FirebaseFirestore): AlertRepository {
+        return AlertRepository(firestore)
     }
 }

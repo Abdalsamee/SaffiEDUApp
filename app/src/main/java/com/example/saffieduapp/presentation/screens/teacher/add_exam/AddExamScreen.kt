@@ -170,7 +170,8 @@ fun AddExamScreen(
                 AppButton(
                     text = "التالي",
                     onClick = onNavigateToNext ,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = false
                 )
                 Spacer(modifier = Modifier.height(20.dp))
 
