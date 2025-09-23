@@ -32,19 +32,18 @@ class AddAlertViewModel @Inject constructor(
         _state.update { it.copy(alertDescription = description) }
     }
 
-    fun onTargetClassChange(className: String) {
-        _state.update { it.copy(targetClass = className) }
-    }
-
+    // التعديل: استقبال Long من DatePicker
     fun onSendDateChange(dateInMillis: Long) {
         val formattedDate = formatDate(dateInMillis)
         _state.update { it.copy(sendDate = formattedDate) }
     }
 
+    // التعديل: استقبال hour و minute من TimePicker
     fun onSendTimeChange(hour: Int, minute: Int) {
         val formattedTime = formatTime(hour, minute)
         _state.update { it.copy(sendTime = formattedTime) }
     }
+
     fun sendAlert() {
         val current = state.value
         if (current.alertDescription.isBlank() || current.targetClass.isBlank()) {
@@ -72,6 +71,10 @@ class AddAlertViewModel @Inject constructor(
             }
         }
     }
+
+    fun onTargetClassChange(className: String) {
+        _state.update { it.copy(targetClass = className) }
+    }
     fun formatDate(date: Long): String {
         val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.ENGLISH)
         return sdf.format(Date(date))
@@ -84,5 +87,4 @@ class AddAlertViewModel @Inject constructor(
         cal.set(Calendar.MINUTE, minute)
         return sdf.format(cal.time)
     }
-
 }

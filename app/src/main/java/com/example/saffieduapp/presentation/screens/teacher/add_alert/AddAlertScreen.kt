@@ -57,8 +57,8 @@ fun AddAlertScreenContent(
     onNavigateUp: () -> Unit,
     onDescriptionChange: (String) -> Unit,
     onTargetClassChange: (String) -> Unit,
-    onSendDateChange: (String) -> Unit,
-    onSendTimeChange: (String) -> Unit,
+    onSendDateChange: (Long) -> Unit,
+    onSendTimeChange: (Int, Int) -> Unit,
     onSendClick: () -> Unit
 ) {
     Scaffold(

@@ -9,7 +9,7 @@ enum class ContentType {
 data class AddLessonState(
     val lessonTitle: String = "",
     val description: String = "",
-    val selectedClass: String = "", // الصف الذي سيتم إضافة الدرس له
+    val selectedClass: String = "",
     val selectedVideoUri: Uri? = null,
     val selectedPdfUri: Uri? = null,
     val selectedVideoName: String? = null,

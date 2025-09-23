@@ -135,7 +135,7 @@ private fun AddAssignmentScreenContent(
                     Text(text = "إضافة تاريخ التسليم", fontWeight = FontWeight.Normal, fontSize = 18.sp)
                     LessonDatePicker(
                         selectedDate = state.dueDate,
-                        onDateSelected = onDateSelected, // ٤. ربط اختيار التاريخ
+                        onDateSelected = onDateSelected as (Long) -> Unit, // ٤. ربط اختيار التاريخ
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
