@@ -7,11 +7,10 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.annotation.RequiresApi
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
-import androidx.navigation.compose.rememberNavController
-import com.example.saffieduapp.navigation.authNavGraph
-import com.example.saffieduapp.presentation.screens.MainAppScreen
+import com.example.saffieduapp.presentation.screens.Chats.ChatList.ChatListScreen
+//import com.example.saffieduapp.presentation.screens.Chats.studantChat.ChatScreen // تأكد من استيراد المسار الصحيح
+import com.example.saffieduapp.presentation.screens.Chats.studantChat.StuChatScreen
+import com.example.saffieduapp.presentation.screens.Chats.tetcherChat.TetcherChatScreen
 import com.example.saffieduapp.ui.theme.SaffiEDUAppTheme
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -31,17 +30,9 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             SaffiEDUAppTheme {
-                val navController = rememberNavController()
-                NavHost(
-                    navController = navController,
-                    startDestination = "auth_graph"
-                ) {
-                    authNavGraph(navController)
-
-                    composable(route = "main_graph") {
-                        MainAppScreen()
-                    }
-                }
+                //ChatListScreen(onChatClick = {}) // تم تعطيل شاشة قائمة الدردشات
+                StuChatScreen(onNavigateUp = {}) // تم تفعيل شاشة الدردشة
+                //TetcherChatScreen(onNavigateUp = {})
             }
         }
     }
