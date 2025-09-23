@@ -195,7 +195,7 @@ class AddLessonViewModel @Inject constructor(
                 )
 
                 // 7️⃣ حفظ الدرس
-                val lessonId = lessonRepository.saveLessonAndReturnId(lessonData)
+                 lessonRepository.saveLessonAndReturnId(lessonData)
 
                 Toast.makeText(context, "✅ تم حفظ الدرس بنجاح", Toast.LENGTH_SHORT).show()
 
