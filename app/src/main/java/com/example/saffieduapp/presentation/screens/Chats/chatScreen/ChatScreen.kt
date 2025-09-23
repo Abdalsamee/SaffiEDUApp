@@ -1,4 +1,4 @@
-package com.example.saffieduapp.presentation.screens.Chats.studantChat
+package com.example.saffieduapp.presentation.screens.Chats.chatScreen
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -19,23 +19,21 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.saffieduapp.presentation.screens.student.components.CommonTopAppBar
 import com.example.saffieduapp.ui.theme.AppPrimary
 import com.example.saffieduapp.R
-import com.example.saffieduapp.presentation.screens.Chats.studantChat.component.DateHeader
-import com.example.saffieduapp.presentation.screens.Chats.studantChat.component.StuChatHeader
-import com.example.saffieduapp.presentation.screens.Chats.studantChat.component.StuMessageBubble
-import com.example.saffieduapp.presentation.screens.Chats.studantChat.component.StuMessageInputBar
+import com.example.saffieduapp.presentation.screens.Chats.chatScreen.component.ChatHeader
+import com.example.saffieduapp.presentation.screens.Chats.chatScreen.component.DateHeader
+import com.example.saffieduapp.presentation.screens.Chats.chatScreen.component.MessageBubble
+import com.example.saffieduapp.presentation.screens.Chats.chatScreen.component.MessageInputBar
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun StuChatScreen(
+fun ChatScreen(
     viewModel: StuChatViewModel = viewModel(),
     onNavigateUp: () -> Unit
 ) {
     val chatState by viewModel.chatState.collectAsState()
 
-    // ترتيب الرسائل بشكل صحيح ليتوافق مع reverseLayout
     val sortedMessages = chatState.messages.sortedBy { it.id }
 
-    // إنشاء قائمة تحتوي على الرسائل ورؤوس التاريخ
     val chatItems = mutableListOf<Any>()
     var lastDate: String? = null
 
@@ -59,8 +57,9 @@ fun StuChatScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(Color.White)
+                    .imePadding() // هنا التعديل الجديد: لتجنب التمدد فوق لوحة المفاتيح
             ) {
-                StuMessageInputBar(onSendMessage = viewModel::sendMessage)
+                MessageInputBar(onSendMessage = viewModel::sendMessage)
             }
         }
     ) { paddingValues ->
@@ -70,7 +69,7 @@ fun StuChatScreen(
                 .background(AppPrimary)
                 .padding(paddingValues)
         ) {
-            StuChatHeader(
+            ChatHeader(
                 userName = "أحمد عمران",
                 userImageResId = R.drawable.tetcher
             )
@@ -94,17 +93,13 @@ fun StuChatScreen(
                     items(chatItems.reversed()) { item ->
                         when (item) {
                             is String -> DateHeader(date = item)
-                            is StuMessage -> Column(
+                            is Message -> Column(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalAlignment = if (item.isSentByMe) Alignment.End else Alignment.Start
                             ) {
-//                                Text(
-//                                    text = item.timestamp,
-//                                    color = Color(0xFF828282),
-//                                    style = MaterialTheme.typography.labelSmall
-//                                )
+
                                 Spacer(modifier = Modifier.height(4.dp))
-                                StuMessageBubble(message = item)
+                                MessageBubble(message = item)
                             }
                         }
                     }
@@ -117,5 +112,5 @@ fun StuChatScreen(
 @Preview(showBackground = true, locale = "ar")
 @Composable
 fun ChatScreenPreview() {
-    StuChatScreen(onNavigateUp = {})
+    ChatScreen(onNavigateUp = {})
 }

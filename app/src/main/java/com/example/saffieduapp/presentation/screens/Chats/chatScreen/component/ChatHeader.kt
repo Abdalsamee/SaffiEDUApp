@@ -1,4 +1,4 @@
-package com.example.saffieduapp.presentation.screens.Chats.tetcherChat.component
+package com.example.saffieduapp.presentation.screens.Chats.chatScreen.component
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
@@ -20,7 +20,7 @@ import com.example.saffieduapp.R
 import com.example.saffieduapp.ui.theme.Cairo
 
 @Composable
-fun TetcherChatHeader(
+fun ChatHeader(
     userName: String,
     userImageResId: Int,
     modifier: Modifier = Modifier
@@ -31,7 +31,7 @@ fun TetcherChatHeader(
         verticalArrangement = Arrangement.Center
     ) {
         Image(
-            painter = painterResource(id = R.drawable.studan),
+            painter = painterResource(id = R.drawable.tetcher),
             contentDescription = "User Avatar",
             contentScale = ContentScale.Crop,
             modifier = Modifier
@@ -41,7 +41,7 @@ fun TetcherChatHeader(
         Spacer(modifier = Modifier.height(8.dp))
         Text(
             // تم دمج "الطالب: " مع اسم المستخدم
-            text = "الطالب: $userName",
+            text = "أ: $userName",
             color = Color.White,
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.W600,
@@ -54,5 +54,5 @@ fun TetcherChatHeader(
 @Preview(showBackground = true)
 @Composable
 fun ChatHeaderPreview() {
-    TetcherChatHeader(userName = "أحمد حمدان", userImageResId = R.drawable.studan)
+    ChatHeader(userName = "أحمد حمدان", userImageResId = R.drawable.tetcher)
 }

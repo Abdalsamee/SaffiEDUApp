@@ -1,4 +1,4 @@
-package com.example.saffieduapp.presentation.screens.Chats.tetcherChat.component
+package com.example.saffieduapp.presentation.screens.Chats.chatScreen.component
 
 
 import androidx.compose.foundation.background
@@ -22,7 +22,7 @@ import com.example.saffieduapp.ui.theme.Cairo
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TetcherMessageInputBar(
+fun MessageInputBar(
     onSendMessage: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -96,5 +96,5 @@ fun TetcherMessageInputBar(
 @Preview(showBackground = true  , locale = "ar")
 @Composable
 fun MessageInputBarPreview() {
-    TetcherMessageInputBar(onSendMessage = {})
+    MessageInputBar(onSendMessage = {})
 }

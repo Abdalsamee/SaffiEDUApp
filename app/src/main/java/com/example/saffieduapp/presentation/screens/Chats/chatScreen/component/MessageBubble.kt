@@ -1,4 +1,4 @@
-package com.example.saffieduapp.presentation.screens.Chats.studantChat.component
+package com.example.saffieduapp.presentation.screens.Chats.chatScreen.component
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -14,14 +14,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.saffieduapp.presentation.screens.Chats.studantChat.StuMessage
+import com.example.saffieduapp.presentation.screens.Chats.chatScreen.Message
+//import com.example.saffieduapp.presentation.screens.Chats.chatScreen.StuMessage
 import com.example.saffieduapp.ui.theme.AppPrimary
 import com.example.saffieduapp.ui.theme.CardBackgroundColor
 import com.example.saffieduapp.ui.theme.AppTextPrimary
-import com.example.saffieduapp.ui.theme.AppTextSecondary
 
 @Composable
-fun StuMessageBubble(message: StuMessage) {
+fun MessageBubble(message: Message) {
     val bubbleColor = if (message.isSentByMe) AppPrimary else CardBackgroundColor
     val textColor = if (message.isSentByMe) Color.White else AppTextPrimary
     val timeColor = Color(0xFF828282)
@@ -72,12 +72,12 @@ fun StuMessageBubble(message: StuMessage) {
 @Composable
 fun MessageBubblePreview() {
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-        StuMessageBubble(message = StuMessage("1", "مرحبا استاذ احمد كيف حالك اليوم", "01:22 am", isSentByMe = false, date = "September 23, 2025"))
+        MessageBubble(message = Message("1", "مرحبا استاذ احمد كيف حالك اليوم", "01:22 am", isSentByMe = false, date = "September 23, 2025"))
         Spacer(modifier = Modifier.height(8.dp))
-        StuMessageBubble(message = StuMessage("2", "اهلا, ابراهيم كيف اساعدك", "02:22 am", isSentByMe = true, date = "September 23, 2025"))
+        MessageBubble(message = Message("2", "اهلا, ابراهيم كيف اساعدك", "02:22 am", isSentByMe = true, date = "September 23, 2025"))
         Spacer(modifier = Modifier.height(8.dp))
-        StuMessageBubble(message = StuMessage("3", "مرحبا استاذ احمد كيف حالك اليوم", "01:22 am", isSentByMe = false, date = "September 23, 2025"))
+        MessageBubble(message = Message("3", "مرحبا استاذ احمد كيف حالك اليوم", "01:22 am", isSentByMe = false, date = "September 23, 2025"))
         Spacer(modifier = Modifier.height(8.dp))
-        StuMessageBubble(message = StuMessage("4", "اهلا, ابراهيم كيف اساعدك", "02:22 am", isSentByMe = true, date = "September 23, 2025"))
+        MessageBubble(message = Message("4", "اهلا, ابراهيم كيف اساعدك", "02:22 am", isSentByMe = true, date = "September 23, 2025"))
     }
 }
