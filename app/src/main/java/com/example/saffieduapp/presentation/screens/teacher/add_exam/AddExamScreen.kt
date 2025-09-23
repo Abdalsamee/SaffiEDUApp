@@ -12,7 +12,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -26,7 +25,9 @@ import com.example.saffieduapp.presentation.screens.teacher.add_lesson.component
 import com.example.saffieduapp.presentation.screens.teacher.components.AppButton
 import com.example.saffieduapp.presentation.screens.teacher.components.ClassDropdown
 import com.example.saffieduapp.ui.theme.AppPrimary
-import com.example.saffieduapp.ui.theme.SaffiEDUAppTheme
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -114,11 +115,13 @@ fun AddExamScreen(
 
                         TimePickerField(
                             selectedTime = state.examStartTime,
-                            onTimeSelected = {
-                                viewModel.onEvent(AddExamEvent.StartTimeChanged(it))
+                            onTimeSelected = { hour, minute ->
+                                val formattedTime = String.format("%02d:%02d", hour, minute) // مثال: "09:30"
+                                viewModel.onEvent(AddExamEvent.StartTimeChanged(formattedTime))
                             },
                             modifier = Modifier.fillMaxWidth(0.4f)
                         )
+
                     }
 
 
@@ -134,8 +137,9 @@ fun AddExamScreen(
                         )
                         LessonDatePicker(
                             selectedDate = state.examDate,
-                            onDateSelected = {
-                                viewModel.onEvent(AddExamEvent.DateChanged(it))
+                            onDateSelected = { millis ->
+                                val formatted = SimpleDateFormat("yyyy-MM-dd", Locale.ENGLISH).format(Date(millis))
+                                viewModel.onEvent(AddExamEvent.DateChanged(formatted))
                             }
                         )
                     }
@@ -170,7 +174,8 @@ fun AddExamScreen(
                 AppButton(
                     text = "التالي",
                     onClick = onNavigateToNext ,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = false
                 )
                 Spacer(modifier = Modifier.height(20.dp))
 

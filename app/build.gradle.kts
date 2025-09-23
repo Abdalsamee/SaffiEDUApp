@@ -116,5 +116,17 @@ dependencies {
 
     implementation ("androidx.datastore:datastore-preferences:1.0.0")
     implementation ("androidx.security:security-crypto:1.1.0-alpha06")
+    implementation("com.google.firebase:firebase-database-ktx:21.0.0")
+    // Firebase
+    implementation ("com.google.firebase:firebase-firestore-ktx:24.1.0")
+    implementation ("com.google.firebase:firebase-storage-ktx:20.0.1")
+    implementation ("com.google.firebase:firebase-auth-ktx:21.0.1")
+
+    // WorkManager
+    implementation ("androidx.work:work-runtime-ktx:2.7.1")
+
+    // Hilt
+    implementation ("com.google.dagger:hilt-android:2.40.5")
+    kapt ("com.google.dagger:hilt-compiler:2.40.5")
 
 }

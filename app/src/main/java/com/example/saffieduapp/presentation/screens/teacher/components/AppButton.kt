@@ -16,7 +16,8 @@ import com.example.saffieduapp.ui.theme.AppPrimary
 fun AppButton(
     text: String,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    enabled: Boolean
 ) {
     Button(
         onClick = onClick,

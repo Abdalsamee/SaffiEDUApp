@@ -3,6 +3,7 @@ package com.example.saffieduapp.presentation.screens.student.subjects
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.saffieduapp.domain.model.Subject
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -14,63 +15,109 @@ import javax.inject.Inject
 
 @HiltViewModel
 class SubjectsViewModel @Inject constructor(
-    private val firestore: FirebaseFirestore
+    private val firestore: FirebaseFirestore,
+    private val auth: FirebaseAuth
 ) : ViewModel() {
 
-    private val _state = MutableStateFlow(SubjectsState())
+    private val _state = MutableStateFlow(SubjectsState(error = "خطأ في تحميل بيانات الطالب"))
     val state = _state.asStateFlow()
 
-    init {
-        refresh() // تحميل البيانات مباشرة عند إنشاء ViewModel
+    // تخزين صف الطالب بعد جلبها
+    private var studentGrade: String? = null
+
+
+        init {
+            loadUserData() //
     }
 
-    /**
-     * جلب البيانات من Firestore مع تحديد أقصى وقت 3 ثواني.
-     * يُستخدم أيضًا عند سحب الشاشة لتحديث البيانات.
-     */
     fun refresh() {
         viewModelScope.launch {
             _state.value = _state.value.copy(isRefreshing = true)
             try {
-                withTimeout(3000) { // أقصى وقت لجلب البيانات
-                    loadSubjects()
+                withTimeout(5000) {
+                    // أولاً: جلب بيانات الطالب لمعرفة صفه
+                    // ثانياً: جلب المواد حسب صف الطالب
+                    loadSubjectsByGrade()
                 }
             } catch (e: Exception) {
-                // في حالة الخطأ، نترك الشاشة بدون تعليق
+                // معالجة الخطأ
             } finally {
                 _state.value = _state.value.copy(isRefreshing = false)
             }
         }
     }
+    private fun loadUserData() {
+        viewModelScope.launch {
+            _state.value = _state.value.copy(isLoading = true)
+            val currentUserEmail = auth.currentUser?.email // نفس الطريقة
 
+            if (currentUserEmail != null) {
+                try {
+                    // نفس الكود الذي يعمل في HomeViewModel
+                    val querySnapshot = firestore.collection("students")
+                        .whereEqualTo("email", currentUserEmail) // البحث بالإيميل
+                        .get()
+                        .await()
+
+                    if (!querySnapshot.isEmpty) {
+                        val studentDoc = querySnapshot.documents[0]
+                        studentGrade = studentDoc.getString("grade") ?: ""
+
+                        // بعد معرفة الصف، جلب المواد
+                        loadSubjectsByGrade()
+                    }
+                } catch (e: Exception) {
+                    _state.value = _state.value.copy(
+                        error = "خطأ في تحميل بيانات الطالب"
+                    )
+                }
+            }
+        }
+    }
     /**
      * تحميل المواد من Firestore.
      */
-    private suspend fun loadSubjects() {
-        _state.value = _state.value.copy(isLoading = true)
+    private suspend fun loadSubjectsByGrade() {
         try {
-            val querySnapshot = firestore.collection("subjects").get().await()
-            val subjectsList = querySnapshot.documents.mapNotNull { doc ->
-                val subjectName = doc.getString("subjectName") ?: return@mapNotNull null
+
+            val query = if (studentGrade!!.isNotEmpty()) {
+                firestore.collection("subjects")
+                    .whereEqualTo("className", studentGrade!!.trim())
+                    .get()
+                    .await()
+            } else {
+                firestore.collection("subjects").get().await()
+            }
+
+            val subjectsList = mutableListOf<Subject>()
+            for (doc in query.documents) {
+                val subjectName = doc.getString("subjectName") ?: continue
                 val teacherName = doc.getString("teacherName") ?: "غير معروف"
                 val grade = doc.getString("className") ?: "غير محدد"
-                val lessonsCount = (doc.getLong("lessonsCount") ?: 0).toInt()
+                val lessonsCount = getLessonsCount(doc.id)
                 val rating = (doc.getDouble("rating") ?: 0.0).toFloat()
+                val formattedUserName = formatUserName(teacherName)
 
-                Subject(
-                    id = doc.id,
-                    name = subjectName,
-                    teacherName = teacherName,
-                    grade = grade,
-                    rating = rating,
-                    imageUrl = "",
-                    totalLessons = lessonsCount
+                subjectsList.add(
+                    Subject(
+                        id = doc.id,
+                        name = subjectName,
+                        teacherName = formattedUserName,
+                        grade = grade,
+                        rating = rating,
+                        imageUrl = "",
+                        totalLessons = lessonsCount
+                    )
                 )
             }
 
-            _state.value = SubjectsState(isLoading = false, subject = subjectsList)
+            _state.value = SubjectsState(
+                isLoading = false,
+                subject = subjectsList,
+                error = "خطأ في تحميل بيانات الطالب"
+            )
         } catch (e: Exception) {
-            _state.value = SubjectsState(isLoading = false, subject = emptyList())
+            _state.value = SubjectsState(isLoading = false, error = "خطأ في تحميل بيانات الطالب")
         }
     }
 
@@ -94,8 +141,38 @@ class SubjectsViewModel @Inject constructor(
                     .update("rating", newRating)
                     .await()
             } catch (e: Exception) {
-                // ممكن تضيف Log أو رسالة خطأ
+                // ممكن نضيف Log أو رسالة خطأ
             }
+        }
+    }
+     fun formatUserName(fullName: String): String {
+        return try {
+            val nameParts = fullName.trim().split("\\s+".toRegex())
+
+            when {
+                nameParts.isEmpty() -> "غير معروف"
+                nameParts.size == 1 -> nameParts[0] // اسم واحد فقط
+                else -> {
+                    val firstName = nameParts[0]
+                    val lastName = nameParts[nameParts.size - 1]
+                    "$firstName $lastName"
+                }
+            }
+        } catch (e: Exception) {
+            "غير معروف"
+        }
+    }
+    private suspend fun getLessonsCount(subjectId: String): Int {
+        return try {
+            val querySnapshot = firestore.collection("lessons")
+                .whereEqualTo("subjectId", subjectId)
+                .get()
+                .await()
+
+            val count = querySnapshot.documents.size
+            count
+        } catch (e: Exception) {
+            0 // في حالة الخطأ
         }
     }
 }

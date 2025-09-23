@@ -33,7 +33,6 @@ class HomeViewModel @Inject constructor(
         loadUserData()
         viewModelScope.launch {
             loadInitialData()
-            loadSubjects()
         }
     }
 
@@ -60,6 +59,9 @@ class HomeViewModel @Inject constructor(
                                 studentName = displayName,
                                 studentGrade = userData.grade
                             )
+
+                            // ✅ استدعاء المواد للصف المناسب بعد معرفة grade
+                            loadSubjects()
                         }
                     }
                 } catch (e: Exception) {
@@ -76,6 +78,7 @@ class HomeViewModel @Inject constructor(
             }
         }
     }
+
 
     fun refresh() {
         viewModelScope.launch {
@@ -115,19 +118,29 @@ class HomeViewModel @Inject constructor(
     // suspend function → مباشرة تستخدم await
     private suspend fun loadSubjects() {
         try {
-            val querySnapshot = firestore.collection("subjects").get().await()
+            val grade = _state.value.studentGrade
+            if (grade.isBlank()) return
+
+            val querySnapshot = firestore.collection("subjects")
+                .whereEqualTo("className", grade)
+                .get()
+                .await()
+
             val subjectsList = querySnapshot.documents.map { doc ->
                 val subjectName = doc.getString("subjectName") ?: "غير معروف"
-                val teacherName = doc.getString("teacherName") ?: "غير معروف"
-                val grade = doc.getString("className") ?: "غير محدد"
+                val teacherFullName = doc.getString("teacherName") ?: "غير معروف"
+
+                val formattedUserName = formatUserName(teacherFullName)
+
+                val gradeName = doc.getString("className") ?: "غير محدد"
                 val lessonsCount = (doc.getLong("lessonsCount") ?: 0).toInt()
                 val rating = (doc.getDouble("rating") ?: 0.0).toFloat()
 
                 Subject(
                     id = doc.id,
                     name = subjectName,
-                    teacherName = teacherName,
-                    grade = grade,
+                    teacherName = formattedUserName, // ✅ الصياغة الجديدة
+                    grade = gradeName,
                     rating = rating,
                     imageUrl = "",
                     totalLessons = lessonsCount
@@ -140,6 +153,23 @@ class HomeViewModel @Inject constructor(
             )
         } catch (_: Exception) {
             _state.value = _state.value.copy(isLoading = false)
+        }
+    }
+    fun formatUserName(fullName: String): String {
+        return try {
+            val nameParts = fullName.trim().split("\\s+".toRegex())
+
+            when {
+                nameParts.isEmpty() -> "غير معروف"
+                nameParts.size == 1 -> nameParts[0] // اسم واحد فقط
+                else -> {
+                    val firstName = nameParts[0]
+                    val lastName = nameParts[nameParts.size - 1]
+                    "$firstName $lastName"
+                }
+            }
+        } catch (e: Exception) {
+            "غير معروف"
         }
     }
 

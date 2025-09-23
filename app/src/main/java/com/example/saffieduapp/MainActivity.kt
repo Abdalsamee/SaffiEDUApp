@@ -19,8 +19,6 @@ import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
-
-    @RequiresApi(Build.VERSION_CODES.JELLY_BEAN_MR1)
     override fun attachBaseContext(newBase: Context) {
         val config = Configuration(newBase.resources.configuration)
         config.fontScale = 1.0f
@@ -40,6 +38,7 @@ class MainActivity : ComponentActivity() {
                     startDestination = Routes.AUTH_GRAPH
                 ) {
                     authNavGraph(navController)
+
 
                     composable(route = Routes.MAIN_GRAPH) {
                         MainAppScreen()

@@ -1,5 +1,6 @@
 package com.example.saffieduapp.presentation.screens.teacher.add_assignment
 
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -8,10 +9,11 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -30,6 +32,14 @@ fun AddAssignmentScreen(
     onNavigateUp: () -> Unit,
     viewModel: AddAssignmentViewModel = hiltViewModel()
 ) {
+
+    val context = LocalContext.current
+    // الاستماع لأحداث Toast
+    LaunchedEffect(key1 = true) {
+        viewModel.eventFlow.collect { message ->
+            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+        }
+    }
     val state by viewModel.state.collectAsState()
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia(),
@@ -125,9 +135,15 @@ private fun AddAssignmentScreenContent(
                     Text(text = "إضافة تاريخ التسليم", fontWeight = FontWeight.Normal, fontSize = 18.sp)
                     LessonDatePicker(
                         selectedDate = state.dueDate,
-                        onDateSelected = onDateSelected, // ٤. ربط اختيار التاريخ
+                        onDateSelected = { millis ->
+                            // تحويل Long إلى String بصيغة yyyy-MM-dd
+                            val formatted = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.ENGLISH)
+                                .format(java.util.Date(millis))
+                            onDateSelected(formatted)
+                        },
                         modifier = Modifier.fillMaxWidth()
                     )
+
                 }
             }
             ImagePickerBox(
@@ -140,9 +156,10 @@ private fun AddAssignmentScreenContent(
             Spacer(modifier = Modifier.weight(1f))
 
             AppButton(
-                text = "حفظ ونشر للطلاب",
+                text = if (state.isSaving) "جار الحفظ..." else "حفظ ونشر للطلاب",
                 onClick = onSaveClick,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !state.isSaving // تعطيل الزر أثناء الحفظ
             )
         }
     }

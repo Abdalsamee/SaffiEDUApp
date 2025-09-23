@@ -7,6 +7,7 @@ data class Lesson(
     val subjectId: String? = null,
     val className: String? = null,
     val title: String? = null,
+    val publicationDate: String = "",
     val subTitle: String? = null,
     val duration: Int? = 0,
     val description: String? = null,
@@ -14,5 +15,5 @@ data class Lesson(
     val videoUrl: String? = null,
     val pagesCount: Int? = 0,
     val notificationStatus: String? = null,
-    val progress: Int = 0 // أضف هذا
+    val progress: Int = 0, // أضف هذا
 )
