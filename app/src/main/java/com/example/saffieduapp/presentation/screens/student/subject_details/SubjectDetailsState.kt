@@ -5,7 +5,13 @@ package com.example.saffieduapp.presentation.screens.student.subject_details
 import com.example.saffieduapp.domain.model.Subject
 import com.example.saffieduapp.presentation.screens.student.subject_details.components.Lesson
 import com.example.saffieduapp.presentation.screens.student.subject_details.components.PdfLesson
-data class Alert(val id: String, val message: String)
+import java.util.Date
+
+data class Alert(
+    val id: String,
+    val message: String,
+    val dateTime: Date? = null
+)
 /**
  * يمثل التبويبات المتاحة في الشاشة.
  */
