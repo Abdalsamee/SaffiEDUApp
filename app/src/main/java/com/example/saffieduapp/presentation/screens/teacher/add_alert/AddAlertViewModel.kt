@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.saffieduapp.data.FireBase.Alert
 import com.example.saffieduapp.data.FireBase.AlertRepository
+import com.google.firebase.firestore.FirebaseFirestore
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -11,6 +12,7 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -19,7 +21,8 @@ import javax.inject.Inject
 
 @HiltViewModel
 class AddAlertViewModel @Inject constructor(
-    private val repository: AlertRepository
+    private val repository: AlertRepository,
+    private val firestore: FirebaseFirestore
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(AddAlertState())
@@ -51,24 +54,52 @@ class AddAlertViewModel @Inject constructor(
             return
         }
 
-        _state.update { it.copy(isSaving = true) }
-
         viewModelScope.launch {
-            val alert = Alert(
-                description = current.alertDescription,
-                targetClass = current.targetClass,
-                sendDate = current.sendDate,
-                sendTime = current.sendTime
-            )
-            val success = repository.saveAlert(alert)
+            _state.update { it.copy(isSaving = true) }
 
-            if (success) {
-                _eventFlow.emit("تم حفظ التنبيه بنجاح ✅")
-                _state.update { AddAlertState() } // إعادة تعيين القيم بعد الحفظ
-            } else {
-                _eventFlow.emit("حدث خطأ أثناء حفظ التنبيه ❌")
+            try {
+                // جلب subjectId من Firestore حسب الصف المستهدف
+                val subjectId = getSubjectIdForClass(current.targetClass)
+                if (subjectId == null) {
+                    _eventFlow.emit("لم يتم العثور على المادة لهذه الصفوف")
+                    _state.update { it.copy(isSaving = false) }
+                    return@launch
+                }
+
+                val alert = Alert(
+                    description = current.alertDescription,
+                    targetClass = current.targetClass,
+                    sendDate = current.sendDate,
+                    sendTime = current.sendTime,
+                    subjectId = subjectId
+                )
+
+                val success = repository.saveAlert(alert)
+                if (success) {
+                    _eventFlow.emit("تم حفظ التنبيه بنجاح ✅")
+                    _state.update { AddAlertState() }
+                } else {
+                    _eventFlow.emit("حدث خطأ أثناء حفظ التنبيه ❌")
+                    _state.update { it.copy(isSaving = false) }
+                }
+            } catch (e: Exception) {
+                _eventFlow.emit("حدث خطأ: ${e.message}")
                 _state.update { it.copy(isSaving = false) }
             }
+        }
+    }
+    // دالة مساعدة لجلب subjectId من Firestore
+    private suspend fun getSubjectIdForClass(targetClass: String): String? {
+        return try {
+            val querySnapshot = firestore.collection("lessons")
+                .whereEqualTo("className", targetClass)
+                .limit(1)
+                .get()
+                .await()
+            querySnapshot.documents.firstOrNull()?.getString("subjectId")
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
         }
     }
 

@@ -7,7 +7,8 @@ data class Alert(
     val description: String = "",
     val targetClass: String = "",
     val sendDate: String = "",
-    val sendTime: String = ""
+    val sendTime: String = "",
+    val subjectId: String = "" // 🔹 إضافة معرف المادة
 )
 
 class AlertRepository(
@@ -22,6 +23,23 @@ class AlertRepository(
         } catch (e: Exception) {
             e.printStackTrace()
             false
+        }
+    }
+
+    suspend fun getLatestAlertBySubject(subjectId: String): Alert? {
+        return try {
+            val querySnapshot = firestore.collection("alerts")
+                .whereEqualTo("subjectId", subjectId)
+                .orderBy("sendDate") // ترتيب حسب التاريخ
+                .orderBy("sendTime") // ثم الوقت
+                .limit(1)
+                .get()
+                .await()
+
+            querySnapshot.documents.firstOrNull()?.toObject(Alert::class.java)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
         }
     }
 }
