@@ -18,6 +18,7 @@ import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 import kotlinx.coroutines.withTimeout
 import java.text.SimpleDateFormat
+import java.util.Date
 import java.util.Locale
 
 data class StdData(
@@ -74,6 +75,9 @@ class HomeViewModel @Inject constructor(
                             // استدعاء التنبيهات لكل مادة بعد تحميلها
                             _state.value.enrolledSubjects.forEach { subject ->
                                 listenForAlerts(subject.id, userData.grade)}
+
+                            // **استدعاء دالة الاستماع هنا بعد معرفة الصف**
+                            listenForNewLessons(userData.grade)
                         }
                     }
                 } catch (e: Exception) {
@@ -220,5 +224,32 @@ class HomeViewModel @Inject constructor(
                 }
             }
     }
+    private fun listenForNewLessons(studentGrade: String) {
+
+        firestore.collection("lessons")
+            .whereEqualTo("className", studentGrade)
+            .whereEqualTo("notifyStudents", true)
+            .addSnapshotListener { snapshot, e ->
+                if (e != null || snapshot == null) return@addSnapshotListener
+
+                snapshot.documents.forEach { doc ->
+                    val lessonTitle = doc.getString("title") ?: return@forEach
+                    val lessonDescription = doc.getString("description") ?: ""
+                    val publicationDateStr = doc.getString("publicationDate") ?: ""
+
+                    val format = SimpleDateFormat("yyyy-MM-dd", Locale.ENGLISH)
+                    val triggerDate = format.parse(publicationDateStr) ?: Date()
+
+                    AlertScheduler.scheduleAlert(
+                        context = appContext,
+                        alertId = doc.id,
+                        title = "درس جديد: $lessonTitle",
+                        message = lessonDescription,
+                        triggerTime = triggerDate
+                    )
+                }
+            }
+    }
+
 
 }
