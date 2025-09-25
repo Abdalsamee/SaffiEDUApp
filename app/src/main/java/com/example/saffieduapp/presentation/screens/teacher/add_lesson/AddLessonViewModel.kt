@@ -5,11 +5,12 @@ import android.graphics.pdf.PdfRenderer
 import android.net.Uri
 import android.os.ParcelFileDescriptor
 import android.provider.OpenableColumns
-import android.util.Log
 import android.widget.Toast
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.saffieduapp.data.FireBase.DraftLessonManager
 import com.example.saffieduapp.data.FireBase.LessonRepository
+import com.example.saffieduapp.data.FireBase.WorkManager.AlertScheduler
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -19,9 +20,11 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
-import javax.inject.Inject
 import java.io.File
-
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import javax.inject.Inject
 
 @HiltViewModel
 class AddLessonViewModel @Inject constructor(
@@ -34,42 +37,69 @@ class AddLessonViewModel @Inject constructor(
     private val _state = MutableStateFlow(AddLessonState())
     val state = _state.asStateFlow()
 
-    // الحد الأقصى لحجم الملف: 200 ميغابايت
-    private val MAX_FILE_SIZE = 200L * 1024L * 1024L
+    // إضافة MutableStateFlow للتحكم في حالة زر حفظ المسودة
+    private val _isDraftSaved = MutableStateFlow(false)
+    val isDraftSaved = _isDraftSaved.asStateFlow()
 
-    val availableGrades = listOf(
-        "الصف الأول", "الصف الثاني", "الصف الثالث", "الصف الرابع",
-        "الصف الخامس", "الصف السادس", "الصف السابع", "الصف الثامن",
-        "الصف التاسع", "الصف العاشر", "الصف الحادي عشر", "الصف الثاني عشر"
-    )
+    private val MAX_FILE_SIZE = 200L * 1024L * 1024L // 200 ميغابايت
 
-    private suspend fun fetchTeacherAndSubjectIds(): Pair<String?, String?> {
-        return try {
-            val currentUserEmail = auth.currentUser?.email ?: return null to null
+    private val draftManager = DraftLessonManager(context)
 
-            val teacherSnapshot = firestore.collection("teachers")
-                .whereEqualTo("email", currentUserEmail)
-                .get()
-                .await()
+    init {
+        viewModelScope.launch {
+            draftManager.draftFlow.collect { (draft, isSaved) ->
+                draft?.let {
+                    _state.update { current ->
+                        current.copy(
+                            lessonTitle = it.lessonTitle,
+                            description = it.description,
+                            selectedClass = it.selectedClass,
+                            selectedVideoUri = it.selectedVideoUri,
+                            selectedPdfUri = it.selectedPdfUri,
+                            selectedVideoName = it.selectedVideoName,
+                            selectedPdfName = it.selectedPdfName,
+                            publicationDate = it.publicationDate,
+                            notifyStudents = it.notifyStudents,
+                            selectedContentType = it.selectedContentType
+                        )
+                    }
+                }
+                _isDraftSaved.value = isSaved // MutableStateFlow<Boolean>
+            }
+        }
+    }
 
-            if (teacherSnapshot.isEmpty) return null to null
-            val teacherDoc = teacherSnapshot.documents[0]
-            val teacherId = teacherDoc.id
-
-            val subjectsSnapshot = firestore.collection("subjects")
-                .whereEqualTo("teacherId", teacherId)
-                .get()
-                .await()
-
-            val subjectId = if (subjectsSnapshot.isEmpty) null else subjectsSnapshot.documents[0].id
-            teacherId to subjectId
-        } catch (e: Exception) {
-            e.printStackTrace()
-            null to null
+    private fun saveDraft() {
+        viewModelScope.launch {
+            draftManager.saveDraft(state.value)
         }
     }
 
     fun onEvent(event: AddLessonEvent) {
+        when (event) {
+            is AddLessonEvent.SaveDraftClicked -> {
+                viewModelScope.launch {
+                    draftManager.saveDraft(state.value, isButtonClick = true)
+                    _isDraftSaved.value = true // الزر أصبح تم الحفظ
+                }
+            }
+            // باقي الأحداث كما هي
+            is AddLessonEvent.TitleChanged,
+            is AddLessonEvent.DescriptionChanged,
+            is AddLessonEvent.ClassSelected,
+            is AddLessonEvent.VideoSelected,
+            is AddLessonEvent.PdfSelected,
+            is AddLessonEvent.DateChanged,
+            is AddLessonEvent.NotifyStudentsToggled -> {
+                updateStateFromEvent(event)
+                _isDraftSaved.value = false // أي تعديل يلغي حالة "تم الحفظ"
+            }
+
+            else -> {}
+        }
+    }
+
+    private fun updateStateFromEvent(event: AddLessonEvent) {
         when (event) {
             is AddLessonEvent.TitleChanged -> _state.update { it.copy(lessonTitle = event.title) }
             is AddLessonEvent.DescriptionChanged -> _state.update { it.copy(description = event.description) }
@@ -93,23 +123,33 @@ class AddLessonViewModel @Inject constructor(
                     description = ""
                 )
             }
-            is AddLessonEvent.ClearVideoSelection -> _state.update {
-                it.copy(
-                    selectedVideoUri = null,
-                    selectedVideoName = null,
-                    selectedContentType = if (it.selectedPdfUri == null) ContentType.NONE else ContentType.PDF
-                )
-            }
-            is AddLessonEvent.ClearPdfSelection -> _state.update {
-                it.copy(
-                    selectedPdfUri = null,
-                    selectedPdfName = null,
-                    selectedContentType = if (it.selectedVideoUri == null) ContentType.NONE else ContentType.VIDEO
-                )
-            }
             is AddLessonEvent.DateChanged -> _state.update { it.copy(publicationDate = event.date) }
             is AddLessonEvent.NotifyStudentsToggled -> _state.update { it.copy(notifyStudents = event.isEnabled) }
-            is AddLessonEvent.SaveClicked -> saveLesson()
+            else -> {}
+        }
+        // إعادة الزر إلى الحالة الطبيعية عند أي تعديل
+        _isDraftSaved.value = false
+    }
+
+    private suspend fun fetchTeacherAndSubjectIds(): Pair<String?, String?> {
+        return try {
+            val currentUserEmail = auth.currentUser?.email ?: return null to null
+            val teacherSnapshot = firestore.collection("teachers")
+                .whereEqualTo("email", currentUserEmail)
+                .get()
+                .await()
+            if (teacherSnapshot.isEmpty) return null to null
+            val teacherDoc = teacherSnapshot.documents[0]
+            val teacherId = teacherDoc.id
+            val subjectsSnapshot = firestore.collection("subjects")
+                .whereEqualTo("teacherId", teacherId)
+                .get()
+                .await()
+            val subjectId = if (subjectsSnapshot.isEmpty) null else subjectsSnapshot.documents[0].id
+            teacherId to subjectId
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null to null
         }
     }
 
@@ -117,7 +157,7 @@ class AddLessonViewModel @Inject constructor(
         viewModelScope.launch {
             val current = state.value
 
-            // 1️⃣ التحقق من الحقول الأساسية
+            // تحقق من الحقول الأساسية
             if (current.lessonTitle.isBlank()) {
                 Toast.makeText(context, "يرجى إدخال عنوان الدرس", Toast.LENGTH_SHORT).show()
                 return@launch
@@ -134,7 +174,6 @@ class AddLessonViewModel @Inject constructor(
             _state.update { it.copy(isSaving = true) }
 
             try {
-                // 2️⃣ جلب بيانات المعلم والمادة
                 val (teacherId, subjectId) = fetchTeacherAndSubjectIds()
                 if (teacherId == null || subjectId == null) {
                     Toast.makeText(context, "❌ لم يتم العثور على بيانات المعلم أو المادة", Toast.LENGTH_LONG).show()
@@ -144,8 +183,9 @@ class AddLessonViewModel @Inject constructor(
 
                 var pdfUrl: String? = null
                 var videoUrl: String? = null
+                var pagesCount = 0
 
-                // 3️⃣ رفع الفيديو إذا موجود
+                // رفع الفيديو إذا موجود
                 current.selectedVideoUri?.let { uri ->
                     val fileSize = getFileSize(uri)
                     if (fileSize > MAX_FILE_SIZE) {
@@ -159,7 +199,7 @@ class AddLessonViewModel @Inject constructor(
                     )
                 }
 
-                // 4️⃣ رفع PDF إذا موجود
+                // رفع PDF وحساب عدد الصفحات
                 current.selectedPdfUri?.let { uri ->
                     val fileSize = getFileSize(uri)
                     if (fileSize > MAX_FILE_SIZE) {
@@ -167,39 +207,42 @@ class AddLessonViewModel @Inject constructor(
                         _state.update { it.copy(isSaving = false) }
                         return@launch
                     }
+
+                    // تحويل Uri إلى File مؤقت
+                    val pdfFile = uriToFile(uri)
+
+                    // حساب عدد الصفحات
+                    pagesCount = getPdfPageCount(pdfFile)
+
+                    // رفع الملف
                     pdfUrl = lessonRepository.uploadFile(
                         "lessons/pdf/${System.currentTimeMillis()}_${getFileName(uri)}",
                         uri
                     )
                 }
 
-                // 5️⃣ تحويل التاريخ العربي إلى إنجليزي
-                val englishDate = convertArabicNumbersToEnglish(current.publicationDate)
-
-                // 7️⃣ حفظ الدرس
                 val lessonData = mapOf(
                     "title" to current.lessonTitle,
                     "description" to current.description,
                     "className" to current.selectedClass,
-                    "publicationDate" to englishDate,
-                    "notifyStudents" to current.notifyStudents, // ← حفظ اختيار الإشعار
+                    "publicationDate" to current.publicationDate,
+                    "notifyStudents" to current.notifyStudents,
                     "isDraft" to isDraft,
                     "createdAt" to System.currentTimeMillis(),
                     "pdfUrl" to pdfUrl,
                     "videoUrl" to videoUrl,
-                    "pagesCount" to 0,
+                    "pagesCount" to pagesCount, // العدد الحقيقي للصفحات
                     "subjectId" to subjectId,
                     "teacherId" to teacherId,
                     "notificationStatus" to "pending",
                     "isNotified" to false
                 )
 
-                // 7️⃣ حفظ الدرس
-                 lessonRepository.saveLessonAndReturnId(lessonData)
+                lessonRepository.saveLessonAndReturnId(lessonData)
 
                 Toast.makeText(context, "✅ تم حفظ الدرس بنجاح", Toast.LENGTH_SHORT).show()
 
-                // 8️⃣ إعادة تعيين الحالة بعد الحفظ
+                // إعادة تعيين الحالة
                 _state.update {
                     it.copy(
                         lessonTitle = "",
@@ -223,24 +266,6 @@ class AddLessonViewModel @Inject constructor(
             }
         }
     }
-    // دالة لتحويل الأرقام العربية إلى إنجليزية
-    private fun convertArabicNumbersToEnglish(arabicDate: String): String {
-        return arabicDate.map { char ->
-            when (char) {
-                '٠' -> '0'
-                '١' -> '1'
-                '٢' -> '2'
-                '٣' -> '3'
-                '٤' -> '4'
-                '٥' -> '5'
-                '٦' -> '6'
-                '٧' -> '7'
-                '٨' -> '8'
-                '٩' -> '9'
-                else -> char
-            }
-        }.joinToString("")
-    }
 
     // الحصول على اسم الملف من Uri
     private fun getFileName(uri: Uri): String? {
@@ -258,6 +283,18 @@ class AddLessonViewModel @Inject constructor(
             cursor.moveToFirst()
             cursor.getLong(sizeIndex)
         } ?: 0L
+    }
+
+    // تحويل Uri إلى File مؤقت
+    private fun uriToFile(uri: Uri): File {
+        val inputStream = context.contentResolver.openInputStream(uri)!!
+        val tempFile = File(context.cacheDir, getFileName(uri) ?: "temp.pdf")
+        inputStream.use { input ->
+            tempFile.outputStream().use { output ->
+                input.copyTo(output)
+            }
+        }
+        return tempFile
     }
 
     // حساب عدد صفحات PDF
