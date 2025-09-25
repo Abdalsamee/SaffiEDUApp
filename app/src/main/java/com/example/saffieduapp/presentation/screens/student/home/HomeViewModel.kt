@@ -1,7 +1,10 @@
 package com.example.saffieduapp.presentation.screens.student.home
 
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.saffieduapp.data.FireBase.WorkManager.AlertScheduler
 import com.example.saffieduapp.domain.model.FeaturedLesson
 import com.example.saffieduapp.domain.model.Subject
 import com.example.saffieduapp.domain.model.UrgentTask
@@ -14,6 +17,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 import kotlinx.coroutines.withTimeout
+import java.text.SimpleDateFormat
+import java.util.Locale
 
 data class StdData(
     val fullName: String = "",
@@ -23,11 +28,14 @@ data class StdData(
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     private val auth: FirebaseAuth,
-    private val firestore: FirebaseFirestore
-) : ViewModel() {
+    private val firestore: FirebaseFirestore,
+    application: Application // حقن التطبيق
+) : AndroidViewModel(application) {
 
     private val _state = MutableStateFlow(HomeState())
     val state = _state.asStateFlow()
+    private val appContext = application.applicationContext
+
 
     init {
         loadUserData()
@@ -62,6 +70,10 @@ class HomeViewModel @Inject constructor(
 
                             // ✅ استدعاء المواد للصف المناسب بعد معرفة grade
                             loadSubjects()
+
+                            // استدعاء التنبيهات لكل مادة بعد تحميلها
+                            _state.value.enrolledSubjects.forEach { subject ->
+                                listenForAlerts(subject.id, userData.grade)}
                         }
                     }
                 } catch (e: Exception) {
@@ -176,4 +188,37 @@ class HomeViewModel @Inject constructor(
     fun onSearchQueryChanged(newQuery: String) {
         _state.value = _state.value.copy(searchQuery = newQuery)
     }
+
+    private fun listenForAlerts(currentSubjectId: String, currentClassId: String) {
+        firestore.collection("alerts")
+            .whereEqualTo("subjectId", currentSubjectId) // فلترة حسب المادة
+            .whereEqualTo("targetClass", currentClassId) // فلترة حسب الصف
+            .addSnapshotListener { snapshot, e ->
+                if (e != null || snapshot == null) return@addSnapshotListener
+
+                for (doc in snapshot.documents) {
+                    val description = doc.getString("description") ?: continue
+                    val sendDate = doc.getString("sendDate") ?: continue // "yyyy-MM-dd"
+                    val sendTime = doc.getString("sendTime") ?: "00:00 AM"
+
+                    // دمج التاريخ مع الوقت وتحويله إلى Date
+                    val format = SimpleDateFormat("yyyy-MM-dd hh:mm a", Locale.ENGLISH)
+                    val triggerDate = try {
+                        format.parse("$sendDate $sendTime")
+                    } catch (ex: Exception) {
+                        null
+                    } ?: continue
+
+                    // جدولة الإشعار
+                    AlertScheduler.scheduleAlert(
+                        context = appContext,
+                        alertId = doc.id,
+                        title = "📢 تنبيه جديد",
+                        message = description,
+                        triggerTime = triggerDate
+                    )
+                }
+            }
+    }
+
 }
