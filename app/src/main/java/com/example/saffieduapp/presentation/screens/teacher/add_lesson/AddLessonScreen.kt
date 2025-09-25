@@ -172,11 +172,13 @@ fun AddLessonScreen(
                     LessonDatePicker(
                         selectedDate = state.publicationDate,
                         onDateSelected = { millis ->
-                            val formatted = SimpleDateFormat("yyyy-MM-dd", Locale.ENGLISH).format(Date(millis))
+                            val formatted = SimpleDateFormat("yyyy-MM-dd", Locale.ENGLISH)
+                                .format(Date(millis))
                             viewModel.onEvent(AddLessonEvent.DateChanged(formatted))
                         },
                         modifier = Modifier.fillMaxWidth()
                     )
+
                 }
 
                 NotificationSwitch(

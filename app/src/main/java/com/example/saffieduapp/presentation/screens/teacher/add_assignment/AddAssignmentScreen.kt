@@ -26,6 +26,7 @@ import com.example.saffieduapp.presentation.screens.teacher.add_lesson.component
 import com.example.saffieduapp.presentation.screens.teacher.components.AppButton
 import com.example.saffieduapp.presentation.screens.teacher.components.ClassDropdown
 import com.example.saffieduapp.ui.theme.SaffiEDUAppTheme
+import java.util.Locale
 
 @Composable
 fun AddAssignmentScreen(
@@ -137,7 +138,7 @@ private fun AddAssignmentScreenContent(
                         selectedDate = state.dueDate,
                         onDateSelected = { millis ->
                             // تحويل Long إلى String بصيغة yyyy-MM-dd
-                            val formatted = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.ENGLISH)
+                            val formatted = java.text.SimpleDateFormat("yyyy-MM-dd", Locale.ENGLISH)
                                 .format(java.util.Date(millis))
                             onDateSelected(formatted)
                         },
