@@ -37,7 +37,8 @@ class AddLessonViewModel @Inject constructor(
     private val _state = MutableStateFlow(AddLessonState())
     val state = _state.asStateFlow()
 
-    private val _isDraftSaved = MutableStateFlow(false)  // ← هنا
+    // إضافة MutableStateFlow للتحكم في حالة زر حفظ المسودة
+    private val _isDraftSaved = MutableStateFlow(false)
     val isDraftSaved = _isDraftSaved.asStateFlow()
 
     private val MAX_FILE_SIZE = 200L * 1024L * 1024L // 200 ميغابايت
@@ -74,28 +75,15 @@ class AddLessonViewModel @Inject constructor(
         }
     }
 
-    // تعديل حدث SaveClicked ليدعم المسودة
     fun onEvent(event: AddLessonEvent) {
         when (event) {
-            is AddLessonEvent.SaveClicked -> saveLesson() // حفظ نهائي
             is AddLessonEvent.SaveDraftClicked -> {
-                saveDraft()
-                _isDraftSaved.value = true
+                viewModelScope.launch {
+                    draftManager.saveDraft(state.value, isButtonClick = true)
+                    _isDraftSaved.value = true // الزر أصبح تم الحفظ
+                }
             }
-            is AddLessonEvent.ClearVideoSelection -> _state.update {
-                it.copy(
-                    selectedVideoUri = null,
-                    selectedVideoName = null,
-                    selectedContentType = if (it.selectedPdfUri == null) ContentType.NONE else ContentType.PDF
-                )
-            }
-            is AddLessonEvent.ClearPdfSelection -> _state.update {
-                it.copy(
-                    selectedPdfUri = null,
-                    selectedPdfName = null,
-                    selectedContentType = if (it.selectedVideoUri == null) ContentType.NONE else ContentType.VIDEO
-                )
-            }
+            // باقي الأحداث كما هي
             is AddLessonEvent.TitleChanged,
             is AddLessonEvent.DescriptionChanged,
             is AddLessonEvent.ClassSelected,
@@ -104,8 +92,10 @@ class AddLessonViewModel @Inject constructor(
             is AddLessonEvent.DateChanged,
             is AddLessonEvent.NotifyStudentsToggled -> {
                 updateStateFromEvent(event)
-                saveDraft() // الحفظ التلقائي كمسودة
+                _isDraftSaved.value = false // أي تعديل يلغي حالة "تم الحفظ"
             }
+
+            else -> {}
         }
     }
 

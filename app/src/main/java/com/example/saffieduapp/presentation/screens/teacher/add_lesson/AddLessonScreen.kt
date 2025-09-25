@@ -201,18 +201,14 @@ fun AddLessonScreen(
                 )
                 Spacer(modifier = Modifier.height(20.dp))
             }
-            var isSaved by remember { mutableStateOf(false) }
             Button(
-                onClick = {
-                    viewModel.onEvent(AddLessonEvent.SaveDraftClicked)
-                },
+                onClick = { viewModel.onEvent(AddLessonEvent.SaveDraftClicked) },
                 shape = RoundedCornerShape(25),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = if (isDraftSaved) Color.Gray else AppPrimary
-                ),
+                colors = ButtonDefaults.buttonColors(containerColor = AppPrimary),
                 modifier = Modifier
                     .align(Alignment.TopEnd)
-                    .padding(top = 90.dp, end = 25.dp)
+                    .padding(top = 90.dp, end = 25.dp),
+                enabled = !isDraftSaved // تعطيل الزر بعد الحفظ
             ) {
                 Text(
                     text = if (isDraftSaved) "تم الحفظ" else "حفظ كمسودة",
