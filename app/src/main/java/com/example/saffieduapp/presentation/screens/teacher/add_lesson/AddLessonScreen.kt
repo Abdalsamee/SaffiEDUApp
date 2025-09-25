@@ -1,5 +1,6 @@
 package com.example.saffieduapp.presentation.screens.teacher.add_lesson
 
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -20,6 +21,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -45,6 +47,8 @@ fun AddLessonScreen(
     viewModel: AddLessonViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
+    val isDraftSaved by viewModel.isDraftSaved.collectAsState()
+
 
     // --- ١. تعريف مشغّل منتقي الفيديو ---
     val videoPickerLauncher = rememberLauncherForActivityResult(
@@ -200,16 +204,18 @@ fun AddLessonScreen(
             var isSaved by remember { mutableStateOf(false) }
             Button(
                 onClick = {
-                    isSaved = true // عند الضغط، النص يتغير
+                    viewModel.onEvent(AddLessonEvent.SaveDraftClicked)
                 },
                 shape = RoundedCornerShape(25),
-                colors = ButtonDefaults.buttonColors(containerColor = AppPrimary),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (isDraftSaved) Color.Gray else AppPrimary
+                ),
                 modifier = Modifier
                     .align(Alignment.TopEnd)
                     .padding(top = 90.dp, end = 25.dp)
             ) {
                 Text(
-                    text = if (isSaved) "تم الحفظ" else "حفظ كمسودة",
+                    text = if (isDraftSaved) "تم الحفظ" else "حفظ كمسودة",
                     color = Color.White,
                     fontSize = 13.sp
                 )
@@ -217,6 +223,7 @@ fun AddLessonScreen(
         }
     }
 }
+
 
 //@Preview(showBackground = true, locale = "ar", showSystemUi = true)
 //@Composable

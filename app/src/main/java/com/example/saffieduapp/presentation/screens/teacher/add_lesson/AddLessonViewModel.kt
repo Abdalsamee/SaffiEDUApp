@@ -8,6 +8,7 @@ import android.provider.OpenableColumns
 import android.widget.Toast
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.saffieduapp.data.FireBase.DraftLessonManager
 import com.example.saffieduapp.data.FireBase.LessonRepository
 import com.example.saffieduapp.data.FireBase.WorkManager.AlertScheduler
 import com.google.firebase.auth.FirebaseAuth
@@ -36,31 +37,79 @@ class AddLessonViewModel @Inject constructor(
     private val _state = MutableStateFlow(AddLessonState())
     val state = _state.asStateFlow()
 
+    private val _isDraftSaved = MutableStateFlow(false)  // ← هنا
+    val isDraftSaved = _isDraftSaved.asStateFlow()
+
     private val MAX_FILE_SIZE = 200L * 1024L * 1024L // 200 ميغابايت
 
-    private suspend fun fetchTeacherAndSubjectIds(): Pair<String?, String?> {
-        return try {
-            val currentUserEmail = auth.currentUser?.email ?: return null to null
-            val teacherSnapshot = firestore.collection("teachers")
-                .whereEqualTo("email", currentUserEmail)
-                .get()
-                .await()
-            if (teacherSnapshot.isEmpty) return null to null
-            val teacherDoc = teacherSnapshot.documents[0]
-            val teacherId = teacherDoc.id
-            val subjectsSnapshot = firestore.collection("subjects")
-                .whereEqualTo("teacherId", teacherId)
-                .get()
-                .await()
-            val subjectId = if (subjectsSnapshot.isEmpty) null else subjectsSnapshot.documents[0].id
-            teacherId to subjectId
-        } catch (e: Exception) {
-            e.printStackTrace()
-            null to null
+    private val draftManager = DraftLessonManager(context)
+
+    init {
+        viewModelScope.launch {
+            draftManager.draftFlow.collect { (draft, isSaved) ->
+                draft?.let {
+                    _state.update { current ->
+                        current.copy(
+                            lessonTitle = it.lessonTitle,
+                            description = it.description,
+                            selectedClass = it.selectedClass,
+                            selectedVideoUri = it.selectedVideoUri,
+                            selectedPdfUri = it.selectedPdfUri,
+                            selectedVideoName = it.selectedVideoName,
+                            selectedPdfName = it.selectedPdfName,
+                            publicationDate = it.publicationDate,
+                            notifyStudents = it.notifyStudents,
+                            selectedContentType = it.selectedContentType
+                        )
+                    }
+                }
+                _isDraftSaved.value = isSaved // MutableStateFlow<Boolean>
+            }
         }
     }
 
+    private fun saveDraft() {
+        viewModelScope.launch {
+            draftManager.saveDraft(state.value)
+        }
+    }
+
+    // تعديل حدث SaveClicked ليدعم المسودة
     fun onEvent(event: AddLessonEvent) {
+        when (event) {
+            is AddLessonEvent.SaveClicked -> saveLesson() // حفظ نهائي
+            is AddLessonEvent.SaveDraftClicked -> {
+                saveDraft()
+                _isDraftSaved.value = true
+            }
+            is AddLessonEvent.ClearVideoSelection -> _state.update {
+                it.copy(
+                    selectedVideoUri = null,
+                    selectedVideoName = null,
+                    selectedContentType = if (it.selectedPdfUri == null) ContentType.NONE else ContentType.PDF
+                )
+            }
+            is AddLessonEvent.ClearPdfSelection -> _state.update {
+                it.copy(
+                    selectedPdfUri = null,
+                    selectedPdfName = null,
+                    selectedContentType = if (it.selectedVideoUri == null) ContentType.NONE else ContentType.VIDEO
+                )
+            }
+            is AddLessonEvent.TitleChanged,
+            is AddLessonEvent.DescriptionChanged,
+            is AddLessonEvent.ClassSelected,
+            is AddLessonEvent.VideoSelected,
+            is AddLessonEvent.PdfSelected,
+            is AddLessonEvent.DateChanged,
+            is AddLessonEvent.NotifyStudentsToggled -> {
+                updateStateFromEvent(event)
+                saveDraft() // الحفظ التلقائي كمسودة
+            }
+        }
+    }
+
+    private fun updateStateFromEvent(event: AddLessonEvent) {
         when (event) {
             is AddLessonEvent.TitleChanged -> _state.update { it.copy(lessonTitle = event.title) }
             is AddLessonEvent.DescriptionChanged -> _state.update { it.copy(description = event.description) }
@@ -84,23 +133,33 @@ class AddLessonViewModel @Inject constructor(
                     description = ""
                 )
             }
-            is AddLessonEvent.ClearVideoSelection -> _state.update {
-                it.copy(
-                    selectedVideoUri = null,
-                    selectedVideoName = null,
-                    selectedContentType = if (it.selectedPdfUri == null) ContentType.NONE else ContentType.PDF
-                )
-            }
-            is AddLessonEvent.ClearPdfSelection -> _state.update {
-                it.copy(
-                    selectedPdfUri = null,
-                    selectedPdfName = null,
-                    selectedContentType = if (it.selectedVideoUri == null) ContentType.NONE else ContentType.VIDEO
-                )
-            }
             is AddLessonEvent.DateChanged -> _state.update { it.copy(publicationDate = event.date) }
             is AddLessonEvent.NotifyStudentsToggled -> _state.update { it.copy(notifyStudents = event.isEnabled) }
-            is AddLessonEvent.SaveClicked -> saveLesson()
+            else -> {}
+        }
+        // إعادة الزر إلى الحالة الطبيعية عند أي تعديل
+        _isDraftSaved.value = false
+    }
+
+    private suspend fun fetchTeacherAndSubjectIds(): Pair<String?, String?> {
+        return try {
+            val currentUserEmail = auth.currentUser?.email ?: return null to null
+            val teacherSnapshot = firestore.collection("teachers")
+                .whereEqualTo("email", currentUserEmail)
+                .get()
+                .await()
+            if (teacherSnapshot.isEmpty) return null to null
+            val teacherDoc = teacherSnapshot.documents[0]
+            val teacherId = teacherDoc.id
+            val subjectsSnapshot = firestore.collection("subjects")
+                .whereEqualTo("teacherId", teacherId)
+                .get()
+                .await()
+            val subjectId = if (subjectsSnapshot.isEmpty) null else subjectsSnapshot.documents[0].id
+            teacherId to subjectId
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null to null
         }
     }
 
