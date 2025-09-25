@@ -186,7 +186,7 @@ class SubjectDetailsViewModel @Inject constructor(
 
                 // الحصول على التاريخ الحالي
                 val currentDate = Calendar.getInstance().time
-                val dateFormat = SimpleDateFormat("d/M/yyyy", Locale.getDefault())
+                val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.ENGLISH)
 
                 docs.documents.forEach { doc ->
                     val id = doc.id
