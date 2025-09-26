@@ -14,7 +14,8 @@ object Routes {
     // تبويبات الجراف الرئيسي (كما ضبطتها سابقًا)
     const val HOME_SCREEN      = "home_graph"
     const val SUBJECTS_SCREEN  = "subjects_graph"
-    const val TASKS_SCREEN     = "tasks_graph"
+    const val TASKS_NAV_GRAPH = "tasks_nav_graph"
+    const val TASKS_SCREEN = "tasks_screen"
     const val CHAT_SCREEN      = "chat_graph"
     const val PROFILE_SCREEN   = "profile_graph"
 
