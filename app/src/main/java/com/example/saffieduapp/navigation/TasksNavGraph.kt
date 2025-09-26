@@ -1,0 +1,19 @@
+package com.example.saffieduapp.navigation
+
+import androidx.navigation.NavController
+import androidx.navigation.NavGraphBuilder
+import androidx.navigation.compose.composable
+import androidx.navigation.navigation
+import com.example.saffieduapp.presentation.screens.student.tasks.TasksScreen
+
+fun NavGraphBuilder.tasksNavGraph(navController: NavController) {
+    navigation(
+        startDestination = Routes.TASKS_SCREEN,
+        route = Routes.TASKS_NAV_GRAPH
+    ) {
+        composable(Routes.TASKS_SCREEN) {
+            TasksScreen()
+        }
+
+    }
+}

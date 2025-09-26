@@ -26,7 +26,7 @@ fun LessonDatePicker(
     modifier: Modifier = Modifier
 ) {
     var showDatePicker by remember { mutableStateOf(false) }
-    val dateFormatter = remember { SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()) }
+    val dateFormatter = remember { SimpleDateFormat("yyyy-MM-dd", Locale.ENGLISH) }
 
     Column(verticalArrangement = Arrangement.spacedBy(4.dp), modifier = modifier) {
 

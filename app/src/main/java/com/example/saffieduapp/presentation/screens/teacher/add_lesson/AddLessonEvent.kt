@@ -11,6 +11,7 @@ sealed interface AddLessonEvent {
     data class DateChanged(val date: String) : AddLessonEvent
     data class NotifyStudentsToggled(val isEnabled: Boolean) : AddLessonEvent
     data object SaveClicked : AddLessonEvent
+    data object SaveDraftClicked : AddLessonEvent   // ← أضف هذا
     data object ClearVideoSelection : AddLessonEvent
     data object ClearPdfSelection : AddLessonEvent
 }

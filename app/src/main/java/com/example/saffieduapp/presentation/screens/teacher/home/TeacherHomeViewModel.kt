@@ -41,11 +41,11 @@ class TeacherHomeViewModel @Inject constructor(
     )
 
     private val classesList = listOf(
-        TeacherClass("c1","الصف الأول","رياضيات","",30,listOf("", "", "")),
-        TeacherClass("c2","الصف الثاني","رياضيات","",24,listOf("", "", "")),
-        TeacherClass("c3","الصف الثالث","","",15,listOf("", "", "")),
-        TeacherClass("c4","الصف الرابع","","",12,listOf("", "", "")),
-        TeacherClass("c5","الصف الخامس","","",20,listOf("", "", ""))
+        TeacherClass("c1", "الصف الأول", "رياضيات", "", 30, listOf("", "", "")),
+        TeacherClass("c2", "الصف الثاني", "رياضيات", "", 24, listOf("", "", "")),
+        TeacherClass("c3", "الصف الثالث", "", "", 15, listOf("", "", "")),
+        TeacherClass("c4", "الصف الرابع", "", "", 12, listOf("", "", "")),
+        TeacherClass("c5", "الصف الخامس", "", "", 20, listOf("", "", ""))
     )
 
     private var currentPage = 0
@@ -85,9 +85,9 @@ class TeacherHomeViewModel @Inject constructor(
                         val hasAnySubject = !subjectsSnapshot.isEmpty // true إذا وجد أي مستند
 
                         loadInitialData(
-                            teacherName = teacherData?.fullName ?: "غير معروف",
+                            teacherName = formatUserName(teacherData?.fullName ?: "غير معروف"),
                             teacherSubject = teacherData?.subject ?: "غير معروف",
-                            isActivated = hasAnySubject // ✅ إذا موجود أي مادة، الزر لا يظهر
+                            isActivated = hasAnySubject
                         )
                         return@launch
                     }
@@ -119,7 +119,13 @@ class TeacherHomeViewModel @Inject constructor(
                 profileImageUrl = "",
                 studentUpdates = allUpdates.take(3),
                 teacherClasses = classesList,
-                availableClassesForFilter = listOf("الصف السادس","الصف السابع","الصف الثامن","الصف الثاني عشر","الصف الحادي عشر"),
+                availableClassesForFilter = listOf(
+                    "الصف السادس",
+                    "الصف السابع",
+                    "الصف الثامن",
+                    "الصف الثاني عشر",
+                    "الصف الحادي عشر"
+                ),
                 selectedClassFilter = "الصف السادس",
                 topStudents = topStudentsList,
                 showActivateButton = !isActivated
@@ -194,5 +200,18 @@ class TeacherHomeViewModel @Inject constructor(
 
     fun onSearchQueryChanged(query: String) {
         _state.value = _state.value.copy(searchQuery = query)
+    }
+
+    private fun formatUserName(fullName: String): String {
+        return try {
+            val nameParts = fullName.trim().split("\\s+".toRegex())
+            when {
+                nameParts.isEmpty() -> "أ. غير معروف"
+                nameParts.size == 1 -> "أ. ${nameParts[0]}"
+                else -> "أ. ${nameParts.first()} ${nameParts.last()}"
+            }
+        } catch (e: Exception) {
+            "أ. غير معروف"
+        }
     }
 }

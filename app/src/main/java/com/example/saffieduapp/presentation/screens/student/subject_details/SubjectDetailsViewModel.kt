@@ -6,6 +6,7 @@ import androidx.core.content.FileProvider
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.saffieduapp.data.FireBase.AlertRepository
 import com.example.saffieduapp.domain.model.Subject
 import com.example.saffieduapp.presentation.screens.student.subject_details.components.Lesson
 import com.example.saffieduapp.presentation.screens.student.subject_details.components.PdfLesson
@@ -62,10 +63,48 @@ class SubjectDetailsViewModel @Inject constructor(
     }
 
     private fun loadAlerts() {
-        val sampleAlerts = listOf(
-            Alert(id = "1", message = "تم إلغاء الدرس الأول بعنوان شرح سورة نوح")
-        )
-        _state.update { it.copy(alerts = sampleAlerts) }
+        viewModelScope.launch {
+            try {
+                val snapshot = firestore.collection("alerts")
+                    .whereEqualTo("subjectId", subjectId.trim()) // تجنب الفراغات في subjectId
+                    .get()
+                    .await()
+
+                val dateFormat = SimpleDateFormat("yyyy-MM-dd hh:mm a", Locale.ENGLISH)
+                val now = Calendar.getInstance().time
+
+                // تحويل المستندات إلى قائمة Alerts والتحقق من أن وقت النشر <= الوقت الحالي
+                val validAlerts = snapshot.documents.mapNotNull { doc ->
+                    val message = doc.getString("description") ?: return@mapNotNull null
+                    val dateStr = doc.getString("sendDate") ?: return@mapNotNull null
+                    val timeStr = doc.getString("sendTime") ?: "00:00 AM"
+
+                    val dateTime = try {
+                        dateFormat.parse("$dateStr $timeStr")
+                    } catch (e: Exception) {
+                        null
+                    } ?: return@mapNotNull null
+
+                    // تجاهل التنبيهات المستقبلية
+                    if (dateTime.after(now)) return@mapNotNull null
+
+                    Alert(
+                        id = doc.id,
+                        message = message,
+                        dateTime = dateTime
+                    )
+                }
+
+                // اختيار آخر تنبيه حسب الوقت
+                val lastAlert = validAlerts.maxByOrNull { it.dateTime?.time ?: 0 }
+
+                _state.update { it.copy(alerts = lastAlert?.let { listOf(it) } ?: emptyList()) }
+
+            } catch (e: Exception) {
+                e.printStackTrace()
+                _state.update { it.copy(alerts = emptyList()) }
+            }
+        }
     }
 
     fun onTabSelected(tab: SubjectTab) {
@@ -147,7 +186,7 @@ class SubjectDetailsViewModel @Inject constructor(
 
                 // الحصول على التاريخ الحالي
                 val currentDate = Calendar.getInstance().time
-                val dateFormat = SimpleDateFormat("d/M/yyyy", Locale.getDefault())
+                val dateFormat = SimpleDateFormat("d/M/yyyy", Locale.ENGLISH)
 
                 docs.documents.forEach { doc ->
                     val id = doc.id

@@ -77,14 +77,13 @@ fun TeacherHomeScreen(
         }
 
         HomeTopSection(
-            studentName = state.teacherName.split(" ").let {
-                if (it.size >= 2) "${it.first()} ${it.last()}" else state.teacherName
-            },
-            studentSubject = state.teacherSub.removePrefix("مدرس ").trim(), // اسم المادة
+            studentName = state.teacherName, // ✅ الاسم صار مفرمت من ViewModel
+            studentSubject = state.teacherSub.removePrefix("مدرس ").trim(),
             profileImageUrl = state.profileImageUrl,
             showActivateButton = state.showActivateButton,
             onActivateClick = { viewModel.activateSubject() }
         )
+
 
         if (state.isLoading) {
             Box(
