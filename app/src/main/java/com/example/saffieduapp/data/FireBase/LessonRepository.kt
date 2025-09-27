@@ -12,13 +12,12 @@ class LessonRepository @Inject constructor(
 ) {
 
     // حفظ الدرس وإرجاع مستند ID
+// في LessonRepository
     suspend fun saveLessonAndReturnId(lessonData: Map<String, Any?>): String {
-        val docRef = firestore.collection("lessons")
-            .add(lessonData)
-            .await()
+        val docRef = firestore.collection("lessons").document()
+        docRef.set(lessonData).await()
         return docRef.id
     }
-
     // --- دالة لإرجاع مرجع في Storage ---
     fun getStorageReference(path: String) = storage.getReference(path)
 
