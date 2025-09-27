@@ -133,30 +133,40 @@ class TeacherHomeViewModel @Inject constructor(
         }
     }
 
-    fun activateSubject(selectedClass: String = "") {
+    fun activateSubject() {
         viewModelScope.launch {
             try {
                 val teacherId = idTeach ?: return@launch
                 val currentState = _state.value
                 val subjectName = currentState.teacherSub.removePrefix("مدرس ").trim()
 
+                // 🔹 جلب بيانات المعلم كاملة (للحصول على className)
+                val teacherDoc = firestore.collection("teachers")
+                    .document(teacherId)
+                    .get()
+                    .await()
+
+                val teacherClassName = teacherDoc.getString("className") ?: ""
+
+                // 🔹 تحقق إذا كان هناك مادة بنفس الاسم لنفس المعلم
                 val existingSubjects = firestore.collection("subjects")
                     .whereEqualTo("teacherId", teacherId)
                     .whereEqualTo("subjectName", subjectName)
                     .get()
                     .await()
 
-                if (!existingSubjects.isEmpty) {   // ✅ استخدم isEmpty بدل isNotEmpty
-                    // المادة موجودة بالفعل
+                if (!existingSubjects.isEmpty) {
+                    // ✅ المادة موجودة بالفعل
                     _state.value = _state.value.copy(showActivateButton = false)
                     return@launch
                 }
 
+                // 🔹 البيانات التي سيتم إضافتها
                 val subjectData = mapOf(
                     "teacherId" to teacherId,
                     "teacherName" to currentState.teacherName,
                     "subjectName" to subjectName,
-                    "className" to selectedClass,
+                    "className" to teacherClassName, // ⬅️ جلبناها من كوليكشن المعلم
                     "lessonsCount" to 0,
                     "rating" to 0
                 )
