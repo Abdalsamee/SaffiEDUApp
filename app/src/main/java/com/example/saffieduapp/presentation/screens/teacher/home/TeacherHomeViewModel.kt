@@ -18,7 +18,8 @@ import javax.inject.Inject
 data class TeachData(
     val fullName: String = "",
     val subject: String = "",
-    val isSubjectActivated: Boolean = false
+    val isSubjectActivated: Boolean = false,
+    val classes: List<String> = emptyList()
 )
 
 @HiltViewModel
@@ -58,6 +59,22 @@ class TeacherHomeViewModel @Inject constructor(
         }
     }
 
+    private suspend fun getTeacherClasses(teacherId: String): List<String> {
+        return try {
+            val teacherDoc = firestore.collection("teachers")
+                .document(teacherId)
+                .get()
+                .await()
+
+            // افترض أن الصفوف مخزنة كقائمة في حقل "classes"
+            val classes = teacherDoc.get("className") as? List<String>
+                ?: emptyList()
+
+            classes
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
     private fun loadTeacherData() {
         viewModelScope.launch {
             _state.value = _state.value.copy(isLoading = true)
@@ -75,6 +92,7 @@ class TeacherHomeViewModel @Inject constructor(
                         val teacherData = doc.toObject(TeachData::class.java)
 
                         val teacherId = doc.id
+                        val teacherClasses = teacherData?.classes ?: emptyList()
 
                         // تحقق من وجود أي مادة للمستخدم في كوليكشن subjects
                         val subjectsSnapshot = firestore.collection("subjects")
@@ -82,27 +100,33 @@ class TeacherHomeViewModel @Inject constructor(
                             .get()
                             .await()
 
-                        val hasAnySubject = !subjectsSnapshot.isEmpty // true إذا وجد أي مستند
+                        val hasAnySubject = !subjectsSnapshot.isEmpty
 
                         loadInitialData(
                             teacherName = formatUserName(teacherData?.fullName ?: "غير معروف"),
                             teacherSubject = teacherData?.subject ?: "غير معروف",
-                            isActivated = hasAnySubject
+                            isActivated = hasAnySubject,
+                            teacherClasses = teacherClasses // تمرير قائمة الصفوف
                         )
                         return@launch
                     }
-                    loadInitialData("غير معروف", "غير معروف", false)
+                    loadInitialData("غير معروف", "غير معروف", false, emptyList())
 
                 } catch (e: Exception) {
-                    loadInitialData("خطأ", "خطأ", false)
+                    loadInitialData("خطأ", "خطأ", false, emptyList())
                 }
             } else {
-                loadInitialData("لم يتم تسجيل الدخول", "لم يتم تسجيل الدخول", false)
+                loadInitialData("لم يتم تسجيل الدخول", "لم يتم تسجيل الدخول", false, emptyList())
             }
         }
     }
 
-    private fun loadInitialData(teacherName: String, teacherSubject: String, isActivated: Boolean) {
+    private fun loadInitialData(
+        teacherName: String,
+        teacherSubject: String,
+        isActivated: Boolean,
+        teacherClasses: List<String>
+    ) {
         viewModelScope.launch {
             val topStudentsList = listOf(
                 TopStudent("st1", "طاهر قديح", "", 1, 98, "9/10", "10/10"),
@@ -119,20 +143,15 @@ class TeacherHomeViewModel @Inject constructor(
                 profileImageUrl = "",
                 studentUpdates = allUpdates.take(3),
                 teacherClasses = classesList,
-                availableClassesForFilter = listOf(
-                    "الصف السادس",
-                    "الصف السابع",
-                    "الصف الثامن",
-                    "الصف الثاني عشر",
-                    "الصف الحادي عشر"
-                ),
-                selectedClassFilter = "الصف السادس",
+                availableClassesForFilter = teacherClasses.ifEmpty { // استخدام الصفوف الفعلية
+                    listOf("الصف السادس", "الصف السابع", "الصف الثامن")
+                },
+                selectedClassFilter = teacherClasses.firstOrNull() ?: "الصف السادس",
                 topStudents = topStudentsList,
                 showActivateButton = !isActivated
             )
         }
     }
-
     fun activateSubject() {
         viewModelScope.launch {
             try {
@@ -140,43 +159,48 @@ class TeacherHomeViewModel @Inject constructor(
                 val currentState = _state.value
                 val subjectName = currentState.teacherSub.removePrefix("مدرس ").trim()
 
-                // 🔹 جلب بيانات المعلم كاملة (للحصول على className)
-                val teacherDoc = firestore.collection("teachers")
-                    .document(teacherId)
-                    .get()
-                    .await()
+                // 🔹 جلب قائمة الصفوف الخاصة بالمعلم
+                val teacherClasses = getTeacherClasses(teacherId)
 
-                val teacherClassName = teacherDoc.getString("className") ?: ""
-
-                // 🔹 تحقق إذا كان هناك مادة بنفس الاسم لنفس المعلم
-                val existingSubjects = firestore.collection("subjects")
-                    .whereEqualTo("teacherId", teacherId)
-                    .whereEqualTo("subjectName", subjectName)
-                    .get()
-                    .await()
-
-                if (!existingSubjects.isEmpty) {
-                    // ✅ المادة موجودة بالفعل
-                    _state.value = _state.value.copy(showActivateButton = false)
+                if (teacherClasses.isEmpty()) {
+                    println("⚠️ لا توجد صفوف مرتبطة بهذا المعلم")
                     return@launch
                 }
 
-                // 🔹 البيانات التي سيتم إضافتها
-                val subjectData = mapOf(
-                    "teacherId" to teacherId,
-                    "teacherName" to currentState.teacherName,
-                    "subjectName" to subjectName,
-                    "className" to teacherClassName, // ⬅️ جلبناها من كوليكشن المعلم
-                    "lessonsCount" to 0,
-                    "rating" to 0
-                )
+                // 🔹 تفعيل المادة لكل صف
+                for (className in teacherClasses) {
+                    // تحقق إذا كانت المادة مفعلة بالفعل لهذا الصف
+                    val existingSubjects = firestore.collection("subjects")
+                        .whereEqualTo("teacherId", teacherId)
+                        .whereEqualTo("subjectName", subjectName)
+                        .whereEqualTo("className", className)
+                        .get()
+                        .await()
 
-                val docId = UUID.randomUUID().toString()
-                firestore.collection("subjects")
-                    .document(docId)
-                    .set(subjectData)
-                    .await()
+                    if (existingSubjects.isEmpty) {
+                        // 🔹 إضافة المادة للصف الحالي
+                        val subjectData = mapOf(
+                            "teacherId" to teacherId,
+                            "teacherName" to currentState.teacherName,
+                            "subjectName" to subjectName,
+                            "className" to className,
+                            "lessonsCount" to 0,
+                            "rating" to 0
+                        )
 
+                        val docId = UUID.randomUUID().toString()
+                        firestore.collection("subjects")
+                            .document(docId)
+                            .set(subjectData)
+                            .await()
+
+                        println("✅ تم تفعيل المادة $subjectName للصف $className")
+                    } else {
+                        println("ℹ️ المادة $subjectName مفعلة بالفعل للصف $className")
+                    }
+                }
+
+                // 🔹 تحديث حالة المعلم
                 firestore.collection("teachers")
                     .document(teacherId)
                     .update("isSubjectActivated", true)
@@ -184,6 +208,7 @@ class TeacherHomeViewModel @Inject constructor(
 
                 prefs.setSubjectActivated(true)
                 _state.value = _state.value.copy(showActivateButton = false)
+
             } catch (e: Exception) {
                 println("❌ خطأ عند تفعيل المادة: ${e.message}")
             }
