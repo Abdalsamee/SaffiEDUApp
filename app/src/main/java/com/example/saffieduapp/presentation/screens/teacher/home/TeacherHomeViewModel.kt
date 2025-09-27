@@ -241,12 +241,12 @@ class TeacherHomeViewModel @Inject constructor(
         return try {
             val nameParts = fullName.trim().split("\\s+".toRegex())
             when {
-                nameParts.isEmpty() -> "أ. غير معروف"
-                nameParts.size == 1 -> "أ. ${nameParts[0]}"
-                else -> "أ. ${nameParts.first()} ${nameParts.last()}"
+                nameParts.isEmpty() -> "غير معروف"
+                nameParts.size == 1 ->  nameParts[0]
+                else -> "${nameParts.first()} ${nameParts.last()}"
             }
         } catch (e: Exception) {
-            "أ. غير معروف"
+            "غير معروف"
         }
     }
 }

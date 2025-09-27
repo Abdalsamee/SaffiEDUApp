@@ -70,7 +70,7 @@ fun HomeSubjectCard( // <-- ٢. تم تغيير اسم الدالة
 
             Column {
                 Text(
-                    text = "أ. ${subject.teacherName}",
+                    text = subject.teacherName,
                     fontSize = 14.sp,
                     color = Color.DarkGray
                 )
