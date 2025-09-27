@@ -66,14 +66,13 @@ class SubjectDetailsViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 val snapshot = firestore.collection("alerts")
-                    .whereEqualTo("subjectId", subjectId.trim()) // تجنب الفراغات في subjectId
+                    .whereEqualTo("subjectId", subjectId.trim())
                     .get()
                     .await()
 
-                val dateFormat = SimpleDateFormat("yyyy-mm-dd hh:mm a", Locale.ENGLISH)
+                val dateFormat = SimpleDateFormat("yyyy-MM-dd hh:mm a", Locale.ENGLISH)
                 val now = Calendar.getInstance().time
 
-                // تحويل المستندات إلى قائمة Alerts والتحقق من أن وقت النشر <= الوقت الحالي
                 val validAlerts = snapshot.documents.mapNotNull { doc ->
                     val message = doc.getString("description") ?: return@mapNotNull null
                     val dateStr = doc.getString("sendDate") ?: return@mapNotNull null
@@ -85,7 +84,7 @@ class SubjectDetailsViewModel @Inject constructor(
                         null
                     } ?: return@mapNotNull null
 
-                    // تجاهل التنبيهات المستقبلية
+                    // ✅ أظهر التنبيه فقط عند وصول الوقت أو بعده
                     if (dateTime.after(now)) return@mapNotNull null
 
                     Alert(
