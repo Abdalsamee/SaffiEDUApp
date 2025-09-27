@@ -38,7 +38,7 @@ fun MainAppScreen() {
             ),
         BottomNavItem(
             title = "المهام",
-            route = Routes.TASKS_SCREEN,
+            route = Routes.TASKS_NAV_GRAPH,
             icon = painterResource(id = R.drawable.tasks),
 
             ),

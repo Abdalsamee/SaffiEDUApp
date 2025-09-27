@@ -19,7 +19,7 @@ import com.example.saffieduapp.presentation.screens.student.home.HomeScreen
 private val topLevelOrder = listOf(
     Routes.HOME_SCREEN,
     Routes.SUBJECTS_SCREEN,
-    Routes.TASKS_SCREEN,
+    Routes.TASKS_NAV_GRAPH,
     Routes.CHAT_SCREEN,
     Routes.PROFILE_SCREEN
 )
@@ -112,6 +112,7 @@ fun MainNavGraph(
             navController,
             onFullscreenChange = onFullscreenChange
         )
+        tasksNavGraph(navController)
 
     }
 }
