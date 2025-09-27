@@ -2,7 +2,6 @@ package com.example.saffieduapp.presentation.screens.student.home
 
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
-import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.saffieduapp.data.FireBase.WorkManager.AlertScheduler
 import com.example.saffieduapp.domain.model.FeaturedLesson
@@ -15,11 +14,11 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
-import javax.inject.Inject
 import kotlinx.coroutines.withTimeout
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import javax.inject.Inject
 
 data class StdData(
     val fullName: String = "",
@@ -30,13 +29,12 @@ data class StdData(
 class HomeViewModel @Inject constructor(
     private val auth: FirebaseAuth,
     private val firestore: FirebaseFirestore,
-    application: Application // حقن التطبيق
+    application: Application
 ) : AndroidViewModel(application) {
 
     private val _state = MutableStateFlow(HomeState())
     val state = _state.asStateFlow()
     private val appContext = application.applicationContext
-
 
     init {
         loadUserData()
@@ -59,61 +57,59 @@ class HomeViewModel @Inject constructor(
                     if (!querySnapshot.isEmpty) {
                         val userData = querySnapshot.documents[0].toObject(StdData::class.java)
                         if (userData != null) {
-                            val nameParts = userData.fullName.trim().split("\\s+".toRegex())
-                            val firstName = nameParts.firstOrNull() ?: ""
-                            val lastName = if (nameParts.size > 1) nameParts.last() else ""
-                            val displayName = if (lastName.isNotEmpty()) "$firstName $lastName" else firstName
+                            val formattedStudentName = formatStudentName(userData.fullName)
+                            val studentWithGrade = formattedStudentName
 
                             _state.value = _state.value.copy(
-                                studentName = displayName,
-                                studentGrade = userData.grade
+                                studentName = studentWithGrade,
+                                studentGrade = userData.grade,
+                                isLoading = false
                             )
 
-                            // ✅ استدعاء المواد للصف المناسب بعد معرفة grade
+                            // تحميل المواد للصف المناسب
                             loadSubjects()
 
                             // استدعاء التنبيهات لكل مادة بعد تحميلها
                             _state.value.enrolledSubjects.forEach { subject ->
-                                listenForAlerts(subject.id, userData.grade)}
+                                listenForAlerts(subject.id, userData.grade)
+                            }
 
-                            // **استدعاء دالة الاستماع هنا بعد معرفة الصف**
+                            // الاستماع للدرس الجديد بعد معرفة الصف
                             listenForNewLessons(userData.grade)
                         }
                     }
                 } catch (e: Exception) {
                     _state.value = _state.value.copy(
                         studentName = "خطأ في التحميل",
-                        studentGrade = "خطأ في التحميل"
+                        studentGrade = "خطأ في التحميل",
+                        isLoading = false
                     )
                 }
             } else {
                 _state.value = _state.value.copy(
                     studentName = "لم يتم تسجيل الدخول",
-                    studentGrade = "لم يتم تسجيل الدخول"
+                    studentGrade = "لم يتم تسجيل الدخول",
+                    isLoading = false
                 )
             }
         }
     }
 
-
     fun refresh() {
         viewModelScope.launch {
             _state.value = _state.value.copy(isRefreshing = true)
             try {
-                // أقصى وقت لجلب البيانات: 3 ثواني
-                withTimeout(3000) {
+                withTimeout(5000) {
                     loadSubjects()
                     loadInitialData()
                 }
             } catch (_: Exception) {
-                // تجاهل الخطأ أو سجّله إذا لزم
             } finally {
                 _state.value = _state.value.copy(isRefreshing = false)
             }
         }
     }
 
-    // suspend function → ما في launch داخله
     private suspend fun loadInitialData() {
         val urgentTasksList = listOf(
             UrgentTask("1", "اختبار نصفي", "التربية الإسلامية", "24/8/2025", "11 صباحاً", ""),
@@ -131,7 +127,6 @@ class HomeViewModel @Inject constructor(
         )
     }
 
-    // suspend function → مباشرة تستخدم await
     private suspend fun loadSubjects() {
         try {
             val grade = _state.value.studentGrade
@@ -146,7 +141,8 @@ class HomeViewModel @Inject constructor(
                 val subjectName = doc.getString("subjectName") ?: "غير معروف"
                 val teacherFullName = doc.getString("teacherName") ?: "غير معروف"
 
-                val formattedUserName = formatUserName(teacherFullName)
+                // صياغة اسم المعلم بصيغة ثابتة "أ.الاسم الأول الاسم الأخير"
+                val formattedTeacherName = formatTeacherName(teacherFullName)
 
                 val gradeName = doc.getString("className") ?: "غير محدد"
                 val lessonsCount = (doc.getLong("lessonsCount") ?: 0).toInt()
@@ -155,7 +151,7 @@ class HomeViewModel @Inject constructor(
                 Subject(
                     id = doc.id,
                     name = subjectName,
-                    teacherName = formattedUserName, // ✅ الصياغة الجديدة
+                    teacherName = formattedTeacherName,
                     grade = gradeName,
                     rating = rating,
                     imageUrl = "",
@@ -171,22 +167,26 @@ class HomeViewModel @Inject constructor(
             _state.value = _state.value.copy(isLoading = false)
         }
     }
-    fun formatUserName(fullName: String): String {
-        return try {
-            val nameParts = fullName.trim().split("\\s+".toRegex())
 
-            when {
-                nameParts.isEmpty() -> "غير معروف"
-                nameParts.size == 1 -> nameParts[0] // اسم واحد فقط
-                else -> {
-                    val firstName = nameParts[0]
-                    val lastName = nameParts[nameParts.size - 1]
-                    "$firstName $lastName"
-                }
-            }
-        } catch (e: Exception) {
-            "غير معروف"
-        }
+    // صياغة اسم المعلم بالثابت "أ."
+    private fun formatTeacherName(fullName: String): String {
+        val nameParts = fullName.trim().split("\\s+".toRegex())
+        if (nameParts.isEmpty()) return "أ.غير معروف"
+
+        val firstName = nameParts[0]
+        val lastName = nameParts.last()
+
+        return "أ.$firstName $lastName"
+    }
+
+    // صياغة اسم الطالب ليظهر فقط الاسم الأول والأخير
+    private fun formatStudentName(fullName: String): String {
+        val nameParts = fullName.trim().split("\\s+".toRegex())
+        if (nameParts.isEmpty()) return "غير معروف"
+
+        val firstName = nameParts[0]
+        val lastName = if (nameParts.size > 1) nameParts.last() else ""
+        return "$firstName $lastName".trim()
     }
 
     fun onSearchQueryChanged(newQuery: String) {
@@ -195,17 +195,16 @@ class HomeViewModel @Inject constructor(
 
     private fun listenForAlerts(currentSubjectId: String, currentClassId: String) {
         firestore.collection("alerts")
-            .whereEqualTo("subjectId", currentSubjectId) // فلترة حسب المادة
-            .whereEqualTo("targetClass", currentClassId) // فلترة حسب الصف
+            .whereEqualTo("subjectId", currentSubjectId)
+            .whereEqualTo("targetClass", currentClassId)
             .addSnapshotListener { snapshot, e ->
                 if (e != null || snapshot == null) return@addSnapshotListener
 
                 for (doc in snapshot.documents) {
                     val description = doc.getString("description") ?: continue
-                    val sendDate = doc.getString("sendDate") ?: continue // "yyyy-MM-dd"
+                    val sendDate = doc.getString("sendDate") ?: continue
                     val sendTime = doc.getString("sendTime") ?: "00:00 AM"
 
-                    // دمج التاريخ مع الوقت وتحويله إلى Date
                     val format = SimpleDateFormat("yyyy-MM-dd hh:mm a", Locale.ENGLISH)
                     val triggerDate = try {
                         format.parse("$sendDate $sendTime")
@@ -213,7 +212,6 @@ class HomeViewModel @Inject constructor(
                         null
                     } ?: continue
 
-                    // جدولة الإشعار
                     AlertScheduler.scheduleAlert(
                         context = appContext,
                         alertId = doc.id,
@@ -224,8 +222,8 @@ class HomeViewModel @Inject constructor(
                 }
             }
     }
-    private fun listenForNewLessons(studentGrade: String) {
 
+    private fun listenForNewLessons(studentGrade: String) {
         firestore.collection("lessons")
             .whereEqualTo("className", studentGrade)
             .whereEqualTo("notifyStudents", true)
@@ -250,6 +248,4 @@ class HomeViewModel @Inject constructor(
                 }
             }
     }
-
-
 }

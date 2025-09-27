@@ -10,7 +10,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.saffieduapp.data.FireBase.DraftLessonManager
 import com.example.saffieduapp.data.FireBase.LessonRepository
-import com.example.saffieduapp.data.FireBase.WorkManager.AlertScheduler
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -21,9 +20,6 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import java.io.File
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 import javax.inject.Inject
 
 @HiltViewModel
@@ -133,25 +129,67 @@ class AddLessonViewModel @Inject constructor(
         _isDraftSaved.value = false
     }
 
-    private suspend fun fetchTeacherAndSubjectIds(): Pair<String?, String?> {
+    private suspend fun fetchSubjectId(teacherId: String, className: String): String? {
         return try {
-            val currentUserEmail = auth.currentUser?.email ?: return null to null
+            // جلب المادة التي تطابق المعلم والصف المحدد
+            val subjectsSnapshot = firestore.collection("subjects")
+                .whereEqualTo("teacherId", teacherId)
+                .whereEqualTo("className", className) // ← استخدام className بدلاً من subjectName
+                .get()
+                .await()
+
+            if (subjectsSnapshot.isEmpty) {
+                println("❌ لم يتم العثور على مادة للمعلم $teacherId في الصف $className")
+                null
+            } else {
+                val subjectDoc = subjectsSnapshot.documents[0]
+                println("✅ تم العثور على المادة: ${subjectDoc.id} للصف $className")
+                subjectDoc.id
+            }
+        } catch (e: Exception) {
+            println("❌ خطأ في البحث عن المادة: ${e.message}")
+            null
+        }
+    }
+
+    private suspend fun getTeacherSubjectName(teacherId: String): String? {
+        return try {
+            val teacherDoc = firestore.collection("teachers")
+                .document(teacherId)
+                .get()
+                .await()
+
+            teacherDoc.getString("subject") // اسم المادة من بيانات المعلم
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    private suspend fun fetchTeacherAndSubjectIds(selectedClassName: String): Triple<String?, String?, String?> {
+        return try {
+            val currentUserEmail = auth.currentUser?.email ?: return Triple(null, null, null)
+
+            // جلب بيانات المعلم
             val teacherSnapshot = firestore.collection("teachers")
                 .whereEqualTo("email", currentUserEmail)
                 .get()
                 .await()
-            if (teacherSnapshot.isEmpty) return null to null
+
+            if (teacherSnapshot.isEmpty) return Triple(null, null, null)
+
             val teacherDoc = teacherSnapshot.documents[0]
             val teacherId = teacherDoc.id
-            val subjectsSnapshot = firestore.collection("subjects")
-                .whereEqualTo("teacherId", teacherId)
-                .get()
-                .await()
-            val subjectId = if (subjectsSnapshot.isEmpty) null else subjectsSnapshot.documents[0].id
-            teacherId to subjectId
+
+            // جلب اسم المادة من بيانات المعلم
+            val subjectName = getTeacherSubjectName(teacherId)
+
+            // البحث عن المادة التي تطابق المعلم والصف المحدد
+            val subjectId = fetchSubjectId(teacherId, selectedClassName)
+
+            Triple(teacherId, subjectId, subjectName)
         } catch (e: Exception) {
             e.printStackTrace()
-            null to null
+            Triple(null, null, null)
         }
     }
 
@@ -176,9 +214,17 @@ class AddLessonViewModel @Inject constructor(
             _state.update { it.copy(isSaving = true) }
 
             try {
-                val (teacherId, subjectId) = fetchTeacherAndSubjectIds()
-                if (teacherId == null || subjectId == null) {
-                    Toast.makeText(context, "❌ لم يتم العثور على بيانات المعلم أو المادة", Toast.LENGTH_LONG).show()
+                // استخدام الصف المحدد في البحث
+                val (teacherId, subjectId, subjectName) = fetchTeacherAndSubjectIds(current.selectedClass)
+
+                if (teacherId == null) {
+                    Toast.makeText(context, "❌ لم يتم العثور على بيانات المعلم", Toast.LENGTH_LONG).show()
+                    _state.update { it.copy(isSaving = false) }
+                    return@launch
+                }
+
+                if (subjectId == null) {
+                    Toast.makeText(context, "❌ لم يتم العثور على المادة للصف ${current.selectedClass}", Toast.LENGTH_LONG).show()
                     _state.update { it.copy(isSaving = false) }
                     return@launch
                 }
@@ -210,13 +256,9 @@ class AddLessonViewModel @Inject constructor(
                         return@launch
                     }
 
-                    // تحويل Uri إلى File مؤقت
                     val pdfFile = uriToFile(uri)
-
-                    // حساب عدد الصفحات
                     pagesCount = getPdfPageCount(pdfFile)
 
-                    // رفع الملف
                     pdfUrl = lessonRepository.uploadFile(
                         "lessons/pdf/${System.currentTimeMillis()}_${getFileName(uri)}",
                         uri
@@ -233,8 +275,9 @@ class AddLessonViewModel @Inject constructor(
                     "createdAt" to System.currentTimeMillis(),
                     "pdfUrl" to pdfUrl,
                     "videoUrl" to videoUrl,
-                    "pagesCount" to pagesCount, // العدد الحقيقي للصفحات
+                    "pagesCount" to pagesCount,
                     "subjectId" to subjectId,
+                    "subjectName" to subjectName, // إضافة اسم المادة
                     "teacherId" to teacherId,
                     "notificationStatus" to "pending",
                     "isNotified" to false
@@ -242,7 +285,7 @@ class AddLessonViewModel @Inject constructor(
 
                 lessonRepository.saveLessonAndReturnId(lessonData)
 
-                Toast.makeText(context, "✅ تم حفظ الدرس بنجاح", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, "✅ تم حفظ الدرس للصف ${current.selectedClass}", Toast.LENGTH_SHORT).show()
 
                 // إعادة تعيين الحالة
                 _state.update {
