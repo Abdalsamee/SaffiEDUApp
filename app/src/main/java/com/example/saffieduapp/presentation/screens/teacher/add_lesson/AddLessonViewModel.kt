@@ -83,7 +83,9 @@ class AddLessonViewModel @Inject constructor(
                     _isDraftSaved.value = true // الزر أصبح تم الحفظ
                 }
             }
-            // باقي الأحداث كما هي
+            is AddLessonEvent.SaveClicked -> {
+                saveLesson(isDraft = false) // ← هنا بيتم تشغيل الحفظ الحقيقي
+            }
             is AddLessonEvent.TitleChanged,
             is AddLessonEvent.DescriptionChanged,
             is AddLessonEvent.ClassSelected,
@@ -92,12 +94,12 @@ class AddLessonViewModel @Inject constructor(
             is AddLessonEvent.DateChanged,
             is AddLessonEvent.NotifyStudentsToggled -> {
                 updateStateFromEvent(event)
-                _isDraftSaved.value = false // أي تعديل يلغي حالة "تم الحفظ"
+                _isDraftSaved.value = false
             }
-
             else -> {}
         }
     }
+
 
     private fun updateStateFromEvent(event: AddLessonEvent) {
         when (event) {
