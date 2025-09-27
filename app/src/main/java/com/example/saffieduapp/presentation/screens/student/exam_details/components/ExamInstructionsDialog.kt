@@ -89,13 +89,13 @@ private fun InstructionItem(text: String) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Canvas(
             modifier = Modifier
-                .padding(end = 8.dp) // أولاً البادينغ
-                .size(8.dp)          // ثم حجم الكانفس
+                .padding(end = 8.dp)
+                .size(8.dp)
         ) {
             drawCircle(color = Color.Black)
         }
 
-        Text(text = text, fontSize = 14.sp, color = Color.Black, fontFamily = Cairo)
+        Text(text = text, fontSize = 14.sp, color = Color.Black, fontFamily = Cairo, fontWeight = FontWeight.SemiBold)
     }
 }
 @Preview(showBackground = true, locale = "ar")

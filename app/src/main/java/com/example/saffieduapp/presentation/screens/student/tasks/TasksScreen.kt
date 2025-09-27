@@ -39,7 +39,7 @@ fun TasksScreen(
         }
     ) { innerPadding ->
         Column(modifier = Modifier.padding(innerPadding)) {
-         
+
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
