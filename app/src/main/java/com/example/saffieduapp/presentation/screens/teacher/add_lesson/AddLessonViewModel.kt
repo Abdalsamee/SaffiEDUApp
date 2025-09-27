@@ -50,8 +50,8 @@ class AddLessonViewModel @Inject constructor(
                             lessonTitle = it.lessonTitle,
                             description = it.description,
                             selectedClass = it.selectedClass,
-                            selectedVideoUri = it.selectedVideoUri,
-                            selectedPdfUri = it.selectedPdfUri,
+                            selectedVideoUriString = it.selectedVideoUriString,
+                            selectedPdfUriString = it.selectedPdfUriString,
                             selectedVideoName = it.selectedVideoName,
                             selectedPdfName = it.selectedPdfName,
                             publicationDate = it.publicationDate,
@@ -60,7 +60,7 @@ class AddLessonViewModel @Inject constructor(
                         )
                     }
                 }
-                _isDraftSaved.value = isSaved // MutableStateFlow<Boolean>
+                _isDraftSaved.value = isSaved
             }
         }
     }
@@ -104,19 +104,19 @@ class AddLessonViewModel @Inject constructor(
             is AddLessonEvent.ClassSelected -> _state.update { it.copy(selectedClass = event.className) }
             is AddLessonEvent.VideoSelected -> _state.update {
                 it.copy(
-                    selectedVideoUri = event.uri,
+                    selectedVideoUriString = event.uri.toString(),
                     selectedVideoName = event.uri?.let { uri -> getFileName(uri) },
                     selectedContentType = if (event.uri != null) ContentType.VIDEO else ContentType.NONE,
-                    selectedPdfUri = null,
+                    selectedPdfUriString = null,
                     selectedPdfName = null
                 )
             }
             is AddLessonEvent.PdfSelected -> _state.update {
                 it.copy(
-                    selectedPdfUri = event.uri,
+                    selectedPdfUriString = event.uri.toString(),
                     selectedPdfName = event.uri?.let { uri -> getFileName(uri) },
                     selectedContentType = if (event.uri != null) ContentType.PDF else ContentType.NONE,
-                    selectedVideoUri = null,
+                    selectedVideoUriString = null,
                     selectedVideoName = null,
                     description = ""
                 )
@@ -285,7 +285,7 @@ class AddLessonViewModel @Inject constructor(
 
                 lessonRepository.saveLessonAndReturnId(lessonData)
 
-                Toast.makeText(context, "✅ تم حفظ الدرس للصف ${current.selectedClass}", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, "✅ تم حفظ الدرس ${current.selectedClass}", Toast.LENGTH_SHORT).show()
 
                 // إعادة تعيين الحالة
                 _state.update {
@@ -294,9 +294,9 @@ class AddLessonViewModel @Inject constructor(
                         description = "",
                         selectedClass = "",
                         publicationDate = "",
-                        selectedVideoUri = null,
+                        selectedVideoUriString = null,
                         selectedVideoName = null,
-                        selectedPdfUri = null,
+                        selectedPdfUriString = null,
                         selectedPdfName = null,
                         selectedContentType = ContentType.NONE,
                         notifyStudents = false,

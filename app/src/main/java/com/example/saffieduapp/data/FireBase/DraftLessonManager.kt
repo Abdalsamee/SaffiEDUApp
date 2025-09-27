@@ -28,17 +28,14 @@ class DraftLessonManager(private val context: Context) {
 
     // حفظ المسودة فقط
     suspend fun saveDraft(state: AddLessonState, isButtonClick: Boolean = false) {
-        val json = gson.toJson(state)
+        val stateToSave = state.copy(
+            selectedVideoUriString = state.selectedVideoUri?.toString(),
+            selectedPdfUriString = state.selectedPdfUri?.toString()
+        )
+        val json = gson.toJson(stateToSave)
         context.dataStore.edit { prefs ->
             prefs[DRAFT_KEY] = json
-            // فقط إذا كان الضغط على الزر مباشرة
             if (isButtonClick) prefs[DRAFT_SAVED_KEY] = "saved"
-        }
-    }
-
-    suspend fun clearDraft() {
-        context.dataStore.edit { prefs ->
-            prefs.remove(DRAFT_KEY)
         }
     }
 }
