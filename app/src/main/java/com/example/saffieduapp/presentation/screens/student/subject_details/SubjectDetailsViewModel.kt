@@ -70,7 +70,7 @@ class SubjectDetailsViewModel @Inject constructor(
                     .get()
                     .await()
 
-                val dateFormat = SimpleDateFormat("yyyy-MM-dd hh:mm a", Locale.ENGLISH)
+                val dateFormat = SimpleDateFormat("yyyy-mm-dd hh:mm a", Locale.ENGLISH)
                 val now = Calendar.getInstance().time
 
                 // تحويل المستندات إلى قائمة Alerts والتحقق من أن وقت النشر <= الوقت الحالي
@@ -176,8 +176,8 @@ class SubjectDetailsViewModel @Inject constructor(
 
                 // جلب الدروس حسب المادة والصف
                 val docs = firestore.collection("lessons")
-                    .whereEqualTo("subjectId", subjectId)
-                    .whereEqualTo("className", grade)
+                    .whereEqualTo("subjectId", subjectId) // درس المادة المطلوبة
+                    .whereEqualTo("className", grade)     // جلب الدروس للصف الحالي للطالب
                     .get()
                     .await()
 
@@ -186,7 +186,7 @@ class SubjectDetailsViewModel @Inject constructor(
 
                 // الحصول على التاريخ الحالي
                 val currentDate = Calendar.getInstance().time
-                val dateFormat = SimpleDateFormat("d/M/yyyy", Locale.ENGLISH)
+                val dateFormat = SimpleDateFormat("yyyy-mm-dd", Locale.ENGLISH)
 
                 docs.documents.forEach { doc ->
                     val id = doc.id
