@@ -39,7 +39,7 @@ fun TasksScreen(
         }
     ) { innerPadding ->
         Column(modifier = Modifier.padding(innerPadding)) {
-            // Tab Row
+         
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -55,13 +55,13 @@ fun TasksScreen(
                 }
             }
 
-            // Content
+
             if (state.isLoading) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator()
                 }
             } else {
-                // عرض القائمة المناسبة بناءً على التبويب المحدد
+
                 if (state.selectedTabIndex == 0) {
                     AssignmentsList(assignmentsByDate = state.assignmentsByDate)
                 } else {
@@ -95,7 +95,7 @@ private fun CustomTab(
     )
 }
 
-// مكون خاص بقائمة الواجبات
+
 @Composable
 private fun AssignmentsList(assignmentsByDate: Map<String, List<AssignmentItem>>) {
     if (assignmentsByDate.isEmpty()) {
@@ -104,7 +104,7 @@ private fun AssignmentsList(assignmentsByDate: Map<String, List<AssignmentItem>>
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp) // Reduced spacing
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             assignmentsByDate.forEach { (date, assignments) ->
                 item {
@@ -137,7 +137,7 @@ private fun AssignmentsList(assignmentsByDate: Map<String, List<AssignmentItem>>
     }
 }
 
-// مكون خاص بقائمة الاختبارات
+
 @Composable
 private fun ExamsList(
     examsByDate: Map<String,List<ExamItem>>,
