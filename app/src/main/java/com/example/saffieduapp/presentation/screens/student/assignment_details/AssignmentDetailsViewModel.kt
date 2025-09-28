@@ -27,8 +27,8 @@ class AssignmentDetailsViewModel @Inject constructor(
         val dummyDetails = AssignmentDetails(
             id = id,
             title = "النحو والصرف",
-            description = "هذا الفيديو يشرح قوانين الكسور بشكل مبسط. هذا الفيديو يشرح قوانين الكسور بشكل مبسط.",
-            imageUrl = null, // لا يوجد صورة في هذا المثال
+            description = "بناء على الصورة الموجودة قم بذكر عدد الجداول الموجودة واذكر المفاتيح الرئيسية لكل كيان .",
+            imageUrl = "https://i.postimg.cc/XqQPP7B0/class-diagram-drawio-1.png",
             subjectName = "اللغة العربية",
             teacherName = "أ. طاهر زياد قديح",
             dueDate = "ينتهي في: 10 أغسطس 2025 - 6:00 مساءً",
