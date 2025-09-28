@@ -30,14 +30,20 @@ import com.example.saffieduapp.ui.theme.SaffiEDUAppTheme
 @Composable
 fun AssignmentDetailsScreen(
     onNavigateUp: () -> Unit,
+    onNavigateToSubmit: (assignmentId: String) -> Unit,
     viewModel: AssignmentDetailsViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
 
     AssignmentDetailsScreenContent(
         state = state,
+        onSubmitClick = {
+            state.assignmentDetails?.let {
+                onNavigateToSubmit(it.id)
+            }
+        },
         onNavigateUp = onNavigateUp,
-        onSubmitClick = { /* TODO */ }
+
     )
 }
 

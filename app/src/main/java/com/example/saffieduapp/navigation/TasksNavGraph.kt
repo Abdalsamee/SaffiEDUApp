@@ -8,6 +8,7 @@ import androidx.navigation.navArgument
 import androidx.navigation.navigation
 import com.example.saffieduapp.presentation.screens.student.assignment_details.AssignmentDetailsScreen
 import com.example.saffieduapp.presentation.screens.student.exam_details.ExamDetailsScreen
+import com.example.saffieduapp.presentation.screens.student.submit_assignment.SubmitAssignmentScreen
 import com.example.saffieduapp.presentation.screens.student.tasks.TasksScreen
 
 fun NavGraphBuilder.tasksNavGraph(navController: NavController) {
@@ -31,8 +32,21 @@ fun NavGraphBuilder.tasksNavGraph(navController: NavController) {
             route = "${Routes.ASSIGNMENT_DETAILS_SCREEN}/{assignmentId}",
             arguments = listOf(navArgument("assignmentId") { type = NavType.StringType })
         ) {
-            AssignmentDetailsScreen(onNavigateUp = { navController.popBackStack() })
+            AssignmentDetailsScreen(
+                onNavigateUp = { navController.popBackStack() },
+                onNavigateToSubmit = { assignmentId ->
+                    navController.navigate("${Routes.SUBMIT_ASSIGNMENT_SCREEN}/$assignmentId")
+                }
+            )
         }
+
+        composable(
+            route = "${Routes.SUBMIT_ASSIGNMENT_SCREEN}/{assignmentId}",
+            arguments = listOf(navArgument("assignmentId") { type = NavType.StringType })
+        ) {
+            SubmitAssignmentScreen(onNavigateUp = { navController.popBackStack() })
+        }
+
 
 
 
