@@ -40,5 +40,6 @@ data class TasksState(
     val isLoading: Boolean = true,
     val selectedTabIndex: Int = 0,
     val examsByDate: Map<String, List<ExamItem>> = emptyMap(),
-    val assignmentsByDate: Map<String, List<AssignmentItem>> = emptyMap()
+    val assignmentsByDate: Map<String, List<AssignmentItem>> = emptyMap(),
+    val error: String
 )

@@ -1,9 +1,15 @@
 package com.example.saffieduapp.data.repository
 
 import android.net.Uri
+import com.example.saffieduapp.presentation.screens.student.tasks.AssignmentItem
+import com.example.saffieduapp.presentation.screens.student.tasks.AssignmentStatus
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.storage.FirebaseStorage
 import kotlinx.coroutines.tasks.await
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Locale
+import javax.inject.Inject
 
 data class Assignment(
     val title: String,
@@ -13,7 +19,7 @@ data class Assignment(
     val imageUrl: String? = null
 )
 
-class AssignmentRepository {
+class AssignmentRepository @Inject constructor() {
 
     private val firestore = FirebaseFirestore.getInstance()
     private val storage = FirebaseStorage.getInstance()
@@ -49,6 +55,84 @@ class AssignmentRepository {
         } catch (e: Exception) {
             e.printStackTrace()
             false // فشل الحفظ
+        }
+    }
+    // دالة جديدة لجلب جميع الواجبات
+    suspend fun getAllAssignments(): List<AssignmentItem> {
+        return try {
+            val snapshot = firestore.collection("assignments").get().await()
+            snapshot.documents.map { document ->
+                val className = document.getString("className") ?: document.getString("ClassName") ?: ""
+                val description = document.getString("description") ?: ""
+                val dueDate = document.getString("dueDate") ?: document.getString("duebate") ?: ""
+                val imageUrl = document.getString("imageUrl") ?: ""
+                val title = document.getString("title") ?: ""
+
+                AssignmentItem(
+                    id = document.id,
+                    title = title,
+                    subjectName = className,
+                    imageUrl = imageUrl,
+                    dueDate = formatDueDate(dueDate),
+                    remainingTime = calculateRemainingTime(dueDate),
+                    status = calculateAssignmentStatus(dueDate)
+                )
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            emptyList()
+        }
+    }
+
+    private fun formatDueDate(dueDate: String): String {
+        return try {
+            // تحويل التاريخ من "2025-09-22" إلى "ينتهي في: 22 سبتمبر 2025"
+            val inputFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+            val outputFormat = SimpleDateFormat("dd MMMM yyyy", Locale("ar"))
+            val date = inputFormat.parse(dueDate)
+            "ينتهي في: ${outputFormat.format(date)}"
+        } catch (e: Exception) {
+            "ينتهي في: $dueDate"
+        }
+    }
+
+    private fun calculateRemainingTime(dueDate: String): String {
+        return try {
+            val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+            val due = dateFormat.parse(dueDate)
+            val today = Calendar.getInstance().time
+
+            val diff = due.time - today.time
+            val days = (diff / (24 * 60 * 60 * 1000)).toInt()
+
+            when {
+                days < 0 -> "منتهي"
+                days == 0 -> "ينتهي اليوم"
+                days == 1 -> "متبقي يوم واحد"
+                days <= 7 -> "متبقي $days أيام"
+                else -> "متبقي ${days/7} أسابيع"
+            }
+        } catch (e: Exception) {
+            "غير محدد"
+        }
+    }
+
+    private fun calculateAssignmentStatus(dueDate: String): AssignmentStatus {
+        return try {
+            val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+            val due = dateFormat.parse(dueDate)
+            val today = Calendar.getInstance().time
+
+            val diff = due.time - today.time
+            val days = (diff / (24 * 60 * 60 * 1000)).toInt()
+
+            when {
+                days < 0 -> AssignmentStatus.EXPIRED
+                days == 0 -> AssignmentStatus.LATE
+                else -> AssignmentStatus.PENDING
+            }
+        } catch (e: Exception) {
+            AssignmentStatus.PENDING
         }
     }
 }

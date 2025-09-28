@@ -5,6 +5,7 @@ import com.example.saffieduapp.data.FireBase.AlertRepository
 import com.example.saffieduapp.data.FireBase.LessonRepository
 import com.example.saffieduapp.data.local.preferences.OnboardingPreferences
 import com.example.saffieduapp.data.local.preferences.PreferencesManager
+import com.example.saffieduapp.data.repository.AssignmentRepository
 import com.example.saffieduapp.domain.use_case.onboarding.GetOnboardingCompletedUseCase
 import com.example.saffieduapp.domain.use_case.onboarding.SetOnboardingCompletedUseCase
 import com.google.firebase.auth.FirebaseAuth
@@ -73,5 +74,10 @@ object AppModule {
     @Singleton
     fun provideAlertRepository(firestore: FirebaseFirestore): AlertRepository {
         return AlertRepository(firestore)
+    }
+    @Provides
+    @Singleton
+    fun provideAssignmentRepository(db: FirebaseFirestore): AssignmentRepository {
+        return AssignmentRepository()
     }
 }
