@@ -75,23 +75,23 @@ private fun AssignmentDetailsScreenContent(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(text = details.title, fontWeight = FontWeight.Bold, fontSize = 22.sp)
-                        Text(text = details.teacherName, color = Color.Gray, fontSize = 16.sp)
-                    }
                     Image(
                         painter = painterResource(id = R.drawable.defultsubject), // Placeholder
                         contentDescription = details.subjectName,
                         modifier = Modifier
-                            .size(60.dp)
+                            .size(80.dp)
                             .clip(RoundedCornerShape(8.dp))
                     )
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(text = details.title, fontWeight = FontWeight.Bold, fontSize = 22.sp)
+                        Text(text = details.teacherName, color = Color.Gray, fontSize = 16.sp)
+                    }
+
                 }
 
                 Divider()
-
-                // ٢. محتوى الواجب (وصف أو صورة)
-                // عرض الوصف إذا كان موجودًا
+                
                 details.description?.let { description ->
                     Text(
                         text = "الوصف:",
