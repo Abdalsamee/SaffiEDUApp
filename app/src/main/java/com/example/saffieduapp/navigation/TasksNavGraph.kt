@@ -6,6 +6,7 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import androidx.navigation.navigation
+import com.example.saffieduapp.presentation.screens.student.assignment_details.AssignmentDetailsScreen
 import com.example.saffieduapp.presentation.screens.student.exam_details.ExamDetailsScreen
 import com.example.saffieduapp.presentation.screens.student.tasks.TasksScreen
 
