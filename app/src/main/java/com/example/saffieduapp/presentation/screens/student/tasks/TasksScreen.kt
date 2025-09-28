@@ -39,7 +39,7 @@ fun TasksScreen(
         }
     ) { innerPadding ->
         Column(modifier = Modifier.padding(innerPadding)) {
-            // Tab Row
+
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -55,15 +55,20 @@ fun TasksScreen(
                 }
             }
 
-            // Content
+
             if (state.isLoading) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator()
                 }
             } else {
-                // عرض القائمة المناسبة بناءً على التبويب المحدد
+
                 if (state.selectedTabIndex == 0) {
-                    AssignmentsList(assignmentsByDate = state.assignmentsByDate)
+                    AssignmentsList(assignmentsByDate = state.assignmentsByDate,
+                        onAssignmentClick = { assignmentId ->
+                            navController.navigate("${Routes.ASSIGNMENT_DETAILS_SCREEN}/$assignmentId")
+                        }
+                        )
+
                 } else {
                     ExamsList(examsByDate = state.examsByDate,
                         onExamClick = { examId ->
@@ -95,16 +100,20 @@ private fun CustomTab(
     )
 }
 
-// مكون خاص بقائمة الواجبات
+
 @Composable
-private fun AssignmentsList(assignmentsByDate: Map<String, List<AssignmentItem>>) {
+private fun AssignmentsList(
+    assignmentsByDate: Map<String, List<AssignmentItem>>,
+    onAssignmentClick: (String) -> Unit
+
+) {
     if (assignmentsByDate.isEmpty()) {
         EmptyState(message = "لا توجد واجبات حالياً")
     } else {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp) // Reduced spacing
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             assignmentsByDate.forEach { (date, assignments) ->
                 item {
@@ -122,7 +131,7 @@ private fun AssignmentsList(assignmentsByDate: Map<String, List<AssignmentItem>>
                             Box(modifier = Modifier.weight(1f)) {
                                 AssignmentCard(
                                     assignment = assignment,
-                                    onClick = { /* TODO */ }
+                                    onClick = { onAssignmentClick(assignment.id) }
                                 )
                             }
                         }
@@ -137,7 +146,7 @@ private fun AssignmentsList(assignmentsByDate: Map<String, List<AssignmentItem>>
     }
 }
 
-// مكون خاص بقائمة الاختبارات
+
 @Composable
 private fun ExamsList(
     examsByDate: Map<String,List<ExamItem>>,
