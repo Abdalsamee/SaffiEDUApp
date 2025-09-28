@@ -32,7 +32,12 @@ fun NavGraphBuilder.tasksNavGraph(navController: NavController) {
             route = "${Routes.ASSIGNMENT_DETAILS_SCREEN}/{assignmentId}",
             arguments = listOf(navArgument("assignmentId") { type = NavType.StringType })
         ) {
-            AssignmentDetailsScreen(onNavigateUp = { navController.popBackStack() })
+            AssignmentDetailsScreen(
+                onNavigateUp = { navController.popBackStack() },
+                onNavigateToSubmit = { assignmentId ->
+                    navController.navigate("${Routes.SUBMIT_ASSIGNMENT_SCREEN}/$assignmentId")
+                }
+            )
         }
 
         composable(

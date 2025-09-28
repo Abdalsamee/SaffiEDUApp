@@ -27,6 +27,7 @@ import com.example.saffieduapp.R
 import com.example.saffieduapp.presentation.screens.student.components.CommonTopAppBar
 import com.example.saffieduapp.presentation.screens.student.submit_assignment.components.NotesSection
 import com.example.saffieduapp.presentation.screens.student.submit_assignment.components.SuccessDialog
+import com.example.saffieduapp.ui.theme.AppAlert
 import com.example.saffieduapp.ui.theme.AppPrimary
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -108,17 +109,21 @@ fun SubmitAssignmentScreen(
                     if (state.isSubmitting) {
                         CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.White)
                     } else {
-                        Text("تسليم")
+                        Text("تسليم", color = Color.White)
                     }
                 }
                 // زر الحذف
-                OutlinedButton(
+                Button(
                     onClick = { viewModel.clearAllFiles() },
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = AppAlert,        // لون الخلفية
+                        contentColor = Color.White         // لون النص والأيقونات
+                    )
                 ) {
-
                     Text("حذف")
                 }
+
 
             }
         }
