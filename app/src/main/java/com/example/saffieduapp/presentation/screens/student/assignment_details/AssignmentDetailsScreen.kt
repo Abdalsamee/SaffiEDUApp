@@ -91,7 +91,20 @@ private fun AssignmentDetailsScreenContent(
                 }
 
                 Divider()
-                
+
+                details.imageUrl?.let { imageUrl ->
+                    AsyncImage(
+                        model = imageUrl,
+                        contentDescription = "Assignment Image",
+                        placeholder = painterResource(id = R.drawable.defultsubject),
+                        error = painterResource(id = R.drawable.defultsubject),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp)),
+                        contentScale = ContentScale.FillWidth
+                    )
+                }
+
                 details.description?.let { description ->
                     Text(
                         text = "الوصف:",
@@ -101,17 +114,7 @@ private fun AssignmentDetailsScreenContent(
                     Text(text = description)
                 }
 
-                // عرض الصورة إذا كانت موجودة
-                details.imageUrl?.let { imageUrl ->
-                    AsyncImage(
-                        model = imageUrl,
-                        contentDescription = "Assignment Image",
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(12.dp)),
-                        contentScale = ContentScale.FillWidth
-                    )
-                }
+
 
                 Spacer(modifier = Modifier.height(8.dp))
 
@@ -142,7 +145,7 @@ private fun AssignmentDetailsScreenPreview() {
                 id = "a1",
                 title = "النحو والصرف",
                 description = "الرجاء حل التمارين في صفحة 55 وإرفاق صورة للحلول.",
-                imageUrl = null,
+                imageUrl = "android.resource://com.example.saffieduapp/${R.drawable.defultsubject}",
                 subjectName = "اللغة العربية",
                 teacherName = "أ. طاهر زياد قديح",
                 dueDate = "ينتهي في: 10 أغسطس 2025 - 6:00 مساءً",

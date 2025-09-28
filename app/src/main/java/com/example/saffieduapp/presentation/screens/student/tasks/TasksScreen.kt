@@ -63,7 +63,12 @@ fun TasksScreen(
             } else {
 
                 if (state.selectedTabIndex == 0) {
-                    AssignmentsList(assignmentsByDate = state.assignmentsByDate)
+                    AssignmentsList(assignmentsByDate = state.assignmentsByDate,
+                        onAssignmentClick = { assignmentId ->
+                            navController.navigate("${Routes.ASSIGNMENT_DETAILS_SCREEN}/$assignmentId")
+                        }
+                        )
+
                 } else {
                     ExamsList(examsByDate = state.examsByDate,
                         onExamClick = { examId ->
@@ -97,7 +102,11 @@ private fun CustomTab(
 
 
 @Composable
-private fun AssignmentsList(assignmentsByDate: Map<String, List<AssignmentItem>>) {
+private fun AssignmentsList(
+    assignmentsByDate: Map<String, List<AssignmentItem>>,
+    onAssignmentClick: (String) -> Unit
+
+) {
     if (assignmentsByDate.isEmpty()) {
         EmptyState(message = "لا توجد واجبات حالياً")
     } else {
@@ -122,7 +131,7 @@ private fun AssignmentsList(assignmentsByDate: Map<String, List<AssignmentItem>>
                             Box(modifier = Modifier.weight(1f)) {
                                 AssignmentCard(
                                     assignment = assignment,
-                                    onClick = { /* TODO */ }
+                                    onClick = { onAssignmentClick(assignment.id) }
                                 )
                             }
                         }
