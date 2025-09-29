@@ -57,12 +57,16 @@ class AssignmentRepository @Inject constructor() {
             false // فشل الحفظ
         }
     }
-    // دالة جديدة لجلب جميع الواجبات
-    suspend fun getAllAssignments(): List<AssignmentItem> {
+
+    suspend fun getAllAssignments(classNameFilter: String? = null): List<AssignmentItem> {
         return try {
             val snapshot = firestore.collection("assignments").get().await()
-            snapshot.documents.map { document ->
+            snapshot.documents.mapNotNull { document ->
                 val className = document.getString("className") ?: document.getString("ClassName") ?: ""
+
+                // إذا تم تمرير الفلتر ولم يتطابق الصف، تجاهل هذا الواجب
+                if (classNameFilter != null && className != classNameFilter) return@mapNotNull null
+
                 val description = document.getString("description") ?: ""
                 val dueDate = document.getString("dueDate") ?: document.getString("duebate") ?: ""
                 val imageUrl = document.getString("imageUrl") ?: ""
@@ -83,6 +87,21 @@ class AssignmentRepository @Inject constructor() {
             emptyList()
         }
     }
+    suspend fun getStudentClass(studentId: String): String? {
+        return try {
+            val doc = FirebaseFirestore.getInstance()
+                .collection("students")
+                .document(studentId)
+                .get()
+                .await()
+
+            doc.getString("grade") // اسم الحقل الذي يحتوي الصف
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+
 
     private fun formatDueDate(dueDate: String): String {
         return try {
