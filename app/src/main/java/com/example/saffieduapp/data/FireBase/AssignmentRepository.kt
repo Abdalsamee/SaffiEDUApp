@@ -140,14 +140,19 @@ class AssignmentRepository @Inject constructor() {
         return try {
             val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
             val due = dateFormat.parse(dueDate)
-            val today = Calendar.getInstance().time
+            val today = Calendar.getInstance().apply {
+                set(Calendar.HOUR_OF_DAY, 0)
+                set(Calendar.MINUTE, 0)
+                set(Calendar.SECOND, 0)
+                set(Calendar.MILLISECOND, 0)
+            }.time
 
             val diff = due.time - today.time
             val days = (diff / (24 * 60 * 60 * 1000)).toInt()
 
             when {
                 days < 0 -> AssignmentStatus.EXPIRED
-                days == 0 -> AssignmentStatus.LATE
+                days == 0 -> AssignmentStatus.PENDING // بدل LATE، لأنه اليوم لم ينتهِ بعد
                 else -> AssignmentStatus.PENDING
             }
         } catch (e: Exception) {
