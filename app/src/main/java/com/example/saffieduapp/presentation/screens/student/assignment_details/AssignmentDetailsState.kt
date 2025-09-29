@@ -10,7 +10,7 @@ data class AssignmentDetails(
     val teacherName: String,
     val dueDate: String,
     val remainingTime: String,
-
+    val isSubmitEnabled: Boolean // ← جديد
 )
 
 // ٢. تعريف الحالة الكاملة للشاشة

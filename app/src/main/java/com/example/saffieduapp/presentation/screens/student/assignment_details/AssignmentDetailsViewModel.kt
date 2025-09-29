@@ -31,21 +31,20 @@ class AssignmentDetailsViewModel @Inject constructor(
     private fun loadAssignmentDetails(id: String) {
         _state.value = AssignmentDetailsState(isLoading = true)
 
-        // استخدام Firestore لجلب بيانات الواجب
         db.collection("assignments")
             .document(id)
             .get()
-            .addOnSuccessListener { document ->
-                if (document.exists()) {
-                    val title = document.getString("title") ?: ""
-                    val description = document.getString("description")
-                    val imageUrl = document.getString("imageUrl")
-                    val subjectName = document.getString("className") ?: ""
-                    val dueDate = document.getString("dueDate") ?: ""
-                    val teacherName = document.getString("teacherName") ?: "غير محدد" // إذا خزنت اسم المعلم
+            .addOnSuccessListener { doc ->
+                if (doc.exists()) {
+                    val title = doc.getString("title") ?: ""
+                    val description = doc.getString("description")
+                    val imageUrl = doc.getString("imageUrl")
+                    val subjectName = doc.getString("className") ?: ""
+                    val teacherName = doc.getString("teacherName") ?: "غير محدد"
+                    val dueDateRaw = doc.getString("dueDate") ?: ""
 
-                    // حساب الوقت المتبقي
-                    val remainingTime = calculateRemainingTime(dueDate)
+                    val remainingTime = calculateRemainingTime(dueDateRaw)
+                    val isSubmitEnabled = !remainingTime.contains("منتهي") // الزر معطل إذا انتهت المهلة
 
                     val details = AssignmentDetails(
                         id = id,
@@ -54,8 +53,9 @@ class AssignmentDetailsViewModel @Inject constructor(
                         imageUrl = imageUrl,
                         subjectName = subjectName,
                         teacherName = teacherName,
-                        dueDate = formatDueDate(dueDate),
-                        remainingTime = remainingTime
+                        dueDate = formatDueDate(dueDateRaw),
+                        remainingTime = remainingTime,
+                        isSubmitEnabled = isSubmitEnabled
                     )
 
                     _state.value = AssignmentDetailsState(isLoading = false, assignmentDetails = details)
@@ -67,6 +67,7 @@ class AssignmentDetailsViewModel @Inject constructor(
                 _state.value = AssignmentDetailsState(isLoading = false, assignmentDetails = null)
             }
     }
+
 
     private fun formatDueDate(dueDate: String): String {
         return try {

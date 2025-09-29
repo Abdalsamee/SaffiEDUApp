@@ -134,8 +134,17 @@ private fun AssignmentDetailsScreenContent(
                 AppButton(
                     text = "تسليم",
                     onClick = onSubmitClick,
-                    enabled = true
+                    enabled = details.isSubmitEnabled // ← الآن يعتمد على المهلة
                 )
+                if (!details.isSubmitEnabled) {
+                    Text(
+                        text = "انتهت مهلة تسليم الواجب",
+                        color = Color.Red,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(top = 8.dp)
+                    )
+                }
+
             }
         }
     }
@@ -155,7 +164,8 @@ private fun AssignmentDetailsScreenPreview() {
                 subjectName = "اللغة العربية",
                 teacherName = "أ. طاهر زياد قديح",
                 dueDate = "ينتهي في: 10 أغسطس 2025 - 6:00 مساءً",
-                remainingTime = "متبقي 10 أيام"
+                remainingTime = "متبقي 10 أيام",
+                isSubmitEnabled = true
             )
         )
         AssignmentDetailsScreenContent(
