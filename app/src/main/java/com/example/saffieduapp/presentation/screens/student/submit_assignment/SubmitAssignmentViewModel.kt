@@ -6,6 +6,9 @@ import android.provider.OpenableColumns
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.saffieduapp.data.FireBase.SubmissionRepository
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.delay
@@ -13,16 +16,22 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 
 @HiltViewModel
 class SubmitAssignmentViewModel @Inject constructor(
-    @ApplicationContext private val context: Context, // ١. حقن Context لجلب تفاصيل الملف
-    savedStateHandle: SavedStateHandle
+    @ApplicationContext private val context: Context,
+    private val submissionRepository: SubmissionRepository,
+    private val auth: FirebaseAuth,
+    savedStateHandle: SavedStateHandle,
+    private val firestore : FirebaseFirestore
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(SubmitAssignmentState())
     val state = _state.asStateFlow()
+
+    private val assignmentId = savedStateHandle.get<String>("assignmentId") ?: ""
 
     init {
         val assignmentId = savedStateHandle.get<String>("assignmentId")
@@ -30,6 +39,41 @@ class SubmitAssignmentViewModel @Inject constructor(
             loadAssignmentDetails(assignmentId)
         }
     }
+
+    fun submitAssignment(notes: String? = null) {
+        viewModelScope.launch {
+            val files = state.value.submittedFiles
+
+            // جلب studentId بناءً على البريد الإلكتروني
+            val doc = firestore.collection("students")
+                .whereEqualTo("email", auth.currentUser?.email)
+                .get()
+                .await()
+
+            val studentId = doc.documents.firstOrNull()?.id
+
+            if (studentId == null) {
+                // لم يتم العثور على الطالب
+                _state.update { it.copy(isSubmitting = false, submissionSuccess = false) }
+                return@launch
+            }
+
+            // تفعيل مؤشر التحميل
+            _state.update { it.copy(isSubmitting = true) }
+
+            val success = submissionRepository.submitAssignment(
+                studentId = studentId,
+                assignmentId = assignmentId,
+                files = files.map { it.uri },
+                context = context,
+                notes = notes
+            )
+
+            // تحديث الحالة بعد التسليم
+            _state.update { it.copy(isSubmitting = false, submissionSuccess = success) }
+        }
+    }
+
 
     private fun loadAssignmentDetails(id: String) {
         // بيانات وهمية مؤقتة
@@ -70,22 +114,6 @@ class SubmitAssignmentViewModel @Inject constructor(
      */
     fun clearAllFiles() {
         _state.update { it.copy(submittedFiles = emptyList()) }
-    }
-
-    /**
-     * دالة لتسليم الواجب.
-     */
-    fun submitAssignment() {
-        viewModelScope.launch {
-            // إظهار مؤشر التحميل في الزر
-            _state.update { it.copy(isSubmitting = true) }
-
-            // محاكاة عملية الرفع
-            delay(2000)
-
-            // إظهار رسالة النجاح وإخفاء مؤشر التحميل
-            _state.update { it.copy(isSubmitting = false, submissionSuccess = true) }
-        }
     }
 
     /**
