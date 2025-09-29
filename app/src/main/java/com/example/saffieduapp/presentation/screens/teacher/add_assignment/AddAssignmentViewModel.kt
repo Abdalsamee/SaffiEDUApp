@@ -1,10 +1,12 @@
 package com.example.saffieduapp.presentation.screens.teacher.add_assignment
 
+import android.R.attr.name
 import android.content.Context
 import android.net.Uri
 import android.provider.OpenableColumns
 import androidx.lifecycle.ViewModel
 import com.example.saffieduapp.data.repository.AssignmentRepository
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -22,13 +24,18 @@ class AddAssignmentViewModel @Inject constructor(
     private val firestore: FirebaseFirestore
 ) : ViewModel() {
 
-    private val _state = MutableStateFlow(AddAssignmentState())
+    private val _state = MutableStateFlow(AddAssignmentState(teacherName = name.toString()))
     val state = _state.asStateFlow()
 
     private val _eventFlow = MutableSharedFlow<String>() // لإرسال الرسائل
     val eventFlow = _eventFlow.asSharedFlow()
 
     private val assigrepository = AssignmentRepository() // الكلاس الجديد
+    private val auth = FirebaseAuth.getInstance()
+
+    init {
+        fetchTeacherName()
+    }
 
     fun onEvent(event: AddAssignmentEvent) {
         when (event) {
@@ -57,6 +64,22 @@ class AddAssignmentViewModel @Inject constructor(
             }
         }
     }
+    private fun fetchTeacherName() {
+        val email = FirebaseAuth.getInstance().currentUser?.email
+        firestore.collection("teachers")
+            .whereEqualTo("email", email)
+            .get()
+            .addOnSuccessListener { snapshot ->
+                if (!snapshot.isEmpty) {
+                    val name = snapshot.documents[0].getString("fullName") ?: ""
+                    _state.update { it.copy(teacherName = name) }
+                }
+            }
+            .addOnFailureListener {
+                _state.update { it.copy(teacherName = "اسم غير معروف") }
+            }
+    }
+
     private fun saveAssignment() {
         val currentState = state.value
         if (currentState.title.isBlank() || currentState.description.isBlank() || currentState.selectedClass.isBlank()) {
@@ -65,6 +88,8 @@ class AddAssignmentViewModel @Inject constructor(
 
         _state.update { it.copy(isSaving = true) }
 
+        val teacherName = currentState.teacherName
+
         kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
             val success = assigrepository.saveAssignment(
                 title = currentState.title,
@@ -72,18 +97,20 @@ class AddAssignmentViewModel @Inject constructor(
                 dueDate = currentState.dueDate,
                 className = currentState.selectedClass,
                 imageUri = currentState.selectedImageUri,
-                imageName = currentState.selectedImageName
+                imageName = currentState.selectedImageName,
+                teacherName = currentState.teacherName
             )
 
             if (success) {
-                _eventFlow.emit("تم حفظ الواجب بنجاح!") // إرسال رسالة النجاح
-                _state.update { AddAssignmentState() } // إعادة تعيين الحقول
+                _eventFlow.emit("تم حفظ الواجب بنجاح!")
+                _state.update { AddAssignmentState(teacherName = teacherName) }
             } else {
-                _eventFlow.emit("حدث خطأ أثناء حفظ الواجب") // إرسال رسالة الفشل
+                _eventFlow.emit("حدث خطأ أثناء حفظ الواجب")
                 _state.update { it.copy(isSaving = false) }
             }
         }
     }
+
 
     private fun getFileName(uri: Uri): String? {
         return context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
