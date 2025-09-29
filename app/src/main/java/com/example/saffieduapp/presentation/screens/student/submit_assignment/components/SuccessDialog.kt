@@ -1,6 +1,5 @@
 package com.example.saffieduapp.presentation.screens.student.submit_assignment.components
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
@@ -20,8 +19,16 @@ import com.example.saffieduapp.R
 @Composable
 fun SuccessDialog(
     onDismiss: () -> Unit,
-    submitDate: String = "5 أغسطس 2025، الساعة 4:25 مساءً"
+    submitDate: Long? = null
 ) {
+    // تنسيق التاريخ والوقت
+    val formattedTime = submitDate?.let {
+        java.text.SimpleDateFormat(
+            "dd MMMM yyyy، الساعة HH:mm:ss",
+            java.util.Locale("ar")
+        ).format(java.util.Date(it))
+    } ?: "غير محدد"
+
     Dialog(onDismissRequest = onDismiss) {
         Card(
             shape = RoundedCornerShape(24.dp),
@@ -31,13 +38,11 @@ fun SuccessDialog(
                 .padding(16.dp)
         ) {
             Column(
-                modifier = Modifier
-                    .padding(20.dp),
+                modifier = Modifier.padding(20.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // العنوان
                 Text(
-                    text = "تم التسليم الواجب بنجاح !",
+                    text = "تم تسليم الواجب بنجاح!",
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color.Black,
@@ -46,9 +51,8 @@ fun SuccessDialog(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // النص
                 Text(
-                    text = "تاريخ التسليم:\n$submitDate",
+                    text = "تاريخ التسليم:\n$formattedTime",
                     fontSize = 14.sp,
                     color = Color.DarkGray,
                     textAlign = TextAlign.Center
@@ -56,7 +60,6 @@ fun SuccessDialog(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // الأيقونة
                 Icon(
                     painter = painterResource(id = R.drawable.check),
                     contentDescription = null,
@@ -66,7 +69,6 @@ fun SuccessDialog(
 
                 Spacer(modifier = Modifier.height(20.dp))
 
-                // زر العودة
                 Button(
                     onClick = onDismiss,
                     shape = RoundedCornerShape(12.dp),
@@ -79,13 +81,14 @@ fun SuccessDialog(
         }
     }
 }
+
 @Preview(showBackground = true)
 @Composable
 fun SuccessDialogPreview() {
     MaterialTheme {
         SuccessDialog(
             onDismiss = {},
-            submitDate = "5 أغسطس 2025، الساعة 4:25 مساءً"
+            submitDate = 0
         )
     }
 }

@@ -68,9 +68,11 @@ class SubmitAssignmentViewModel @Inject constructor(
                 context = context,
                 notes = notes
             )
+            // تسجيل وقت التسليم عند النجاح
+            val currentTime = if (success) System.currentTimeMillis() else null
 
             // تحديث الحالة بعد التسليم
-            _state.update { it.copy(isSubmitting = false, submissionSuccess = success) }
+            _state.update { it.copy(isSubmitting = false, submissionSuccess = success, submissionTime = currentTime) }
         }
     }
 
