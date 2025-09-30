@@ -65,7 +65,6 @@ fun ExamHeader(
             )
         )
 
-        // نص "7 من 10"
         Text(
             text = "${currentQuestionIndex + 1} من $totalQuestions",
             color = Color.White,
@@ -73,6 +72,7 @@ fun ExamHeader(
             fontWeight = FontWeight.SemiBold,
             textAlign = TextAlign.Center
         )
+        Spacer(modifier = Modifier.height(20.dp))
     }
 }
 
