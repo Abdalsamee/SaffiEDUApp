@@ -37,16 +37,35 @@ fun MCQSingleOption(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
+            .clip(
+                RoundedCornerShape(
+                    topStart = 0.dp,
+                    topEnd = 20.dp,
+                    bottomEnd = 0.dp,
+                    bottomStart =20 .dp
+                )
+            )
             .background(
                 color = if (isSelected) AppAccent.copy(alpha = 0.15f)
-                else Color(0xFFE8F4FD)
+                else Color(0xFFE8F4FD),
+                shape = RoundedCornerShape(
+                    topStart = 0.dp,
+                    topEnd = 20.dp,
+                    bottomEnd = 0.dp,
+                    bottomStart =20 .dp
+                )
             )
             .border(
                 width = if (isSelected) 2.dp else 0.dp,
                 color = if (isSelected) AppAccent else Color.Transparent,
-                shape = RoundedCornerShape(12.dp)
+                shape = RoundedCornerShape(
+                    topStart = 0.dp,
+                    topEnd = 20.dp,
+                    bottomEnd = 0.dp,
+                    bottomStart =20 .dp
+                )
             )
+
             .clickable { onSelect() }
             .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -99,15 +118,33 @@ fun MCQMultipleOption(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
+            .clip(
+                RoundedCornerShape(
+                    topStart = 0.dp,
+                    topEnd = 20.dp,
+                    bottomEnd = 0.dp,
+                    bottomStart =20 .dp
+                )
+            )
             .background(
                 color = if (isSelected) AppAccent.copy(alpha = 0.15f)
-                else Color(0xFFE8F4FD)
+                else Color(0xFFE8F4FD),
+                shape = RoundedCornerShape(
+                    topStart = 0.dp,
+                    topEnd = 20.dp,
+                    bottomEnd = 0.dp,
+                    bottomStart =20 .dp
+                )
             )
             .border(
                 width = if (isSelected) 2.dp else 0.dp,
                 color = if (isSelected) AppAccent else Color.Transparent,
-                shape = RoundedCornerShape(12.dp)
+                shape = RoundedCornerShape(
+                    topStart = 0.dp,
+                    topEnd = 20.dp,
+                    bottomEnd = 0.dp,
+                    bottomStart =20 .dp
+                )
             )
             .clickable { onToggle() }
             .padding(horizontal = 16.dp, vertical = 14.dp),
@@ -129,7 +166,8 @@ fun MCQMultipleOption(
             onCheckedChange = { onToggle() },
             colors = CheckboxDefaults.colors(
                 checkedColor = AppAccent,
-                uncheckedColor = Color.Gray
+                uncheckedColor = Color.Gray,
+                checkmarkColor = Color.White
             )
         )
     }

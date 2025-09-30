@@ -17,5 +17,5 @@ data class SubmitAssignmentState(
     val submittedFiles: List<SubmittedFile> = emptyList(),
     val isSubmitting: Boolean = false,
     val submissionSuccess: Boolean = false,
-    val submissionTime: Long? = null // إضافة لحفظ وقت التسليم
+    val submissionTime: Long? = null, // إضافة لحفظ وقت التسليم
 )

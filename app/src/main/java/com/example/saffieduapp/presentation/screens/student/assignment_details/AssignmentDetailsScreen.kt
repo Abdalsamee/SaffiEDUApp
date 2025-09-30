@@ -37,13 +37,14 @@ fun AssignmentDetailsScreen(
 
     AssignmentDetailsScreenContent(
         state = state,
+        onNavigateUp = onNavigateUp,
         onSubmitClick = {
-            state.assignmentDetails?.let {
-                onNavigateToSubmit(it.id)
+            state.assignmentDetails?.let { details ->
+                if (details.isSubmitEnabled) { // ← تحقق قبل التنقل
+                    onNavigateToSubmit(details.id)
+                }
             }
         },
-        onNavigateUp = onNavigateUp,
-
     )
 }
 
@@ -136,7 +137,7 @@ private fun AssignmentDetailsScreenContent(
                     onClick = onSubmitClick,
                     enabled = details.isSubmitEnabled // ← الآن يعتمد على المهلة
                 )
-                if (!details.isSubmitEnabled) {
+                if (!details.isSubmitEnabled && details.remainingTime == "منتهي") {
                     Text(
                         text = "انتهت مهلة تسليم الواجب",
                         color = Color.Red,

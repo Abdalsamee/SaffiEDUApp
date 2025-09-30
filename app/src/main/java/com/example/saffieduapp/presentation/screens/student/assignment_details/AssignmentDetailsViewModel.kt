@@ -57,11 +57,11 @@ class AssignmentDetailsViewModel @Inject constructor(
                         remainingTime = remainingTime,
                         isSubmitEnabled = isSubmitEnabled
                     )
-
                     _state.value = AssignmentDetailsState(isLoading = false, assignmentDetails = details)
                 } else {
                     _state.value = AssignmentDetailsState(isLoading = false, assignmentDetails = null)
                 }
+
             }
             .addOnFailureListener {
                 _state.value = AssignmentDetailsState(isLoading = false, assignmentDetails = null)
