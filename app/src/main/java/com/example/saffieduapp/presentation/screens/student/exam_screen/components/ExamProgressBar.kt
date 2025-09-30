@@ -16,6 +16,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.example.saffieduapp.ui.theme.AppAlert
+import com.example.saffieduapp.ui.theme.AppPrimary
 import com.example.saffieduapp.ui.theme.SaffiEDUAppTheme
 
 /**
@@ -31,13 +32,22 @@ fun ExamProgressBar(
     progressBrush: Brush = Brush.horizontalGradient(
         listOf(
             Color.White,
+            Color(0xffF3A25A),
             AppAlert
         )
-    )
+
+    ),completedColor: Color = AppAlert
+
 ) {
     // التأكد من أن القيمة بين 0 و 1
     val validatedProgress = progress.coerceIn(0f, 1f)
-
+    val fillBrush = if (validatedProgress >= 1f) {
+        // عند 100% - برتقالي بالكامل
+        Brush.horizontalGradient(listOf(completedColor, completedColor))
+    } else {
+        // قبل 100% - تدرج عادي
+        progressBrush
+    }
     // خلفية شريط التقدم
     Box(
         modifier = modifier
@@ -52,7 +62,7 @@ fun ExamProgressBar(
                 .fillMaxHeight()
                 .fillMaxWidth(validatedProgress)
                 .clip(RoundedCornerShape(50))
-                .background(progressBrush)
+                .background(fillBrush)
         )
     }
 }
@@ -64,7 +74,7 @@ private fun ExamProgressBarPreview() {
         androidx.compose.foundation.layout.Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(com.example.saffieduapp.ui.theme.AppPrimary)
+                .background(AppPrimary)
                 .padding(20.dp),
             verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(16.dp)
         ) {

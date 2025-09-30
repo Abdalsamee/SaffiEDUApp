@@ -82,7 +82,7 @@ private fun ExamHeaderPreview() {
     SaffiEDUAppTheme {
         ExamHeader(
             examTitle = "اختبار الوحدة الثانية",
-            currentQuestionIndex = 6,
+            currentQuestionIndex = 9,
             totalQuestions = 10
         )
     }
