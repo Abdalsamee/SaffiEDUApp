@@ -8,6 +8,7 @@ import androidx.navigation.navArgument
 import androidx.navigation.navigation
 import com.example.saffieduapp.presentation.screens.student.assignment_details.AssignmentDetailsScreen
 import com.example.saffieduapp.presentation.screens.student.exam_details.ExamDetailsScreen
+import com.example.saffieduapp.presentation.screens.student.exam_screen.ExamScreen
 import com.example.saffieduapp.presentation.screens.student.submit_assignment.SubmitAssignmentScreen
 import com.example.saffieduapp.presentation.screens.student.tasks.TasksScreen
 
@@ -24,8 +25,27 @@ fun NavGraphBuilder.tasksNavGraph(navController: NavController) {
         composable(
             route = "${Routes.EXAM_DETAILS_SCREEN}/{examId}",
             arguments = listOf(navArgument("examId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val examId = backStackEntry.arguments?.getString("examId") ?: ""
+            ExamDetailsScreen(
+                onNavigateUp = { navController.popBackStack() },
+                onNavigateToExam = {
+                    navController.navigate("${Routes.EXAM_SCREEN}/$examId")
+                }
+            )
+        }
+
+        composable(
+            route = "${Routes.EXAM_SCREEN}/{examId}",
+            arguments = listOf(navArgument("examId") { type = NavType.StringType })
         ) {
-            ExamDetailsScreen(onNavigateUp = { navController.popBackStack() })
+            ExamScreen(
+                onNavigateUp = { navController.popBackStack() },
+                onExamComplete = {
+                    // TODO: الانتقال لشاشة النتائج أو الرجوع للمهام
+                    navController.popBackStack(Routes.TASKS_SCREEN, inclusive = false)
+                }
+            )
         }
 
         composable(

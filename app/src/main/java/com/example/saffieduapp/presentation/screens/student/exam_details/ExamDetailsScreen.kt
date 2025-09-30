@@ -34,14 +34,15 @@ import com.example.saffieduapp.ui.theme.SaffiEDUAppTheme
 @Composable
 fun ExamDetailsScreen(
     onNavigateUp: () -> Unit,
-    viewModel: ExamDetailsViewModel = hiltViewModel()
+    viewModel: ExamDetailsViewModel = hiltViewModel(),
+    onNavigateToExam: () -> Unit,
 ) {
     val state by viewModel.state.collectAsState()
 
     ExamDetailsScreenContent(
         state = state,
         onNavigateUp = onNavigateUp,
-        onStartExamClick = { /* TODO */ }
+        onStartExamClick = onNavigateToExam
     )
 }
 

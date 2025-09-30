@@ -1,6 +1,5 @@
 package com.example.saffieduapp.presentation.screens.student.submit_assignment
 
-import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.border
@@ -10,7 +9,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -18,17 +16,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.saffieduapp.R
 import com.example.saffieduapp.presentation.screens.student.components.CommonTopAppBar
 import com.example.saffieduapp.presentation.screens.student.submit_assignment.components.NotesSection
 import com.example.saffieduapp.presentation.screens.student.submit_assignment.components.SuccessDialog
 import com.example.saffieduapp.ui.theme.AppAlert
-import com.example.saffieduapp.ui.theme.AppPrimary
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -48,11 +42,15 @@ fun SubmitAssignmentScreen(
 
     // ٢. ديالوج النجاح
     if (state.submissionSuccess) {
-        SuccessDialog(onDismiss = {
-            viewModel.resetSubmissionStatus()
-            onNavigateUp() // العودة للخلف بعد إغلاق الديالوج
-        })
+        SuccessDialog(
+            submitDate = state.submissionTime,
+            onDismiss = {
+                viewModel.resetSubmissionStatus()
+                onNavigateUp()
+            }
+        )
     }
+
 
     Scaffold(
         topBar = {

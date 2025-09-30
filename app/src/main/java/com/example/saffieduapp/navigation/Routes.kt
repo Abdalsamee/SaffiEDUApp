@@ -18,6 +18,7 @@ object Routes {
     const val TASKS_NAV_GRAPH = "tasks_nav_graph"
     const val TASKS_SCREEN = "tasks_screen"
     const val EXAM_DETAILS_SCREEN = "exam_details_screen"
+    const val EXAM_SCREEN = "exam_screen"
     const val ASSIGNMENT_DETAILS_SCREEN = "assignment_details_screen"
     const val SUBMIT_ASSIGNMENT_SCREEN = "submit_assignment_screen"
 
