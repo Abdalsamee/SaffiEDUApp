@@ -44,128 +44,139 @@ fun ExamQuestionBox(
             .fillMaxWidth()
             .padding(horizontal = 16.dp),
         shape = RoundedCornerShape(24.dp),
-        color = Color.White, // أبيض صريح
+        color = Color.White,
         shadowElevation = 16.dp,
-        tonalElevation = 0.dp // مهم: لمنع التأثير اللوني
+        tonalElevation = 0.dp
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(Color.White) // تأكيد اللون الأبيض
-                .padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            // الصف العلوي: رقم السؤال + المؤقت
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+        // <-- الخطوة 1: استخدام Box كحاوية رئيسية للسماح بالتكديس والمحاذاة
+        Box(modifier = Modifier.fillMaxWidth()) {
+            // المحتوى الرئيسي مع padding
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Color.White)
+                    .padding(20.dp), // هذا الـ padding يطبق على كل المحتوى داخل الـ Column
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // رقم السؤال (يمين)
-                Box(
-                    modifier = Modifier
-                        .size(56.dp)
-                        .background(color = AppAlert, shape = RoundedCornerShape(8.dp)),
-                    contentAlignment = Alignment.Center
+                // الصف العلوي: يحتوي الآن على المؤقت فقط
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    // <-- الخطوة 4: تغيير المحاذاة لأن رقم السؤال لم يعد هنا
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = "${currentQuestionIndex + 1}\nس",
-                        color = Color.White,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        textAlign = TextAlign.Center,
-                        lineHeight = 18.sp
-                    )
-                }
-
-                // المؤقت (يسار)
-                Box(
-                    modifier = Modifier
-                        .background(
-                            color = if (showTimeWarning) Color(0xFFFF4444) else AppAlert,
-                            shape = RoundedCornerShape(8.dp)
-                        )
-                        .padding(horizontal = 16.dp, vertical = 8.dp)
-                ) {
-                    Text(
-                        text = formatTime(remainingTimeInSeconds),
-                        color = Color.White,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                }
-            }
-
-            // نص السؤال
-            Text(
-                text = question.text,
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Normal,
-                color = Color.Black,
-                textAlign = TextAlign.End,
-                lineHeight = 28.sp
-            )
-
-            // الخيارات حسب نوع السؤال
-            when (question.type) {
-                QuestionType.MULTIPLE_CHOICE_SINGLE, QuestionType.TRUE_FALSE -> {
-                    question.choices.forEach { choice ->
-                        val isSelected = (currentAnswer as? ExamAnswer.SingleChoice)?.choiceId == choice.id
-                        MCQSingleOption(
-                            text = choice.text,
-                            isSelected = isSelected,
-                            onSelect = {
-                                onEvent(ExamEvent.SelectSingleChoice(question.id, choice.id))
-                            }
+                    // المؤقت (يسار)
+                    Box(
+                        modifier = Modifier
+                            .background(
+                                color = if (showTimeWarning) Color(0xFFFF4444) else AppAlert,
+                                shape = RoundedCornerShape(8.dp)
+                            )
+                            .padding(horizontal = 16.dp, vertical = 8.dp)
+                    ) {
+                        Text(
+                            text = formatTime(remainingTimeInSeconds),
+                            color = Color.White,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.SemiBold
                         )
                     }
                 }
 
-                QuestionType.MULTIPLE_CHOICE_MULTIPLE -> {
-                    question.choices.forEach { choice ->
-                        val selectedIds = (currentAnswer as? ExamAnswer.MultipleChoice)?.choiceIds ?: emptyList()
-                        val isSelected = choice.id in selectedIds
-                        MCQMultipleOption(
-                            text = choice.text,
-                            isSelected = isSelected,
-                            onToggle = {
-                                onEvent(ExamEvent.ToggleMultipleChoice(question.id, choice.id))
-                            }
-                        )
-                    }
-                }
-
-                QuestionType.ESSAY -> {
-                    val essayText = (currentAnswer as? ExamAnswer.Essay)?.text ?: ""
-                    EssayAnswerField(
-                        value = essayText,
-                        onValueChange = { text ->
-                            onEvent(ExamEvent.UpdateEssayAnswer(question.id, text))
-                        }
-                    )
-                }
-            }
-
-            // زر التالي أو إنهاء
-            if (isLastQuestion) {
-                AppButton(
-                    text = if (isSubmitting) "جاري التسليم..." else "إنهاء الاختبار",
-                    onClick = { onEvent(ExamEvent.SubmitExam) },
-                    enabled = !isSubmitting,
-                    modifier = Modifier.fillMaxWidth()
+                // نص السؤال
+                Text(
+                    text = question.text,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Normal,
+                    color = Color.Black,
+                    textAlign = TextAlign.End,
+                    lineHeight = 28.sp
                 )
-            } else {
-                AppButton(
-                    text = "التالي",
-                    onClick = { onEvent(ExamEvent.NextQuestion) },
-                    enabled = true,
-                    modifier = Modifier.fillMaxWidth()
+
+                // الخيارات حسب نوع السؤال
+                when (question.type) {
+                    QuestionType.MULTIPLE_CHOICE_SINGLE, QuestionType.TRUE_FALSE -> {
+                        question.choices.forEach { choice ->
+                            val isSelected = (currentAnswer as? ExamAnswer.SingleChoice)?.choiceId == choice.id
+                            MCQSingleOption(
+                                text = choice.text,
+                                isSelected = isSelected,
+                                onSelect = {
+                                    onEvent(ExamEvent.SelectSingleChoice(question.id, choice.id))
+                                }
+                            )
+                        }
+                    }
+
+                    QuestionType.MULTIPLE_CHOICE_MULTIPLE -> {
+                        question.choices.forEach { choice ->
+                            val selectedIds = (currentAnswer as? ExamAnswer.MultipleChoice)?.choiceIds ?: emptyList()
+                            val isSelected = choice.id in selectedIds
+                            MCQMultipleOption(
+                                text = choice.text,
+                                isSelected = isSelected,
+                                onToggle = {
+                                    onEvent(ExamEvent.ToggleMultipleChoice(question.id, choice.id))
+                                }
+                            )
+                        }
+                    }
+
+                    QuestionType.ESSAY -> {
+                        val essayText = (currentAnswer as? ExamAnswer.Essay)?.text ?: ""
+                        EssayAnswerField(
+                            value = essayText,
+                            onValueChange = { text ->
+                                onEvent(ExamEvent.UpdateEssayAnswer(question.id, text))
+                            }
+                        )
+                    }
+                }
+
+                // زر التالي أو إنهاء
+                if (isLastQuestion) {
+                    AppButton(
+                        text = if (isSubmitting) "جاري التسليم..." else "إنهاء الاختبار",
+                        onClick = { onEvent(ExamEvent.SubmitExam) },
+                        enabled = !isSubmitting,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                } else {
+                    AppButton(
+                        text = "التالي",
+                        onClick = { onEvent(ExamEvent.NextQuestion) },
+                        enabled = true,
+                        modifier = Modifier.fillMaxWidth(0.4f)
+                    )
+                }
+            }
+
+            // <-- الخطوة 2 و 3: وضع صندوق رقم السؤال هنا بمحاذاة الحافة العلوية
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopStart) // <-- هذا هو السطر الأهم، يجعله يلتصق بالزاوية العلوية اليمنى
+                    .size(width = 60.dp, height = 50.dp) // يمكنك تعديل الارتفاع حسب رغبتك
+                    .padding(start = 16.dp)
+                    .background(
+                        color = AppAlert, shape = RoundedCornerShape(
+                            bottomEnd = 12.dp,
+                            bottomStart = 12.dp
+                        )
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "${currentQuestionIndex + 1}\nس",
+                    color = Color.White,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center,
+                    lineHeight = 18.sp
                 )
             }
         }
     }
 }
-
 /**
  * تنسيق الوقت بصيغة 00:10:00
  */
