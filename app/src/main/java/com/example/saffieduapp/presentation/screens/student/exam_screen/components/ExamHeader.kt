@@ -14,11 +14,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.saffieduapp.presentation.screens.student.component.ProgressBarWithPercentage
 import com.example.saffieduapp.ui.theme.AppAlert
 import com.example.saffieduapp.ui.theme.AppPrimary
 import com.example.saffieduapp.ui.theme.SaffiEDUAppTheme
-import kotlin.math.roundToInt
 
 /**
  * رأس الاختبار - يحتوي على العنوان + Progress Bar + عدد الأسئلة
@@ -51,26 +49,19 @@ fun ExamHeader(
             textAlign = TextAlign.Center
         )
 
-        // Progress Bar باستخدام المكون الجاهز
-        // تحويل النسبة من Float إلى Int (0-100)
-        val progressPercentage = ((currentQuestionIndex + 1).toFloat() / totalQuestions.toFloat() * 100).roundToInt()
+        // Progress Bar المخصص للاختبار
+        val progress = (currentQuestionIndex + 1).toFloat() / totalQuestions.toFloat()
 
-        ProgressBarWithPercentage(
-            progress = progressPercentage,
+        ExamProgressBar(
+            progress = progress,
             modifier = Modifier.fillMaxWidth(),
-            progressBarHeight = 8.dp,
+            height = 8.dp,
             backgroundColor = Color.White.copy(alpha = 0.3f),
             progressBrush = Brush.horizontalGradient(
                 listOf(
                     Color.White,
                     AppAlert
                 )
-            ),
-            completedColor = AppAlert,
-            textStyle = androidx.compose.ui.text.TextStyle(
-                color = Color.White,
-                fontWeight = FontWeight.Normal,
-                fontSize = 14.sp
             )
         )
 
