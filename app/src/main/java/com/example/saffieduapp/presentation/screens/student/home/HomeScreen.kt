@@ -101,7 +101,9 @@ fun HomeScreen(
                 FeaturedLessonsSection(
                     lessons = state.featuredLessons,
                     onFeaturedLessonClick = { lesson ->
-                        navController.navigateToVideoScreen(lesson.videoUrl)
+                        navController.navigateToVideoScreen(
+                            videoUrl = lesson.videoUrl
+                        )
                     }
                 )
             }
