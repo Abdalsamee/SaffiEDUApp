@@ -6,7 +6,6 @@ import android.view.View
 import android.view.WindowManager
 import android.widget.Toast
 import androidx.activity.ComponentActivity
-import androidx.activity.OnBackPressedCallback
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.compose.runtime.LaunchedEffect
@@ -15,9 +14,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.lifecycle.ViewModelProvider
-import com.example.saffieduapp.presentation.screens.student.exam_screen.components.ExamExitWarningDialog
 import com.example.saffieduapp.presentation.screens.student.exam_screen.components.ExamReturnWarningDialog
+import com.example.saffieduapp.presentation.screens.student.exam_screen.components.ExamExitWarningDialog
 import com.example.saffieduapp.presentation.screens.student.exam_screen.security.ExamSecurityManager
 import com.example.saffieduapp.ui.theme.SaffiEDUAppTheme
 import dagger.hilt.android.AndroidEntryPoint
@@ -44,14 +42,17 @@ class ExamActivity : ComponentActivity() {
         // إعداد الشاشة
         setupSecureScreen()
 
-        // اعتراض زر الرجوع
-        setupBackPressHandler()
-
         setContent {
             SaffiEDUAppTheme {
                 var showExitDialog by remember { mutableStateOf(false) }
                 val shouldShowWarning by securityManager.shouldShowWarning.collectAsState()
                 val shouldAutoSubmit by securityManager.shouldAutoSubmit.collectAsState()
+
+                // ✅ اعتراض زر الرجوع
+                BackHandler {
+                    securityManager.logViolation("BACK_BUTTON_PRESSED")
+                    showExitDialog = true
+                }
 
                 // إنهاء تلقائي عند الوصول للحد الأقصى
                 LaunchedEffect(shouldAutoSubmit) {
@@ -72,6 +73,7 @@ class ExamActivity : ComponentActivity() {
 
                 ExamScreen(
                     onNavigateUp = {
+                        securityManager.logViolation("NAVIGATE_UP_PRESSED")
                         showExitDialog = true
                     },
                     onExamComplete = {
@@ -79,7 +81,7 @@ class ExamActivity : ComponentActivity() {
                     }
                 )
 
-                // Dialog تحذير الخروج
+                // Dialog تحذير الخروج (زر الرجوع)
                 if (showExitDialog) {
                     ExamExitWarningDialog(
                         onDismiss = { showExitDialog = false },
@@ -90,7 +92,7 @@ class ExamActivity : ComponentActivity() {
                     )
                 }
 
-                // Dialog تحذير العودة
+                // Dialog تحذير العودة (بعد الخروج بزر Home)
                 if (shouldShowWarning) {
                     val exitCount = remember(shouldShowWarning) {
                         securityManager.violations.value.count {
@@ -136,24 +138,6 @@ class ExamActivity : ComponentActivity() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             setRecentsScreenshotEnabled(false)
         }
-    }
-
-    /**
-     * اعتراض زر الرجوع
-     */
-    private fun setupBackPressHandler() {
-        onBackPressedDispatcher.addCallback(
-            this,
-            object : OnBackPressedCallback(true) {
-                override fun handleOnBackPressed() {
-                    // تسجيل محاولة الخروج
-                    securityManager.logViolation("BACK_BUTTON_PRESSED")
-
-                    // إظهار Dialog تحذيري
-                    // سيتم التعامل معه في Compose
-                }
-            }
-        )
     }
 
     /**
