@@ -1,5 +1,7 @@
 package com.example.saffieduapp.navigation
 
+import android.content.Intent
+import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavType
@@ -8,7 +10,7 @@ import androidx.navigation.navArgument
 import androidx.navigation.navigation
 import com.example.saffieduapp.presentation.screens.student.assignment_details.AssignmentDetailsScreen
 import com.example.saffieduapp.presentation.screens.student.exam_details.ExamDetailsScreen
-import com.example.saffieduapp.presentation.screens.student.exam_screen.ExamScreen
+import com.example.saffieduapp.presentation.screens.student.exam_screen.ExamActivity
 import com.example.saffieduapp.presentation.screens.student.submit_assignment.SubmitAssignmentScreen
 import com.example.saffieduapp.presentation.screens.student.tasks.TasksScreen
 
@@ -17,37 +19,34 @@ fun NavGraphBuilder.tasksNavGraph(navController: NavController) {
         startDestination = Routes.TASKS_SCREEN,
         route = Routes.TASKS_NAV_GRAPH
     ) {
+        // شاشة المهام
         composable(Routes.TASKS_SCREEN) {
             TasksScreen(
                 navController = navController
             )
         }
+
+        // شاشة تفاصيل الاختبار
         composable(
             route = "${Routes.EXAM_DETAILS_SCREEN}/{examId}",
             arguments = listOf(navArgument("examId") { type = NavType.StringType })
         ) { backStackEntry ->
             val examId = backStackEntry.arguments?.getString("examId") ?: ""
+            val context = LocalContext.current // ✅ الحصول على Context
+
             ExamDetailsScreen(
                 onNavigateUp = { navController.popBackStack() },
                 onNavigateToExam = {
-                    navController.navigate("${Routes.EXAM_SCREEN}/$examId")
+                    // ✅ الانتقال لـ ExamActivity
+                    val intent = Intent(context, ExamActivity::class.java).apply {
+                        putExtra("EXAM_ID", examId)
+                    }
+                    context.startActivity(intent)
                 }
             )
         }
 
-        composable(
-            route = "${Routes.EXAM_SCREEN}/{examId}",
-            arguments = listOf(navArgument("examId") { type = NavType.StringType })
-        ) {
-            ExamScreen(
-                onNavigateUp = { navController.popBackStack() },
-                onExamComplete = {
-                    // TODO: الانتقال لشاشة النتائج أو الرجوع للمهام
-                    navController.popBackStack(Routes.TASKS_SCREEN, inclusive = false)
-                }
-            )
-        }
-
+        // شاشة تفاصيل الواجب
         composable(
             route = "${Routes.ASSIGNMENT_DETAILS_SCREEN}/{assignmentId}",
             arguments = listOf(navArgument("assignmentId") { type = NavType.StringType })
@@ -60,15 +59,12 @@ fun NavGraphBuilder.tasksNavGraph(navController: NavController) {
             )
         }
 
+        // شاشة تسليم الواجب
         composable(
             route = "${Routes.SUBMIT_ASSIGNMENT_SCREEN}/{assignmentId}",
             arguments = listOf(navArgument("assignmentId") { type = NavType.StringType })
         ) {
             SubmitAssignmentScreen(onNavigateUp = { navController.popBackStack() })
         }
-
-
-
-
     }
 }

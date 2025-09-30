@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
-    package="com.example.saffieduapp"
-    >
+    package="com.example.saffieduapp">
+
+    <!-- الصلاحيات في المكان الصحيح -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
@@ -12,8 +13,13 @@
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-feature
+        android:name="android.hardware.camera"
+        android:required="true" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
 
     <application
+        android:name=".SaffiEduApplication"
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
@@ -22,9 +28,8 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.SaffiEDUApp"
-        tools:targetApi="31"
-        android:name=".SaffiEduApplication"
-        >
+        tools:targetApi="31">
+
         <receiver
             android:name=".DailyLessonReceiver"
             android:enabled="true"
@@ -33,6 +38,7 @@
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
             </intent-filter>
         </receiver>
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.provider"
@@ -41,11 +47,14 @@
             <meta-data
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths" />
-            <meta-data
-                android:name="com.google.firebase.messaging.default_notification_channel_id"
-                android:value="lesson_channel" />
         </provider>
 
+        <!-- Firebase Messaging metadata -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="lesson_channel" />
+
+        <!-- MainActivity الرئيسية -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -54,11 +63,19 @@
             android:theme="@style/Theme.SaffiEDUApp">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
 
+        <!-- ExamActivity الجديدة -->
+        <activity
+            android:name=".presentation.screens.student.exam_screen.ExamActivity"
+            android:exported="false"
+            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden"
+            android:screenOrientation="portrait"
+            android:launchMode="singleTask"
+            android:excludeFromRecents="true"
+            android:theme="@style/Theme.SaffiEDUApp" />
 
     </application>
 

@@ -13,6 +13,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModelProvider
+import com.example.saffieduapp.presentation.screens.student.exam_screen.components.ExamExitWarningDialog
 import com.example.saffieduapp.presentation.screens.student.exam_screen.security.ExamSecurityManager
 import com.example.saffieduapp.ui.theme.SaffiEDUAppTheme
 import dagger.hilt.android.AndroidEntryPoint
