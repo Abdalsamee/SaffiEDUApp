@@ -17,20 +17,26 @@ fun AppButton(
     text: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    enabled: Boolean
+    enabled: Boolean = true
 ) {
     Button(
-        onClick = onClick,
-        modifier = modifier.height(50.dp), // ارتفاع افتراضي للزر
-        shape = RoundedCornerShape(12.dp), // الحواف المطلوبة
+        onClick = { if (enabled) onClick() }, // منع التنفيذ عند التعطيل
+        modifier = modifier.height(50.dp),
+        shape = RoundedCornerShape(12.dp),
+        enabled = enabled, // ← هنا نربطه مع Compose
         colors = ButtonDefaults.buttonColors(
-            containerColor = AppPrimary // لون التطبيق الأساسي
+            containerColor = AppPrimary,
+            disabledContainerColor = Color.Gray,  // لون الخلفية عند التعطيل
+            contentColor = Color.White,
+            disabledContentColor = Color.LightGray // لون النص عند التعطيل
         )
     ) {
         Text(
             text = text,
-            color = Color.White, // لون النص أبيض
+            color = Color.White,
             fontSize = 16.sp
         )
     }
 }
+
+
