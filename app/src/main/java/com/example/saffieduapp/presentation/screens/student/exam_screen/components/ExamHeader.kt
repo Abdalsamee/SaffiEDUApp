@@ -7,6 +7,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -17,6 +18,7 @@ import com.example.saffieduapp.presentation.screens.student.component.ProgressBa
 import com.example.saffieduapp.ui.theme.AppAlert
 import com.example.saffieduapp.ui.theme.AppPrimary
 import com.example.saffieduapp.ui.theme.SaffiEDUAppTheme
+import kotlin.math.roundToInt
 
 /**
  * رأس الاختبار - يحتوي على العنوان + Progress Bar + عدد الأسئلة
@@ -28,48 +30,58 @@ fun ExamHeader(
     totalQuestions: Int,
     modifier: Modifier = Modifier
 ) {
-    Box(
+    Column(
         modifier = modifier
             .fillMaxWidth()
             .background(
                 color = AppPrimary,
                 shape = RoundedCornerShape(bottomStart = 30.dp, bottomEnd = 30.dp)
             )
-            .padding(horizontal = 20.dp, vertical = 20.dp)
-            .height(140.dp), // ارتفاع أكبر لاستيعاب العنوان
-        contentAlignment = Alignment.Center
+            .padding(horizontal = 20.dp)
+            .padding(top = 20.dp, bottom = 24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            // عنوان الاختبار
-            Text(
-                text = examTitle,
-                color = Color.White,
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold,
-                textAlign = TextAlign.Center
-            )
+        // عنوان الاختبار
+        Text(
+            text = examTitle,
+            color = Color.White,
+            fontSize = 20.sp,
+            fontWeight = FontWeight.Bold,
+            textAlign = TextAlign.Center
+        )
 
-            // Progress Bar باستخدام المكون الجاهز
-            ProgressBarWithPercentage(
-                progress = (currentQuestionIndex + 1).toFloat() / totalQuestions.toFloat(),
-                progressColor = AppAlert,
-                backgroundColor = Color.White.copy(alpha = 0.3f),
-                modifier = Modifier.fillMaxWidth()
-            )
+        // Progress Bar باستخدام المكون الجاهز
+        // تحويل النسبة من Float إلى Int (0-100)
+        val progressPercentage = ((currentQuestionIndex + 1).toFloat() / totalQuestions.toFloat() * 100).roundToInt()
 
-            // نص "7 من 10"
-            Text(
-                text = "${currentQuestionIndex + 1} من $totalQuestions",
+        ProgressBarWithPercentage(
+            progress = progressPercentage,
+            modifier = Modifier.fillMaxWidth(),
+            progressBarHeight = 8.dp,
+            backgroundColor = Color.White.copy(alpha = 0.3f),
+            progressBrush = Brush.horizontalGradient(
+                listOf(
+                    AppAlert,
+                    AppAlert
+                )
+            ),
+            completedColor = AppAlert,
+            textStyle = androidx.compose.ui.text.TextStyle(
                 color = Color.White,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.SemiBold,
-                textAlign = TextAlign.Center
+                fontWeight = FontWeight.Normal,
+                fontSize = 14.sp
             )
-        }
+        )
+
+        // نص "7 من 10"
+        Text(
+            text = "${currentQuestionIndex + 1} من $totalQuestions",
+            color = Color.White,
+            fontSize = 16.sp,
+            fontWeight = FontWeight.SemiBold,
+            textAlign = TextAlign.Center
+        )
     }
 }
 
@@ -78,6 +90,7 @@ fun ExamHeader(
 private fun ExamHeaderPreview() {
     SaffiEDUAppTheme {
         ExamHeader(
+            examTitle = "اختبار الوحدة الثانية",
             currentQuestionIndex = 6,
             totalQuestions = 10
         )
