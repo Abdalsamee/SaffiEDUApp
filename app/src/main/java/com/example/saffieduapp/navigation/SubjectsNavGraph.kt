@@ -53,8 +53,6 @@ fun NavGraphBuilder.subjectsNavGraph(
             )
         ) { backStackEntry ->
             val videoUrl = backStackEntry.arguments?.getString("videoUrl")?.let { Uri.decode(it) }
-
-            // تمرير videoUrl إلى ViewModel عبر SavedStateHandle
             videoUrl?.let { url ->
                 backStackEntry.savedStateHandle["videoUrl"] = url
             }
@@ -66,7 +64,7 @@ fun NavGraphBuilder.subjectsNavGraph(
             )
         }
     }
-}
+    }
 
 /**
  * دالة مساعدة للتنقل إلى شاشة الفيديو

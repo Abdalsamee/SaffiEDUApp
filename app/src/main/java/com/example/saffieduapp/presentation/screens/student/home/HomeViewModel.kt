@@ -6,7 +6,6 @@ import androidx.lifecycle.viewModelScope
 import com.example.saffieduapp.data.FireBase.WorkManager.AlertScheduler
 import com.example.saffieduapp.domain.model.FeaturedLesson
 import com.example.saffieduapp.domain.model.Subject
-import com.example.saffieduapp.domain.model.UrgentTask
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -111,20 +110,53 @@ class HomeViewModel @Inject constructor(
     }
 
     private suspend fun loadInitialData() {
-        val urgentTasksList = listOf(
-            UrgentTask("1", "اختبار نصفي", "التربية الإسلامية", "24/8/2025", "11 صباحاً", ""),
-            UrgentTask("2", "المهمة رقم 1", "اللغة الانجليزية", "24/8/2025", "12 مساءً", "")
-        )
+        try {
+            val studentGrade = _state.value.studentGrade
+            if (studentGrade.isBlank()) return
 
-        val lessonsList = listOf(
-            FeaturedLesson("l1", "Romeo story", "English", "15 دقيقة", 30, ""),
-            FeaturedLesson("l2", "درس الكسور", "رياضيات", "15 دقيقة", 80, "")
-        )
+            val querySnapshot = firestore.collection("lessons")
+                .whereEqualTo("className", studentGrade)
+                .get()
+                .await()
 
-        _state.value = _state.value.copy(
-            urgentTasks = urgentTasksList,
-            featuredLessons = lessonsList
-        )
+            val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.ENGLISH)
+
+            val lessonsList = querySnapshot.documents.mapNotNull { doc ->
+                val title = doc.getString("title") ?: return@mapNotNull null
+                val subject = doc.getString("subjectName") ?: "غير معروف"
+                val duration = doc.getString("duration") ?: "غير معروف"
+                val viewers = doc.getLong("viewersCount")?.toInt() ?: 0
+                val imageUrl = doc.getString("imageUrl") ?: ""
+                val publicationDateStr = doc.getString("publicationDate") ?: return@mapNotNull null
+                val videoUrl = doc.getString("videoUrl") ?: return@mapNotNull null // ✅ فقط الدروس التي تحتوي فيديو
+
+                val publicationDate = try {
+                    dateFormat.parse(publicationDateStr)
+                } catch (e: Exception) {
+                    null
+                } ?: return@mapNotNull null
+
+                FeaturedLesson(
+                    id = doc.id,
+                    title = title,
+                    subject = subject,
+                    duration = duration,
+                    progress = viewers,
+                    imageUrl = imageUrl,
+                    publicationDate = publicationDateStr, // نتركها String
+                    videoUrl = videoUrl // رابط الفيديو
+                )
+            }
+                .sortedByDescending { dateFormat.parse(it.publicationDate) } // ترتيب تنازلي حسب تاريخ النشر
+                .take(3) // آخر 3 دروس
+
+            _state.value = _state.value.copy(
+                featuredLessons = lessonsList
+            )
+
+        } catch (e: Exception) {
+            // يمكنك إضافة معالجة الأخطاء هنا
+        }
     }
 
     private suspend fun loadSubjects() {

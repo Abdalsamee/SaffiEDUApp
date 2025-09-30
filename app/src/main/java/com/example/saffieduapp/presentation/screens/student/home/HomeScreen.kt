@@ -17,6 +17,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import com.example.saffieduapp.navigation.Routes
+import com.example.saffieduapp.navigation.navigateToVideoScreen
 import com.example.saffieduapp.presentation.screens.student.home.components.*
 import com.example.saffieduapp.ui.theme.AppPrimary
 import kotlinx.coroutines.launch
@@ -99,8 +100,8 @@ fun HomeScreen(
             item {
                 FeaturedLessonsSection(
                     lessons = state.featuredLessons,
-                    onFeaturedLessonClick = { lessonId ->
-                        Toast.makeText(context, "Clicked Lesson ID: $lessonId", Toast.LENGTH_SHORT).show()
+                    onFeaturedLessonClick = { lesson ->
+                        navController.navigateToVideoScreen(lesson.videoUrl)
                     }
                 )
             }
