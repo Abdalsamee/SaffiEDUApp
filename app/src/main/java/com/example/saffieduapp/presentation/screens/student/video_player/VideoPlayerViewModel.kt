@@ -77,10 +77,10 @@ class VideoPlayerViewModel @Inject constructor(
         val videoUrl = savedStateHandle.get<String>("videoUrl")
         val lessonId = savedStateHandle.get<String>("lessonId")
 
-        if (!lessonId.isNullOrEmpty()) {
-            loadLessonData(lessonId, videoUrl)
-        } else {
-            _state.value = _state.value.copy(
+        when {
+            !lessonId.isNullOrEmpty() -> loadLessonData(lessonId, videoUrl)
+            !videoUrl.isNullOrEmpty() -> loadVideo(videoUrl)
+            else -> _state.value = _state.value.copy(
                 hasError = true,
                 errorMessage = "لا يوجد درس محدد",
                 isLoading = false

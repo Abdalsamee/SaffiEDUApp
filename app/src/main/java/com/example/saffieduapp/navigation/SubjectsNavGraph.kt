@@ -54,19 +54,18 @@ fun NavGraphBuilder.subjectsNavGraph(
         ) { backStackEntry ->
             val videoUrl = backStackEntry.arguments?.getString("videoUrl")?.let { Uri.decode(it) }
 
-            // تمرير videoUrl إلى ViewModel عبر SavedStateHandle
-            videoUrl?.let { url ->
-                backStackEntry.savedStateHandle["videoUrl"] = url
-            }
+            // حفظ القيم في SavedStateHandle
+            videoUrl?.let { backStackEntry.savedStateHandle["videoUrl"] = it }
 
             VideoPlayerScreen(
                 navController = navController,
                 onNavigateUp = { navController.popBackStack() },
                 onFullscreenChange = onFullscreenChange
             )
-        }
     }
-}
+    }
+    }
+
 
 /**
  * دالة مساعدة للتنقل إلى شاشة الفيديو

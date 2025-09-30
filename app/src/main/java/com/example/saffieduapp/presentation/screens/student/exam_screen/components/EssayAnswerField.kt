@@ -57,7 +57,12 @@ fun EssayAnswerField(
                 unfocusedIndicatorColor = Color(0xFFE0E0E0),
                 cursorColor = AppPrimary
             ),
-            shape = RoundedCornerShape(12.dp),
+            shape = RoundedCornerShape(
+                topStart = 0.dp,
+                topEnd = 20.dp,
+                bottomEnd = 0.dp,
+                bottomStart =20 .dp
+            ),
             maxLines = 8
         )
     }

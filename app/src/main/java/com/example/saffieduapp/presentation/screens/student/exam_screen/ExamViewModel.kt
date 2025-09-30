@@ -103,7 +103,7 @@ class ExamViewModel @Inject constructor(
                     examTitle = "اختبار الوحدة الثانية",
                     totalQuestions = mockQuestions.size,
                     questions = mockQuestions,
-                    remainingTimeInSeconds = 600, // 10 دقائق
+                    remainingTimeInSeconds = 120, // 2 دقيقة
                     isLoading = false
                 )
             }
