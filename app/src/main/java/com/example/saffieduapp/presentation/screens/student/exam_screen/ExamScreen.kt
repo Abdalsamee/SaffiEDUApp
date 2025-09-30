@@ -29,7 +29,7 @@ fun ExamScreen(
 ) {
     val state by viewModel.state.collectAsState()
     val context = LocalContext.current
-
+    var showSubmitDialog by remember { mutableStateOf(false) }
     // معالجة الأحداث
     LaunchedEffect(Unit) {
         viewModel.eventFlow.collectLatest { event ->
@@ -47,12 +47,31 @@ fun ExamScreen(
             }
         }
     }
-
+// ✅ إضافة هذا الكود
+    if (showSubmitDialog) {
+        ExamSubmitDialog(
+            remainingTimeInSeconds = state.remainingTimeInSeconds,
+            onDismiss = { showSubmitDialog = false },
+            onConfirm = {
+                showSubmitDialog = false
+                viewModel.onEvent(ExamEvent.SubmitExam)
+            }
+        )
+    }
     ExamScreenContent(
         state = state,
-        onEvent = viewModel::onEvent,
+        onEvent = { event ->
+            // ✅ اعتراض حدث التسليم
+            if (event is ExamEvent.SubmitExam) {
+                showSubmitDialog = true
+            } else {
+                viewModel.onEvent(event)
+            }
+        },
         onNavigateUp = onNavigateUp
     )
+
+
 }
 
 @Composable
