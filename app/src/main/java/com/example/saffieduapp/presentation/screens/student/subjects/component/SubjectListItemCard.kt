@@ -97,7 +97,7 @@ fun SubjectListItemCard(
             ) {
                 // عدد الدروس على اليسار
                 Text(
-                    text = "${subject.lessonCount ?: 0} دروس",
+                    text = "${subject.totalLessons ?: 0} دروس",
                     fontSize = 12.sp,
                     color = Color.Black,
                     fontWeight = FontWeight.Normal,
@@ -141,7 +141,7 @@ fun SubjectListItemCardPreview() {
             teacherName = "أحمد علي",
             grade = "الصف الثاني عشر",
             imageUrl = "",
-            lessonCount = 24,
+            totalLessons = 24,
             rating = 4.5f
         )
         SubjectListItemCard(

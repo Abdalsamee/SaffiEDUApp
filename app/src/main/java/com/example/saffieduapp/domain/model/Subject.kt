@@ -9,6 +9,5 @@ data class Subject(
     val rating: Float = 0f,
     val imageUrl: String = "",
     val totalLessons: Int = 0,
-    val lessonCount: Int = 0 // <-- أضف هذا السطر
 )
 
