@@ -6,5 +6,7 @@ data class FeaturedLesson(
     val subject: String,
     val duration: String,
     val progress: Int,
-    val imageUrl: String
+    val imageUrl: String,
+    val publicationDate: String,
+    val videoUrl: String = "" // ✅ يجب أن يكون هنا
 )

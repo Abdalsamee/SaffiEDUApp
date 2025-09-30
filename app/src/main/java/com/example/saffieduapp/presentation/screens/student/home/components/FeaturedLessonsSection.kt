@@ -18,7 +18,7 @@ import com.example.saffieduapp.domain.model.FeaturedLesson
 fun FeaturedLessonsSection(
     lessons: List<FeaturedLesson>,
     modifier: Modifier = Modifier,
-    onFeaturedLessonClick: (lessonId: String) -> Unit
+    onFeaturedLessonClick: (lesson: FeaturedLesson) -> Unit // ⚠ هنا نوع الدالة
 ) {
     Column(
         modifier = modifier
@@ -71,7 +71,7 @@ fun FeaturedLessonsSection(
                 items(lessons) { lesson ->
                     FeaturedLessonCard(
                         lesson = lesson,
-                        onClick = { onFeaturedLessonClick(lesson.id) }
+                        onClick = { onFeaturedLessonClick(lesson) }
                     )
                 }
             }
@@ -79,3 +79,4 @@ fun FeaturedLessonsSection(
         Spacer(modifier = Modifier.height(20.dp))
     }
 }
+
