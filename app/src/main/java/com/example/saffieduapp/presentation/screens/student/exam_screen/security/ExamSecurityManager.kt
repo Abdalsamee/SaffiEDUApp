@@ -2,8 +2,8 @@ package com.example.saffieduapp.presentation.screens.student.exam_screen.securit
 
 import android.content.Context
 import android.hardware.display.DisplayManager
-import android.view.Display
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 /**
@@ -12,14 +12,21 @@ import kotlinx.coroutines.flow.asStateFlow
 class ExamSecurityManager(private val context: Context) {
 
     private val _violations = MutableStateFlow<List<SecurityViolation>>(emptyList())
-    val violations = _violations.asStateFlow()
+    val violations: StateFlow<List<SecurityViolation>> = _violations.asStateFlow()
 
     private val _isPaused = MutableStateFlow(false)
-    val isPaused = _isPaused.asStateFlow()
+    val isPaused: StateFlow<Boolean> = _isPaused.asStateFlow()
+
+    private val _shouldShowWarning = MutableStateFlow(false)
+    val shouldShowWarning: StateFlow<Boolean> = _shouldShowWarning.asStateFlow()
+
+    private val _shouldAutoSubmit = MutableStateFlow(false)
+    val shouldAutoSubmit: StateFlow<Boolean> = _shouldAutoSubmit.asStateFlow()
 
     private var appPausedTime: Long = 0
     private var totalTimeOutOfApp: Long = 0
     private var exitAttempts = 0
+    private val maxExitAttempts = 2 // بعد محاولتين يُنهى الاختبار
 
     private val displayManager = context.getSystemService(Context.DISPLAY_SERVICE) as DisplayManager
 
@@ -129,12 +136,7 @@ class ExamSecurityManager(private val context: Context) {
      * معالجة مخالفة عالية
      */
     private fun handleHighViolation() {
-        exitAttempts++
-
-        if (exitAttempts >= 3) {
-            // إنهاء تلقائي بعد 3 محاولات
-            // TODO: submitExamAutomatically()
-        }
+        // تسجيل فقط - العقوبة ستكون في onAppResumed
     }
 
     /**
@@ -180,9 +182,38 @@ class ExamSecurityManager(private val context: Context) {
             val duration = System.currentTimeMillis() - appPausedTime
             totalTimeOutOfApp += duration
 
+            exitAttempts++
+
             logViolation("APP_RESUMED_AFTER_${duration}ms")
+
+            // تحديد الإجراء حسب عدد المحاولات
+            when {
+                exitAttempts > maxExitAttempts -> {
+                    // إنهاء تلقائي
+                    _shouldAutoSubmit.value = true
+                }
+                else -> {
+                    // إظهار تحذير
+                    _shouldShowWarning.value = true
+                }
+            }
+
             appPausedTime = 0
         }
+    }
+
+    /**
+     * إخفاء التحذير بعد قراءته
+     */
+    fun dismissWarning() {
+        _shouldShowWarning.value = false
+    }
+
+    /**
+     * الحصول على عدد المحاولات المتبقية
+     */
+    fun getRemainingAttempts(): Int {
+        return (maxExitAttempts - exitAttempts).coerceAtLeast(0)
     }
 
     /**

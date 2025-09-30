@@ -4,16 +4,20 @@ import android.os.Build
 import android.os.Bundle
 import android.view.View
 import android.view.WindowManager
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModelProvider
 import com.example.saffieduapp.presentation.screens.student.exam_screen.components.ExamExitWarningDialog
+import com.example.saffieduapp.presentation.screens.student.exam_screen.components.ExamReturnWarningDialog
 import com.example.saffieduapp.presentation.screens.student.exam_screen.security.ExamSecurityManager
 import com.example.saffieduapp.ui.theme.SaffiEDUAppTheme
 import dagger.hilt.android.AndroidEntryPoint
@@ -46,6 +50,20 @@ class ExamActivity : ComponentActivity() {
         setContent {
             SaffiEDUAppTheme {
                 var showExitDialog by remember { mutableStateOf(false) }
+                val shouldShowWarning by securityManager.shouldShowWarning.collectAsState()
+                val shouldAutoSubmit by securityManager.shouldAutoSubmit.collectAsState()
+
+                // إنهاء تلقائي عند الوصول للحد الأقصى
+                LaunchedEffect(shouldAutoSubmit) {
+                    if (shouldAutoSubmit) {
+                        Toast.makeText(
+                            this@ExamActivity,
+                            "تم إنهاء الاختبار تلقائياً بسبب تجاوز محاولات الخروج",
+                            Toast.LENGTH_LONG
+                        ).show()
+                        finishExam()
+                    }
+                }
 
                 // مراقبة Lifecycle
                 LaunchedEffect(Unit) {
@@ -68,6 +86,23 @@ class ExamActivity : ComponentActivity() {
                         onConfirmExit = {
                             securityManager.logViolation("USER_FORCED_EXIT")
                             finishExam()
+                        }
+                    )
+                }
+
+                // Dialog تحذير العودة
+                if (shouldShowWarning) {
+                    val exitCount = remember(shouldShowWarning) {
+                        securityManager.violations.value.count {
+                            it.type.startsWith("APP_RESUMED")
+                        }
+                    }
+
+                    ExamReturnWarningDialog(
+                        exitAttempts = exitCount,
+                        remainingAttempts = securityManager.getRemainingAttempts(),
+                        onContinue = {
+                            securityManager.dismissWarning()
                         }
                     )
                 }
