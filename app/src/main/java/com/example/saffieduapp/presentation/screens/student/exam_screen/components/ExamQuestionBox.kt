@@ -2,12 +2,8 @@ package com.example.saffieduapp.presentation.screens.student.exam_screen.compone
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -43,27 +39,29 @@ fun ExamQuestionBox(
     isSubmitting: Boolean,
     modifier: Modifier = Modifier
 ) {
-    Card(
-        shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White,contentColor = Color.Black),
-        elevation = CardDefaults.cardElevation(defaultElevation = 16.dp), // ✅ ظل أقوى
+    Surface(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp)
+            .padding(horizontal = 16.dp),
+        shape = RoundedCornerShape(24.dp),
+        color = Color.White, // أبيض صريح
+        shadowElevation = 16.dp,
+        tonalElevation = 0.dp // مهم: لمنع التأثير اللوني
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .background(Color.White) // تأكيد اللون الأبيض
                 .padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // الصف العلوي: المؤقت + رقم السؤال
+            // الصف العلوي: رقم السؤال + المؤقت
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // رقم السؤال
+                // رقم السؤال (يمين)
                 Box(
                     modifier = Modifier
                         .size(56.dp)
@@ -79,7 +77,8 @@ fun ExamQuestionBox(
                         lineHeight = 18.sp
                     )
                 }
-                // المؤقت
+
+                // المؤقت (يسار)
                 Box(
                     modifier = Modifier
                         .background(
@@ -95,8 +94,6 @@ fun ExamQuestionBox(
                         fontWeight = FontWeight.SemiBold
                     )
                 }
-
-
             }
 
             // نص السؤال
@@ -186,7 +183,8 @@ private fun ExamQuestionBoxPreview() {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color.Gray)
+                .background(Color(0xFFF5F5F5))
+                .padding(16.dp)
         ) {
             ExamQuestionBox(
                 question = ExamQuestion(
