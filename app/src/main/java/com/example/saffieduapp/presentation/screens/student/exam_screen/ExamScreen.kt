@@ -30,7 +30,7 @@ fun ExamScreen(
     val state by viewModel.state.collectAsState()
     val context = LocalContext.current
 
-
+    // معالجة الأحداث
     LaunchedEffect(Unit) {
         viewModel.eventFlow.collectLatest { event ->
             when (event) {
@@ -65,7 +65,7 @@ private fun ExamScreenContent(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color(0xFFF5F5F5)),
+                .background(Color.White),
             contentAlignment = Alignment.Center
         ) {
             CircularProgressIndicator(color = AppPrimary)
@@ -88,14 +88,14 @@ private fun ExamScreenContent(
                 val currentQuestion = state.questions[state.currentQuestionIndex]
                 val currentAnswer = state.userAnswers[currentQuestion.id]
                 val isLastQuestion = state.currentQuestionIndex == state.totalQuestions - 1
-                Spacer(modifier = Modifier.height(20.dp))
+
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
                         .verticalScroll(rememberScrollState())
                 ) {
                     // مساحة للهيدر
-                    Spacer(modifier = Modifier.height(80.dp))
+                    Spacer(modifier = Modifier.height(150.dp))
 
                     // الكارد الأبيض
                     ExamQuestionBox(
@@ -113,5 +113,44 @@ private fun ExamScreenContent(
                 }
             }
         }
+    }
+}
+
+@Preview(showBackground = true, locale = "ar")
+@Composable
+private fun ExamScreenPreview() {
+    SaffiEDUAppTheme {
+        val previewState = ExamState(
+            examId = "e1",
+            examTitle = "اختبار الوحدة الثانية",
+            totalQuestions = 10,
+            currentQuestionIndex = 6,
+            questions = listOf(
+                ExamQuestion(
+                    id = "q1",
+                    text = "هو طلب للمعلومة أو المعرفة أو البيانات، وهو أسلوب يستخدم لجمع المعلومات، أو طلب شيء، أو طلب تركيع أو طلب شيء؟",
+                    type = QuestionType.MULTIPLE_CHOICE_SINGLE,
+                    points = 1,
+                    choices = listOf(
+                        Choice(id = "c1", text = "الخيار الأول", isCorrect = true),
+                        Choice(id = "c2", text = "الخيار الثاني", isCorrect = false),
+                        Choice(id = "c3", text = "الخيار الثالث", isCorrect = false),
+                        Choice(id = "c4", text = "الخيار الرابع", isCorrect = false)
+                    )
+                )
+            ),
+            userAnswers = mapOf(
+                "q1" to ExamAnswer.SingleChoice("c1")
+            ),
+            remainingTimeInSeconds = 600,
+            isLoading = false,
+            showTimeWarning = false
+        )
+
+        ExamScreenContent(
+            state = previewState,
+            onEvent = {},
+            onNavigateUp = {}
+        )
     }
 }

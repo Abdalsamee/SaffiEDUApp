@@ -45,8 +45,8 @@ fun ExamQuestionBox(
 ) {
     Card(
         shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 12.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White,contentColor = Color.Black),
+        elevation = CardDefaults.cardElevation(defaultElevation = 16.dp), // ✅ ظل أقوى
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp)
@@ -63,6 +63,22 @@ fun ExamQuestionBox(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                // رقم السؤال
+                Box(
+                    modifier = Modifier
+                        .size(56.dp)
+                        .background(color = AppAlert, shape = RoundedCornerShape(8.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "${currentQuestionIndex + 1}\nس",
+                        color = Color.White,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center,
+                        lineHeight = 18.sp
+                    )
+                }
                 // المؤقت
                 Box(
                     modifier = Modifier
@@ -80,22 +96,7 @@ fun ExamQuestionBox(
                     )
                 }
 
-                // رقم السؤال
-                Box(
-                    modifier = Modifier
-                        .size(56.dp)
-                        .background(color = AppAlert, shape = CircleShape),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = "${currentQuestionIndex + 1}\nس",
-                        color = Color.White,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        textAlign = TextAlign.Center,
-                        lineHeight = 18.sp
-                    )
-                }
+
             }
 
             // نص السؤال
@@ -185,7 +186,7 @@ private fun ExamQuestionBoxPreview() {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color(0xFFF5F5F5))
+                .background(Color.Gray)
         ) {
             ExamQuestionBox(
                 question = ExamQuestion(
