@@ -62,7 +62,7 @@ fun ExamHeader(
             backgroundColor = Color.White.copy(alpha = 0.3f),
             progressBrush = Brush.horizontalGradient(
                 listOf(
-                    AppAlert,
+                    Color.White,
                     AppAlert
                 )
             ),
