@@ -94,7 +94,7 @@ class SubjectsViewModel @Inject constructor(
                 val subjectName = doc.getString("subjectName") ?: continue
                 val teacherName = doc.getString("teacherName") ?: "غير معروف"
                 val grade = doc.getString("className") ?: "غير محدد"
-                val lessonsCount = getLessonsCount(doc.id)
+                val totalLesson = getLessonsCount(doc.id)
                 val rating = (doc.getDouble("rating") ?: 0.0).toFloat()
                 val formattedUserName = formatUserName(teacherName)
 
@@ -106,7 +106,7 @@ class SubjectsViewModel @Inject constructor(
                         grade = grade,
                         rating = rating,
                         imageUrl = "",
-                        totalLessons = lessonsCount
+                        totalLessons = totalLesson
                     )
                 )
             }
@@ -164,15 +164,36 @@ class SubjectsViewModel @Inject constructor(
     }
     private suspend fun getLessonsCount(subjectId: String): Int {
         return try {
+            // الوقت الحالي
+            val now = java.util.Date()
+
+            // جلب كل الدروس الخاصة بالموضوع
             val querySnapshot = firestore.collection("lessons")
                 .whereEqualTo("subjectId", subjectId)
                 .get()
                 .await()
 
-            val count = querySnapshot.documents.size
+            // فلترة الدروس المنشورة حتى الآن
+            val count = querySnapshot.documents.count { doc ->
+                val pubDateStr = doc.getString("publicationDate")
+                if (pubDateStr != null) {
+                    try {
+                        // تحويل السترنق إلى تاريخ
+                        val sdf = java.text.SimpleDateFormat("yyyy-MM-dd")
+                        val pubDate = sdf.parse(pubDateStr)
+                        pubDate != null && pubDate <= now
+                    } catch (e: Exception) {
+                        false
+                    }
+                } else {
+                    false
+                }
+            }
+
             count
         } catch (e: Exception) {
-            0 // في حالة الخطأ
+            0
         }
     }
+
 }
