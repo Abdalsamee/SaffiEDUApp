@@ -15,7 +15,8 @@ import com.example.saffieduapp.domain.model.UrgentTask
 fun UrgentTasksSection(
     tasks: List<UrgentTask>,
     modifier: Modifier = Modifier,
-    onTaskClick: (taskId: String) -> Unit
+    onTaskClick: (taskId: String) -> Unit,
+    onMoreClick: () -> Unit
 ) {
     Column(
         modifier = modifier
@@ -41,10 +42,11 @@ fun UrgentTasksSection(
                 fontSize = 16.sp,
                 fontStyle = androidx.compose.ui.text.font.FontStyle.Normal,
                 color = Color.Black,
-                modifier = Modifier.clickable {
-
-                }
+                modifier = Modifier.clickable { onMoreClick() }
             )
+        }   // هنا ضع عرض قائمة المهام كالمعتاد
+        tasks.forEach { task ->
+            UrgentTaskItem(task = task, onClick = { onTaskClick(task.id) })
         }
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -83,4 +85,9 @@ fun UrgentTasksSection(
         }
 
     }
+}
+
+@Composable
+fun UrgentTaskItem(task: UrgentTask, onClick: () -> Unit) {
+    TODO("Not yet implemented")
 }
