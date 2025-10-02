@@ -1,5 +1,6 @@
 package com.example.saffieduapp.presentation.screens.student.exam_screen.security
 
+import android.app.Activity
 import android.content.Context
 import android.hardware.display.DisplayManager
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -9,7 +10,10 @@ import kotlinx.coroutines.flow.asStateFlow
 /**
  * مدير الأمان المركزي للاختبار
  */
-class ExamSecurityManager(private val context: Context) {
+class ExamSecurityManager(
+    private val context: Context,
+    private val activity: Activity
+) {
 
     private val _violations = MutableStateFlow<List<SecurityViolation>>(emptyList())
     val violations: StateFlow<List<SecurityViolation>> = _violations.asStateFlow()
@@ -30,27 +34,48 @@ class ExamSecurityManager(private val context: Context) {
 
     private val displayManager = context.getSystemService(Context.DISPLAY_SERVICE) as DisplayManager
 
+    // ✅ Overlay Detector
+    private var overlayDetector: OverlayDetector? = null
+
     /**
      * تفعيل جميع ميزات الحماية
      */
     fun enableSecurityFeatures() {
         setupExternalDisplayMonitoring()
+        setupOverlayDetection()
     }
 
     /**
      * بدء المراقبة
      */
     fun startMonitoring() {
-        // TODO: بدء Face Detection
-        // TODO: جدولة اللقطات العشوائية
+        // بدء مراقبة Overlays
+        overlayDetector?.startMonitoring()
     }
 
     /**
      * إيقاف المراقبة
      */
     fun stopMonitoring() {
-        // TODO: إيقاف الكاميرا
-        // TODO: إلغاء الجداول
+        overlayDetector?.stopMonitoring()
+    }
+
+    /**
+     * ✅ إعداد كشف Overlays
+     */
+    private fun setupOverlayDetection() {
+        overlayDetector = OverlayDetector(activity) {
+            // عند اكتشاف Overlay
+            logViolation("OVERLAY_DETECTED")
+            handleCriticalViolation()
+        }
+    }
+
+    /**
+     * تمرير Window Focus Changes للـ OverlayDetector
+     */
+    fun onWindowFocusChanged(hasFocus: Boolean) {
+        overlayDetector?.onWindowFocusChanged(hasFocus)
     }
 
     /**
@@ -109,7 +134,11 @@ class ExamSecurityManager(private val context: Context) {
         return when (type) {
             "EXTERNAL_DISPLAY_CONNECTED",
             "EXTERNAL_DISPLAY_ALREADY_CONNECTED",
-            "MULTI_WINDOW_DETECTED" -> Severity.CRITICAL
+            "MULTI_WINDOW_DETECTED",
+            "MULTI_WINDOW_ON_RESUME",
+            "MULTI_WINDOW_CONFIG_CHANGE",
+            "OVERLAY_DETECTED",
+            "PIP_MODE_DETECTED" -> Severity.CRITICAL // ✅ جميع هذه المخالفات خطيرة
 
             "USER_LEFT_APP",
             "MULTIPLE_FACES_DETECTED",
@@ -128,8 +157,8 @@ class ExamSecurityManager(private val context: Context) {
      */
     private fun handleCriticalViolation() {
         pauseExam()
-        // TODO: إظهار Dialog تحذيري
-        // TODO: إرسال تنبيه فوري للمعلم
+        // إنهاء فوري للاختبار في حالة Overlay
+        _shouldAutoSubmit.value = true
     }
 
     /**
