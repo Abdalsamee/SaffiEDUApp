@@ -9,6 +9,7 @@ import android.os.Looper
 import android.util.Log
 import android.view.Gravity
 import android.view.View
+import android.view.ViewTreeObserver
 import android.view.WindowManager
 import androidx.annotation.RequiresApi
 
@@ -16,7 +17,7 @@ import androidx.annotation.RequiresApi
  * كاشف الشاشات المنبثقة (Overlays)
  *
  * يعمل عن طريق:
- * 1. مراقبة Focus Changes - إذا فقد التطبيق Focus معناه overlay ظهر
+ * 1. مراقبة Focus Changes عبر ViewTreeObserver
  * 2. وضع View شفاف فوق الشاشة وفحص إذا كان Touch يصل له
  * 3. مراقبة Window Visibility Changes
  */
@@ -37,6 +38,7 @@ class OverlayDetector(
     private var windowManager: WindowManager? = null
 
     private var visibilityCheckRunnable: Runnable? = null
+    private var focusChangeListener: ViewTreeObserver.OnWindowFocusChangeListener? = null
 
     /**
      * بدء المراقبة
@@ -67,6 +69,17 @@ class OverlayDetector(
         isMonitoring = false
         handler.removeCallbacksAndMessages(null)
         visibilityCheckRunnable = null
+
+        // إزالة Focus Listener
+        focusChangeListener?.let { listener ->
+            try {
+                activity.window.decorView.viewTreeObserver.removeOnWindowFocusChangeListener(listener)
+            } catch (e: Exception) {
+                Log.e(TAG, "Error removing focus listener", e)
+            }
+        }
+        focusChangeListener = null
+
         removeDetectorView()
         Log.d(TAG, "Overlay monitoring stopped")
     }
@@ -76,8 +89,8 @@ class OverlayDetector(
      * عندما يفقد التطبيق Focus بسبب Overlay
      */
     private fun setupWindowFocusMonitoring() {
-        activity.window.decorView.setOnWindowFocusChangeListener { hasFocus ->
-            if (!isMonitoring) return@setOnWindowFocusChangeListener
+        focusChangeListener = ViewTreeObserver.OnWindowFocusChangeListener { hasFocus ->
+            if (!isMonitoring) return@OnWindowFocusChangeListener
 
             if (!hasFocus) {
                 val now = System.currentTimeMillis()
@@ -103,6 +116,12 @@ class OverlayDetector(
                     }
                 }, 2000)
             }
+        }
+
+        try {
+            activity.window.decorView.viewTreeObserver.addOnWindowFocusChangeListener(focusChangeListener)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error adding focus listener", e)
         }
     }
 
@@ -240,6 +259,34 @@ class OverlayDetector(
         } catch (e: Exception) {
             Log.e(TAG, "Error checking for overlays", e)
             false
+        }
+    }
+
+    /**
+     * استدعاء يدوي عند تغيير Focus (من ExamActivity)
+     */
+    fun onWindowFocusChanged(hasFocus: Boolean) {
+        if (!isMonitoring) return
+
+        if (!hasFocus) {
+            val now = System.currentTimeMillis()
+            val timeSinceLastFocus = now - lastFocusTime
+
+            if (timeSinceLastFocus > 500) {
+                focusLossCount++
+                Log.w(TAG, "Manual focus check - Count: $focusLossCount")
+
+                if (focusLossCount >= 2) {
+                    handleOverlayDetected("MANUAL_FOCUS_LOST")
+                }
+            }
+        } else {
+            lastFocusTime = System.currentTimeMillis()
+            handler.postDelayed({
+                if (isMonitoring) {
+                    focusLossCount = 0
+                }
+            }, 2000)
         }
     }
 }
