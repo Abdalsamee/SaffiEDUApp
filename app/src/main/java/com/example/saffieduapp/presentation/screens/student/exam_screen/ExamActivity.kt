@@ -2,6 +2,7 @@ package com.example.saffieduapp.presentation.screens.student.exam_screen
 
 import android.os.Build
 import android.os.Bundle
+import android.util.Log
 import android.view.View
 import android.view.WindowManager
 import android.widget.Toast
@@ -221,9 +222,15 @@ class ExamActivity : ComponentActivity() {
     override fun onWindowFocusChanged(hasFocus: Boolean) {
         super.onWindowFocusChanged(hasFocus)
 
+        // تمرير Focus Change للـ OverlayDetector
+        if (::securityManager.isInitialized) {
+            // نستدعي الدالة في SecurityManager التي ستمررها للـ OverlayDetector
+            // (سنضيف هذه الدالة في SecurityManager)
+        }
+
         if (!hasFocus) {
             // قد يكون Overlay أو Dialog أو Notification
-            // الـ OverlayDetector سيحدد إذا كان مخالفة حقيقية
+            Log.d("ExamActivity", "Window focus lost")
         }
     }
 
