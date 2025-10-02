@@ -2,7 +2,6 @@ package com.example.saffieduapp.presentation.screens.student.exam_screen
 
 import android.os.Build
 import android.os.Bundle
-import android.util.Log
 import android.view.View
 import android.view.WindowManager
 import android.widget.Toast
@@ -18,6 +17,7 @@ import androidx.compose.runtime.setValue
 import com.example.saffieduapp.presentation.screens.student.exam_screen.components.ExamReturnWarningDialog
 import com.example.saffieduapp.presentation.screens.student.exam_screen.components.ExamExitWarningDialog
 import com.example.saffieduapp.presentation.screens.student.exam_screen.components.OverlayDetectedDialog
+import com.example.saffieduapp.presentation.screens.student.exam_screen.components.MultiWindowBlockedDialog
 import com.example.saffieduapp.presentation.screens.student.exam_screen.security.ExamSecurityManager
 import com.example.saffieduapp.ui.theme.SaffiEDUAppTheme
 import dagger.hilt.android.AndroidEntryPoint
@@ -36,6 +36,13 @@ class ExamActivity : ComponentActivity() {
 
         // الحصول على examId
         examId = intent.getStringExtra("EXAM_ID") ?: ""
+
+        // ✅ فحص Multi-Window قبل بدء الاختبار
+        if (isInMultiWindowMode) {
+            // عرض Dialog توضيحي
+            showMultiWindowBlockedDialog()
+            return
+        }
 
         // تفعيل الحماية الأمنية (مع تمرير Activity)
         securityManager = ExamSecurityManager(this, this)
@@ -208,11 +215,27 @@ class ExamActivity : ComponentActivity() {
             // تسجيل المخالفة
             securityManager.logViolation("MULTI_WINDOW_DETECTED")
 
-            // إيقاف الاختبار مؤقتاً
-            securityManager.pauseExam()
-        } else {
-            // استئناف الاختبار
-            securityManager.resumeExam()
+            // إنهاء فوري للاختبار
+            Toast.makeText(
+                this,
+                "⚠️ تم إنهاء الاختبار: تم اكتشاف وضع تقسيم الشاشة",
+                Toast.LENGTH_LONG
+            ).show()
+
+            finishExam()
+        }
+    }
+
+    /**
+     * ✅ مراقبة تغييرات Configuration (بديل إضافي)
+     */
+    override fun onConfigurationChanged(newConfig: android.content.res.Configuration) {
+        super.onConfigurationChanged(newConfig)
+
+        // فحص إضافي عند تغيير Configuration
+        if (isInMultiWindowMode && ::securityManager.isInitialized) {
+            securityManager.logViolation("MULTI_WINDOW_CONFIG_CHANGE")
+            finishExam()
         }
     }
 
@@ -222,15 +245,9 @@ class ExamActivity : ComponentActivity() {
     override fun onWindowFocusChanged(hasFocus: Boolean) {
         super.onWindowFocusChanged(hasFocus)
 
-        // تمرير Focus Change للـ OverlayDetector
+        // تمرير Focus Change للـ OverlayDetector عبر SecurityManager
         if (::securityManager.isInitialized) {
-            // نستدعي الدالة في SecurityManager التي ستمررها للـ OverlayDetector
-            // (سنضيف هذه الدالة في SecurityManager)
-        }
-
-        if (!hasFocus) {
-            // قد يكون Overlay أو Dialog أو Notification
-            Log.d("ExamActivity", "Window focus lost")
+            securityManager.onWindowFocusChanged(hasFocus)
         }
     }
 
@@ -252,6 +269,19 @@ class ExamActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+
+        // ✅ فحص Multi-Window عند العودة للتطبيق
+        if (isInMultiWindowMode) {
+            securityManager.logViolation("MULTI_WINDOW_ON_RESUME")
+            Toast.makeText(
+                this,
+                "⚠️ تم اكتشاف وضع تقسيم الشاشة - سيتم إنهاء الاختبار",
+                Toast.LENGTH_LONG
+            ).show()
+            finishExam()
+            return
+        }
+
         // تسجيل وقت العودة
         securityManager.onAppResumed()
     }
@@ -272,5 +302,20 @@ class ExamActivity : ComponentActivity() {
         // TODO: إرسال التقرير للسيرفر
 
         finish()
+    }
+
+    /**
+     * عرض Dialog عند محاولة فتح الاختبار في Multi-Window
+     */
+    private fun showMultiWindowBlockedDialog() {
+        setContent {
+            SaffiEDUAppTheme {
+                MultiWindowBlockedDialog(
+                    onDismiss = {
+                        finish()
+                    }
+                )
+            }
+        }
     }
 }

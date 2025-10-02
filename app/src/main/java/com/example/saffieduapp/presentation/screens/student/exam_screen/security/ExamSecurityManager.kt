@@ -72,6 +72,13 @@ class ExamSecurityManager(
     }
 
     /**
+     * تمرير Window Focus Changes للـ OverlayDetector
+     */
+    fun onWindowFocusChanged(hasFocus: Boolean) {
+        overlayDetector?.onWindowFocusChanged(hasFocus)
+    }
+
+    /**
      * مراقبة الشاشات الخارجية
      */
     private fun setupExternalDisplayMonitoring() {
