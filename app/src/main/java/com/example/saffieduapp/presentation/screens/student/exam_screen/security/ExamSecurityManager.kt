@@ -135,6 +135,8 @@ class ExamSecurityManager(
             "EXTERNAL_DISPLAY_CONNECTED",
             "EXTERNAL_DISPLAY_ALREADY_CONNECTED",
             "MULTI_WINDOW_DETECTED",
+            "MULTI_WINDOW_ON_RESUME",
+            "MULTI_WINDOW_CONFIG_CHANGE",
             "OVERLAY_DETECTED",
             "PIP_MODE_DETECTED" -> Severity.CRITICAL // ✅ جميع هذه المخالفات خطيرة
 
