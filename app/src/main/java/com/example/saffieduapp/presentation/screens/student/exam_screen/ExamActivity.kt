@@ -9,20 +9,12 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.layout.*
-import androidx.compose.material3.Button
-import androidx.compose.material3.Text
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.example.saffieduapp.presentation.screens.student.exam_screen.components.ExamReturnWarningDialog
 import com.example.saffieduapp.presentation.screens.student.exam_screen.components.ExamExitWarningDialog
 import com.example.saffieduapp.presentation.screens.student.exam_screen.components.OverlayDetectedDialog
@@ -103,35 +95,16 @@ class ExamActivity : ComponentActivity() {
                         securityManager.startMonitoring()
                     }
 
-                    // شاشة الاختبار (Placeholder)
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(16.dp)
-                        ) {
-                            Text(
-                                text = "🎯 شاشة الاختبار",
-                                fontSize = 24.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Text(
-                                text = "Exam ID: $examId",
-                                fontSize = 16.sp
-                            )
-                            Spacer(modifier = Modifier.height(16.dp))
-                            Button(
-                                onClick = {
-                                    securityManager.logViolation("USER_FORCED_EXIT")
-                                    finishExam()
-                                }
-                            ) {
-                                Text("إنهاء الاختبار")
-                            }
+                    // شاشة الاختبار الأصلية
+                    ExamScreen(
+                        onNavigateUp = {
+                            securityManager.logViolation("NAVIGATE_UP_PRESSED")
+                            showExitDialog = true
+                        },
+                        onExamComplete = {
+                            finishExam()
                         }
-                    }
+                    )
 
                     // Dialog تحذير الخروج
                     if (showExitDialog) {
