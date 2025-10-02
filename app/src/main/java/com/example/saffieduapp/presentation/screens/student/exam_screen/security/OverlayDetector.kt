@@ -1,269 +1,245 @@
-package com.example.saffieduapp.presentation.screens.student.exam_screen
+package com.example.saffieduapp.presentation.screens.student.exam_screen.security
 
+import android.app.Activity
+import android.content.Context
+import android.graphics.PixelFormat
 import android.os.Build
-import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.util.Log
+import android.view.Gravity
 import android.view.View
 import android.view.WindowManager
-import android.widget.Toast
-import androidx.activity.ComponentActivity
-import androidx.activity.compose.BackHandler
-import androidx.activity.compose.setContent
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import com.example.saffieduapp.presentation.screens.student.exam_screen.components.ExamReturnWarningDialog
-import com.example.saffieduapp.presentation.screens.student.exam_screen.components.ExamExitWarningDialog
-import com.example.saffieduapp.presentation.screens.student.exam_screen.components.OverlayDetectedDialog
-import com.example.saffieduapp.presentation.screens.student.exam_screen.security.ExamSecurityManager
-import com.example.saffieduapp.ui.theme.SaffiEDUAppTheme
-import dagger.hilt.android.AndroidEntryPoint
+import androidx.annotation.RequiresApi
 
 /**
- * Activity منفصلة للاختبار مع حماية كاملة
+ * كاشف الشاشات المنبثقة (Overlays)
+ *
+ * يعمل عن طريق:
+ * 1. مراقبة Focus Changes - إذا فقد التطبيق Focus معناه overlay ظهر
+ * 2. وضع View شفاف فوق الشاشة وفحص إذا كان Touch يصل له
+ * 3. مراقبة Window Visibility Changes
  */
-@AndroidEntryPoint
-class ExamActivity : ComponentActivity() {
+class OverlayDetector(
+    private val activity: Activity,
+    private val onOverlayDetected: () -> Unit
+) {
+    private val TAG = "OverlayDetector"
+    private val handler = Handler(Looper.getMainLooper())
 
-    private lateinit var securityManager: ExamSecurityManager
-    private var examId: String = ""
+    @Volatile
+    private var isMonitoring = false
+    private var lastFocusTime = 0L
+    private var focusLossCount = 0
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
+    // للكشف عن Overlays عبر Touch Events
+    private var detectorView: View? = null
+    private var windowManager: WindowManager? = null
 
-        // الحصول على examId
-        examId = intent.getStringExtra("EXAM_ID") ?: ""
+    private var visibilityCheckRunnable: Runnable? = null
 
-        // تفعيل الحماية الأمنية (مع تمرير Activity)
-        securityManager = ExamSecurityManager(this, this)
-        securityManager.enableSecurityFeatures()
+    /**
+     * بدء المراقبة
+     */
+    fun startMonitoring() {
+        if (isMonitoring) return
 
-        // إعداد الشاشة
-        setupSecureScreen()
+        isMonitoring = true
+        lastFocusTime = System.currentTimeMillis()
 
-        setContent {
-            SaffiEDUAppTheme {
-                var showExitDialog by remember { mutableStateOf(false) }
-                var showOverlayDialog by remember { mutableStateOf(false) }
-                var overlayViolationType by remember { mutableStateOf("") }
+        // 1. مراقبة Window Focus
+        setupWindowFocusMonitoring()
 
-                val shouldShowWarning by securityManager.shouldShowWarning.collectAsState()
-                val shouldAutoSubmit by securityManager.shouldAutoSubmit.collectAsState()
+        // 2. إنشاء Detector View (لـ Android 6+)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            setupOverlayDetectorView()
+        }
 
-                // اعتراض زر الرجوع
-                BackHandler {
-                    securityManager.logViolation("BACK_BUTTON_PRESSED")
-                    showExitDialog = true
-                }
+        Log.d(TAG, "Overlay monitoring started")
+    }
 
-                // إنهاء تلقائي عند الوصول للحد الأقصى
-                LaunchedEffect(shouldAutoSubmit) {
-                    if (shouldAutoSubmit) {
-                        // رسالة مختلفة حسب نوع المخالفة
-                        val lastViolation = securityManager.violations.value.lastOrNull()
+    /**
+     * إيقاف المراقبة
+     */
+    fun stopMonitoring() {
+        if (!isMonitoring) return
 
-                        // إذا كانت مخالفة Critical، نعرض Dialog خاص
-                        if (lastViolation?.severity == com.example.saffieduapp.presentation.screens.student.exam_screen.security.Severity.CRITICAL) {
-                            overlayViolationType = lastViolation.type
-                            showOverlayDialog = true
-                        } else {
-                            val message = when (lastViolation?.type) {
-                                "OVERLAY_DETECTED" -> "تم إنهاء الاختبار: تم اكتشاف نافذة منبثقة فوق شاشة الاختبار"
-                                "MULTI_WINDOW_DETECTED" -> "تم إنهاء الاختبار: تم اكتشاف استخدام وضع النوافذ المتعددة"
-                                "EXTERNAL_DISPLAY_CONNECTED" -> "تم إنهاء الاختبار: تم اكتشاف شاشة خارجية"
-                                else -> "تم إنهاء الاختبار تلقائياً بسبب تجاوز محاولات الخروج"
-                            }
+        isMonitoring = false
+        handler.removeCallbacksAndMessages(null)
+        visibilityCheckRunnable = null
+        removeDetectorView()
+        Log.d(TAG, "Overlay monitoring stopped")
+    }
 
-                            Toast.makeText(
-                                this@ExamActivity,
-                                message,
-                                Toast.LENGTH_LONG
-                            ).show()
-                            finishExam()
-                        }
+    /**
+     * مراقبة Window Focus
+     * عندما يفقد التطبيق Focus بسبب Overlay
+     */
+    private fun setupWindowFocusMonitoring() {
+        activity.window.decorView.setOnWindowFocusChangeListener { hasFocus ->
+            if (!isMonitoring) return@setOnWindowFocusChangeListener
+
+            if (!hasFocus) {
+                val now = System.currentTimeMillis()
+                val timeSinceLastFocus = now - lastFocusTime
+
+                // إذا فقدنا Focus لأكثر من 500ms معناه في Overlay حقيقي
+                // (وليس مجرد Dialog داخلي)
+                if (timeSinceLastFocus > 500) {
+                    focusLossCount++
+                    Log.w(TAG, "Focus lost! Count: $focusLossCount, Duration: ${timeSinceLastFocus}ms")
+
+                    // بعد فقدان Focus مرتين نعتبرها مخالفة
+                    if (focusLossCount >= 2) {
+                        handleOverlayDetected("WINDOW_FOCUS_LOST")
                     }
                 }
-
-                // مراقبة Lifecycle
-                LaunchedEffect(Unit) {
-                    securityManager.startMonitoring()
-                }
-
-                ExamScreen(
-                    onNavigateUp = {
-                        securityManager.logViolation("NAVIGATE_UP_PRESSED")
-                        showExitDialog = true
-                    },
-                    onExamComplete = {
-                        finishExam()
+            } else {
+                lastFocusTime = System.currentTimeMillis()
+                // Reset counter عند استعادة Focus
+                handler.postDelayed({
+                    if (isMonitoring) {
+                        focusLossCount = 0
                     }
-                )
-
-                // Dialog تحذير الخروج (زر الرجوع)
-                if (showExitDialog) {
-                    ExamExitWarningDialog(
-                        onDismiss = { showExitDialog = false },
-                        onConfirmExit = {
-                            securityManager.logViolation("USER_FORCED_EXIT")
-                            finishExam()
-                        }
-                    )
-                }
-
-                // Dialog تحذير العودة (بعد الخروج بزر Home)
-                if (shouldShowWarning) {
-                    val exitCount = remember(shouldShowWarning) {
-                        securityManager.violations.value.count {
-                            it.type.startsWith("APP_RESUMED")
-                        }
-                    }
-
-                    ExamReturnWarningDialog(
-                        exitAttempts = exitCount,
-                        remainingAttempts = securityManager.getRemainingAttempts(),
-                        onContinue = {
-                            securityManager.dismissWarning()
-                        }
-                    )
-                }
-
-                // Dialog تحذير Overlay
-                if (showOverlayDialog) {
-                    OverlayDetectedDialog(
-                        violationType = overlayViolationType,
-                        onDismiss = {
-                            showOverlayDialog = false
-                            finishExam()
-                        }
-                    )
-                }
+                }, 2000)
             }
         }
     }
 
     /**
-     * إعداد الشاشة الآمنة
+     * إنشاء View شفاف للكشف عن Touch Blocking
+     * إذا كان في Overlay فوقنا، الـ Touch Events مش هتوصل للـ View
      */
-    private fun setupSecureScreen() {
-        window.apply {
-            // 1. منع Screenshot و Screen Recording
-            setFlags(
-                WindowManager.LayoutParams.FLAG_SECURE,
-                WindowManager.LayoutParams.FLAG_SECURE
-            )
+    @RequiresApi(Build.VERSION_CODES.M)
+    private fun setupOverlayDetectorView() {
+        try {
+            windowManager = activity.getSystemService(Context.WINDOW_SERVICE) as WindowManager
 
-            // 2. Keep Screen On
-            addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            // إنشاء View شفاف بحجم 1x1 في الزاوية
+            detectorView = View(activity).apply {
+                setBackgroundColor(0x00000000) // شفاف تماماً
+            }
 
-            // 3. Full Screen Mode
-            decorView.systemUiVisibility = (
-                    View.SYSTEM_UI_FLAG_FULLSCREEN
-                            or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
-                            or View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
-                    )
-        }
+            val params = WindowManager.LayoutParams(
+                1, // width
+                1, // height
+                WindowManager.LayoutParams.TYPE_APPLICATION_PANEL,
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
+                        or WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL
+                        or WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH,
+                PixelFormat.TRANSLUCENT
+            ).apply {
+                gravity = Gravity.TOP or Gravity.START
+            }
 
-        // 4. إخفاء من Recent Apps (Android 13+)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            setRecentsScreenshotEnabled(false)
-        }
-    }
+            // إضافة View للـ Window
+            windowManager?.addView(detectorView, params)
 
-    /**
-     * منع Picture-in-Picture Mode
-     */
-    override fun onPictureInPictureModeChanged(
-        isInPictureInPictureMode: Boolean,
-        newConfig: android.content.res.Configuration
-    ) {
-        super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
+            // مراقبة Touch Events
+            detectorView?.setOnTouchListener { _, _ ->
+                // إذا وصل Touch Event معناه مافيش Overlay يمنعه
+                Log.d(TAG, "Touch detected - No overlay blocking")
+                false
+            }
 
-        if (isInPictureInPictureMode) {
-            // تسجيل المخالفة وإنهاء الاختبار فوراً
-            securityManager.logViolation("PIP_MODE_DETECTED")
+            // فحص دوري إذا الـ View لسه Visible
+            startPeriodicVisibilityCheck()
 
-            Toast.makeText(
-                this,
-                "تم إنهاء الاختبار: لا يسمح بوضع Picture-in-Picture",
-                Toast.LENGTH_LONG
-            ).show()
-
-            finishExam()
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to setup detector view", e)
         }
     }
 
     /**
-     * مراقبة Multi-Window Mode
+     * فحص دوري لـ Visibility
      */
-    override fun onMultiWindowModeChanged(
-        isInMultiWindowMode: Boolean,
-        newConfig: android.content.res.Configuration
-    ) {
-        super.onMultiWindowModeChanged(isInMultiWindowMode, newConfig)
+    private fun startPeriodicVisibilityCheck() {
+        visibilityCheckRunnable = object : Runnable {
+            override fun run() {
+                if (!isMonitoring) return
 
-        if (isInMultiWindowMode) {
-            // تسجيل المخالفة
-            securityManager.logViolation("MULTI_WINDOW_DETECTED")
+                detectorView?.let { view ->
+                    try {
+                        // فحص إذا الـ View مخفي أو مش Attached
+                        if (!view.isAttachedToWindow) {
+                            handleOverlayDetected("DETECTOR_VIEW_DETACHED")
+                            return
+                        }
 
-            // إيقاف الاختبار مؤقتاً
-            securityManager.pauseExam()
-        } else {
-            // استئناف الاختبار
-            securityManager.resumeExam()
+                        if (view.visibility != View.VISIBLE) {
+                            handleOverlayDetected("DETECTOR_VIEW_HIDDEN")
+                            return
+                        }
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error checking visibility", e)
+                    }
+                }
+
+                // إعادة الفحص كل 2 ثانية
+                if (isMonitoring) {
+                    handler.postDelayed(this, 2000)
+                }
+            }
+        }
+
+        handler.postDelayed(visibilityCheckRunnable!!, 2000)
+    }
+
+    /**
+     * إزالة Detector View
+     */
+    private fun removeDetectorView() {
+        try {
+            detectorView?.let { view ->
+                if (view.isAttachedToWindow) {
+                    windowManager?.removeView(view)
+                }
+            }
+            detectorView = null
+            windowManager = null
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to remove detector view", e)
         }
     }
 
     /**
-     * مراقبة Window Focus - للكشف عن Overlays
+     * معالجة اكتشاف Overlay
      */
-    override fun onWindowFocusChanged(hasFocus: Boolean) {
-        super.onWindowFocusChanged(hasFocus)
+    private fun handleOverlayDetected(reason: String) {
+        if (!isMonitoring) return
 
-        if (!hasFocus) {
-            // قد يكون Overlay أو Dialog أو Notification
-            // الـ OverlayDetector سيحدد إذا كان مخالفة حقيقية
+        Log.e(TAG, "⚠️ OVERLAY DETECTED: $reason")
+
+        // استدعاء الـ Callback
+        handler.post {
+            try {
+                onOverlayDetected()
+            } catch (e: Exception) {
+                Log.e(TAG, "Error calling overlay callback", e)
+            }
         }
+
+        // إيقاف المراقبة لتجنب Multiple Triggers
+        stopMonitoring()
     }
 
     /**
-     * مراقبة خروج المستخدم من التطبيق
+     * فحص يدوي إذا في Overlays نشطة
      */
-    override fun onUserLeaveHint() {
-        super.onUserLeaveHint()
+    fun checkForActiveOverlays(): Boolean {
+        return try {
+            // فحص إذا التطبيق عنده Focus
+            val hasFocus = activity.window.decorView.hasWindowFocus()
 
-        // المستخدم ضغط Home أو Recent Apps
-        securityManager.logViolation("USER_LEFT_APP")
-    }
-
-    override fun onPause() {
-        super.onPause()
-        // تسجيل وقت الخروج
-        securityManager.onAppPaused()
-    }
-
-    override fun onResume() {
-        super.onResume()
-        // تسجيل وقت العودة
-        securityManager.onAppResumed()
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        // إيقاف المراقبة
-        securityManager.stopMonitoring()
-    }
-
-    /**
-     * إنهاء الاختبار بشكل آمن
-     */
-    private fun finishExam() {
-        // إنشاء التقرير النهائي
-        val report = securityManager.generateReport()
-
-        // TODO: إرسال التقرير للسيرفر
-
-        finish()
+            if (!hasFocus) {
+                Log.w(TAG, "App doesn't have window focus - possible overlay")
+                true
+            } else {
+                false
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error checking for overlays", e)
+            false
+        }
     }
 }

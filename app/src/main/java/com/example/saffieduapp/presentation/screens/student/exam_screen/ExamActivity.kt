@@ -16,6 +16,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import com.example.saffieduapp.presentation.screens.student.exam_screen.components.ExamReturnWarningDialog
 import com.example.saffieduapp.presentation.screens.student.exam_screen.components.ExamExitWarningDialog
+import com.example.saffieduapp.presentation.screens.student.exam_screen.components.OverlayDetectedDialog
 import com.example.saffieduapp.presentation.screens.student.exam_screen.security.ExamSecurityManager
 import com.example.saffieduapp.ui.theme.SaffiEDUAppTheme
 import dagger.hilt.android.AndroidEntryPoint
@@ -35,7 +36,7 @@ class ExamActivity : ComponentActivity() {
         // الحصول على examId
         examId = intent.getStringExtra("EXAM_ID") ?: ""
 
-        // ✅ تفعيل الحماية الأمنية (مع تمرير Activity)
+        // تفعيل الحماية الأمنية (مع تمرير Activity)
         securityManager = ExamSecurityManager(this, this)
         securityManager.enableSecurityFeatures()
 
@@ -51,7 +52,7 @@ class ExamActivity : ComponentActivity() {
                 val shouldShowWarning by securityManager.shouldShowWarning.collectAsState()
                 val shouldAutoSubmit by securityManager.shouldAutoSubmit.collectAsState()
 
-                // ✅ اعتراض زر الرجوع
+                // اعتراض زر الرجوع
                 BackHandler {
                     securityManager.logViolation("BACK_BUTTON_PRESSED")
                     showExitDialog = true
@@ -60,7 +61,7 @@ class ExamActivity : ComponentActivity() {
                 // إنهاء تلقائي عند الوصول للحد الأقصى
                 LaunchedEffect(shouldAutoSubmit) {
                     if (shouldAutoSubmit) {
-                        // ✅ رسالة مختلفة حسب نوع المخالفة
+                        // رسالة مختلفة حسب نوع المخالفة
                         val lastViolation = securityManager.violations.value.lastOrNull()
 
                         // إذا كانت مخالفة Critical، نعرض Dialog خاص
@@ -127,6 +128,17 @@ class ExamActivity : ComponentActivity() {
                         }
                     )
                 }
+
+                // Dialog تحذير Overlay
+                if (showOverlayDialog) {
+                    OverlayDetectedDialog(
+                        violationType = overlayViolationType,
+                        onDismiss = {
+                            showOverlayDialog = false
+                            finishExam()
+                        }
+                    )
+                }
             }
         }
     }
@@ -160,106 +172,98 @@ class ExamActivity : ComponentActivity() {
     }
 
     /**
-     * ✅ منع Picture-in-Picture Mode
+     * منع Picture-in-Picture Mode
      */
     override fun onPictureInPictureModeChanged(
         isInPictureInPictureMode: Boolean,
         newConfig: android.content.res.Configuration
     ) {
+        super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
 
-        /**
-         * ✅ منع Picture-in-Picture Mode
-         */
-        override fun onPictureInPictureModeChanged(
-            isInPictureInPictureMode: Boolean,
-            newConfig: android.content.res.Configuration
-        ) {
-            super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
+        if (isInPictureInPictureMode) {
+            // تسجيل المخالفة وإنهاء الاختبار فوراً
+            securityManager.logViolation("PIP_MODE_DETECTED")
 
-            if (isInPictureInPictureMode) {
-                // تسجيل المخالفة وإنهاء الاختبار فوراً
-                securityManager.logViolation("PIP_MODE_DETECTED")
+            Toast.makeText(
+                this,
+                "تم إنهاء الاختبار: لا يسمح بوضع Picture-in-Picture",
+                Toast.LENGTH_LONG
+            ).show()
 
-                Toast.makeText(
-                    this,
-                    "تم إنهاء الاختبار: لا يسمح بوضع Picture-in-Picture",
-                    Toast.LENGTH_LONG
-                ).show()
-
-                finishExam()
-            }
-        }
-
-        /**
-         * مراقبة Multi-Window Mode
-         */
-        override fun onMultiWindowModeChanged(
-            isInMultiWindowMode: Boolean,
-            newConfig: android.content.res.Configuration
-        ) {
-            super.onMultiWindowModeChanged(isInMultiWindowMode, newConfig)
-
-            if (isInMultiWindowMode) {
-                // تسجيل المخالفة
-                securityManager.logViolation("MULTI_WINDOW_DETECTED")
-
-                // إيقاف الاختبار مؤقتاً
-                securityManager.pauseExam()
-            } else {
-                // استئناف الاختبار
-                securityManager.resumeExam()
-            }
-        }
-
-        /**
-         * ✅ مراقبة Window Focus - للكشف عن Overlays
-         */
-        override fun onWindowFocusChanged(hasFocus: Boolean) {
-            super.onWindowFocusChanged(hasFocus)
-
-            if (!hasFocus) {
-                // قد يكون Overlay أو Dialog أو Notification
-                // الـ OverlayDetector سيحدد إذا كان مخالفة حقيقية
-            }
-        }
-
-        /**
-         * مراقبة خروج المستخدم من التطبيق
-         */
-        override fun onUserLeaveHint() {
-            super.onUserLeaveHint()
-
-            // المستخدم ضغط Home أو Recent Apps
-            securityManager.logViolation("USER_LEFT_APP")
-        }
-
-        override fun onPause() {
-            super.onPause()
-            // تسجيل وقت الخروج
-            securityManager.onAppPaused()
-        }
-
-        override fun onResume() {
-            super.onResume()
-            // تسجيل وقت العودة
-            securityManager.onAppResumed()
-        }
-
-        override fun onDestroy() {
-            super.onDestroy()
-            // إيقاف المراقبة
-            securityManager.stopMonitoring()
-        }
-
-        /**
-         * إنهاء الاختبار بشكل آمن
-         */
-        private fun finishExam() {
-            // إنشاء التقرير النهائي
-            val report = securityManager.generateReport()
-
-            // TODO: إرسال التقرير للسيرفر
-
-            finish()
+            finishExam()
         }
     }
+
+    /**
+     * مراقبة Multi-Window Mode
+     */
+    override fun onMultiWindowModeChanged(
+        isInMultiWindowMode: Boolean,
+        newConfig: android.content.res.Configuration
+    ) {
+        super.onMultiWindowModeChanged(isInMultiWindowMode, newConfig)
+
+        if (isInMultiWindowMode) {
+            // تسجيل المخالفة
+            securityManager.logViolation("MULTI_WINDOW_DETECTED")
+
+            // إيقاف الاختبار مؤقتاً
+            securityManager.pauseExam()
+        } else {
+            // استئناف الاختبار
+            securityManager.resumeExam()
+        }
+    }
+
+    /**
+     * مراقبة Window Focus - للكشف عن Overlays
+     */
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+
+        if (!hasFocus) {
+            // قد يكون Overlay أو Dialog أو Notification
+            // الـ OverlayDetector سيحدد إذا كان مخالفة حقيقية
+        }
+    }
+
+    /**
+     * مراقبة خروج المستخدم من التطبيق
+     */
+    override fun onUserLeaveHint() {
+        super.onUserLeaveHint()
+
+        // المستخدم ضغط Home أو Recent Apps
+        securityManager.logViolation("USER_LEFT_APP")
+    }
+
+    override fun onPause() {
+        super.onPause()
+        // تسجيل وقت الخروج
+        securityManager.onAppPaused()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // تسجيل وقت العودة
+        securityManager.onAppResumed()
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        // إيقاف المراقبة
+        securityManager.stopMonitoring()
+    }
+
+    /**
+     * إنهاء الاختبار بشكل آمن
+     */
+    private fun finishExam() {
+        // إنشاء التقرير النهائي
+        val report = securityManager.generateReport()
+
+        // TODO: إرسال التقرير للسيرفر
+
+        finish()
+    }
+}
