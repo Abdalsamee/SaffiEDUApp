@@ -1,11 +1,12 @@
 package com.example.saffieduapp.presentation.screens.teacher.calsses
 
 
-
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.google.android.gms.tasks.Tasks
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.QuerySnapshot
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -52,7 +53,6 @@ class TeacherClassesViewModel @Inject constructor(
                     .get()
                     .await()
 
-                // 🔹 تحويل البيانات إلى قائمة من ClassItem
                 val classesList = subjectsSnapshot.documents.map { doc ->
                     ClassItem(
                         classId = doc.id,
@@ -67,38 +67,12 @@ class TeacherClassesViewModel @Inject constructor(
                     )
                 }
 
-                // ✅ ترتيب الصفوف حسب رقم الصف (الأول -> الثاني -> الثالث ...)
-                val sortedClasses = classesList.sortedBy {
-                    extractClassNumber(it.className)
-                }
-
-                _state.value = TeacherClassesState(
-                    isLoading = false,
-                    classes = sortedClasses
-                )
+                _state.value = TeacherClassesState(isLoading = false, classes = classesList)
 
             } catch (e: Exception) {
                 e.printStackTrace()
                 _state.value = _state.value.copy(isLoading = false, classes = emptyList())
             }
-        }
-    }
-
-    private fun extractClassNumber(className: String): Int {
-        return when {
-            className.contains("الأول") -> 1
-            className.contains("الثاني") -> 2
-            className.contains("الثالث") -> 3
-            className.contains("الرابع") -> 4
-            className.contains("الخامس") -> 5
-            className.contains("السادس") -> 6
-            className.contains("السابع") -> 7
-            className.contains("الثامن") -> 8
-            className.contains("التاسع") -> 9
-            className.contains("العاشر") -> 10
-            className.contains("الحادي عشر") -> 11
-            className.contains("الثاني عشر") -> 12
-            else -> 0
         }
     }
 }
