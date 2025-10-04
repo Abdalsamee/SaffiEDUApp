@@ -217,8 +217,9 @@ private fun CameraPreviewCard(viewModel: CameraMonitorViewModel) {
 
     DisposableEffect(Unit) {
         onDispose {
-            android.util.Log.d("CameraPreview", "Pausing monitoring")
-            viewModel.pauseMonitoring()
+            android.util.Log.d("CameraPreview", "Stopping preview monitoring")
+            // إيقاف المراقبة - ستبدأ مرة أخرى في الخلفية
+            viewModel.stopMonitoring()
         }
     }
 

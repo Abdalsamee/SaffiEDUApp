@@ -82,7 +82,7 @@ class CameraManager(private val context: Context) {
      */
     fun startFrontCamera(
         lifecycleOwner: LifecycleOwner,
-        previewView: PreviewView,
+        previewView: PreviewView?, // ✅ nullable
         onImageAnalysis: (ImageProxy) -> Unit
     ) {
         val provider = cameraProvider ?: run {
@@ -96,14 +96,7 @@ class CameraManager(private val context: Context) {
             // إيقاف أي استخدام سابق
             provider.unbindAll()
 
-            // Preview
-            val preview = Preview.Builder()
-                .build()
-                .also {
-                    it.setSurfaceProvider(previewView.surfaceProvider)
-                }
-
-            // Image Analysis لـ Face Detection
+            // Image Analysis لـ Face Detection (هذا الأهم)
             frontImageAnalysis = ImageAnalysis.Builder()
                 .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                 .build()
@@ -116,15 +109,31 @@ class CameraManager(private val context: Context) {
             // تحديد الكاميرا الأمامية
             val cameraSelector = CameraSelector.DEFAULT_FRONT_CAMERA
 
-            // ربط الكاميرا
-            frontCamera = provider.bindToLifecycle(
-                lifecycleOwner,
-                cameraSelector,
-                preview,
-                frontImageAnalysis
-            )
+            // إذا كان هناك preview، أضفه
+            if (previewView != null) {
+                val preview = Preview.Builder()
+                    .build()
+                    .also {
+                        it.setSurfaceProvider(previewView.surfaceProvider)
+                    }
 
-            Log.d(TAG, "✅ Front camera started successfully")
+                // ربط الكاميرا مع Preview
+                frontCamera = provider.bindToLifecycle(
+                    lifecycleOwner,
+                    cameraSelector,
+                    preview,
+                    frontImageAnalysis
+                )
+            } else {
+                // ربط الكاميرا بدون Preview (مراقبة فقط)
+                frontCamera = provider.bindToLifecycle(
+                    lifecycleOwner,
+                    cameraSelector,
+                    frontImageAnalysis
+                )
+            }
+
+            Log.d(TAG, "✅ Front camera started successfully (Preview: ${previewView != null})")
 
         } catch (e: Exception) {
             Log.e(TAG, "❌ Failed to start front camera", e)

@@ -2,6 +2,8 @@ package com.example.saffieduapp.presentation.screens.student.exam_screen.securit
 
 import android.content.Context
 import android.util.Log
+import androidx.annotation.OptIn
+import androidx.camera.core.ExperimentalGetImage
 import androidx.camera.view.PreviewView
 import androidx.lifecycle.LifecycleOwner
 import kotlinx.coroutines.*
@@ -54,9 +56,10 @@ class CameraMonitor(
     /**
      * بدء المراقبة الكاملة
      */
+    @OptIn(ExperimentalGetImage::class)
     fun startMonitoring(
         lifecycleOwner: LifecycleOwner,
-        frontPreviewView: PreviewView
+        frontPreviewView: PreviewView? = null // ✅ اجعلها nullable
     ) {
         if (!_isInitialized.value) {
             Log.e(TAG, "Cannot start monitoring - camera not initialized")
@@ -91,11 +94,11 @@ class CameraMonitor(
     @androidx.camera.core.ExperimentalGetImage
     private fun startFrontCameraWithDetection(
         lifecycleOwner: LifecycleOwner,
-        previewView: PreviewView
+        previewView: PreviewView? // ✅ nullable
     ) {
         cameraManager.startFrontCamera(
             lifecycleOwner = lifecycleOwner,
-            previewView = previewView,
+            previewView = previewView, // ✅ تمريرها كما هي
             onImageAnalysis = { imageProxy ->
                 // تمرير الصورة لـ Face Detection
                 faceDetectionMonitor.processImage(imageProxy)

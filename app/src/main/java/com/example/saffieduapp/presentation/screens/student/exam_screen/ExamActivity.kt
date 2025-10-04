@@ -148,6 +148,9 @@ class ExamActivity : ComponentActivity() {
                         onCheckPassed = {
                             cameraCheckPassed.value = true
                             showCameraCheck.value = false
+
+                            // ✅ بدء المراقبة في الخلفية (بدون preview)
+                            startBackgroundMonitoring()
                         },
                         onCheckFailed = { reason ->
                             Toast.makeText(
@@ -167,6 +170,21 @@ class ExamActivity : ComponentActivity() {
     }
 
     /**
+     * بدء المراقبة في الخلفية (بدون عرض)
+     */
+    private fun startBackgroundMonitoring() {
+        try {
+            cameraViewModel.getCameraMonitor().startMonitoring(
+                lifecycleOwner = this,
+                frontPreviewView = null // ✅ بدون preview - مراقبة خفية
+            )
+            Log.d("ExamActivity", "✅ Background monitoring started")
+        } catch (e: Exception) {
+            Log.e("ExamActivity", "❌ Failed to start background monitoring", e)
+        }
+    }
+
+    /**
      * محتوى الاختبار الفعلي
      */
     @Composable
@@ -177,6 +195,8 @@ class ExamActivity : ComponentActivity() {
 
         val shouldShowWarning by securityManager.shouldShowWarning.collectAsState()
         val shouldAutoSubmit by securityManager.shouldAutoSubmit.collectAsState()
+        val isPaused by securityManager.isPaused.collectAsState()
+        val violations by securityManager.violations.collectAsState()
 
         // اعتراض زر الرجوع
         BackHandler {
@@ -187,7 +207,7 @@ class ExamActivity : ComponentActivity() {
         // إنهاء تلقائي عند الوصول للحد الأقصى
         LaunchedEffect(shouldAutoSubmit) {
             if (shouldAutoSubmit) {
-                val lastViolation = securityManager.violations.value.lastOrNull()
+                val lastViolation = violations.lastOrNull()
 
                 if (lastViolation?.severity == Severity.CRITICAL) {
                     overlayViolationType = lastViolation.type
@@ -198,6 +218,7 @@ class ExamActivity : ComponentActivity() {
                         "MULTI_WINDOW_DETECTED" -> "تم إنهاء الاختبار: تم اكتشاف وضع النوافذ المتعددة"
                         "EXTERNAL_DISPLAY_CONNECTED" -> "تم إنهاء الاختبار: تم اكتشاف شاشة خارجية"
                         "MULTIPLE_FACES_DETECTED" -> "تم إنهاء الاختبار: تم اكتشاف أكثر من شخص"
+                        "NO_FACE_DETECTED_LONG" -> "تم إنهاء الاختبار: عدم ظهور الوجه لفترة طويلة"
                         else -> "تم إنهاء الاختبار تلقائياً بسبب تجاوز محاولات الخروج"
                     }
 
@@ -212,7 +233,7 @@ class ExamActivity : ComponentActivity() {
             securityManager.startMonitoring()
         }
 
-        // شاشة الاختبار الأصلية
+        // شاشة الاختبار الأصلية (بدون cameraViewModel)
         ExamScreen(
             onNavigateUp = {
                 securityManager.logViolation("NAVIGATE_UP_PRESSED")
