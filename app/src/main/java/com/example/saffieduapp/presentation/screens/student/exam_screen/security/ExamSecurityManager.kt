@@ -3,6 +3,7 @@ package com.example.saffieduapp.presentation.screens.student.exam_screen.securit
 import android.app.Activity
 import android.content.Context
 import android.hardware.display.DisplayManager
+import android.util.Log
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -14,6 +15,7 @@ class ExamSecurityManager(
     private val context: Context,
     private val activity: Activity
 ) {
+    private val TAG = "ExamSecurityManager"
 
     private val _violations = MutableStateFlow<List<SecurityViolation>>(emptyList())
     val violations: StateFlow<List<SecurityViolation>> = _violations.asStateFlow()
@@ -45,47 +47,70 @@ class ExamSecurityManager(
      */
     fun setCameraMonitor(monitor: CameraMonitor) {
         this.cameraMonitor = monitor
+        Log.d(TAG, "Camera monitor set successfully")
     }
 
     /**
      * تفعيل جميع ميزات الحماية
      */
     fun enableSecurityFeatures() {
-        setupExternalDisplayMonitoring()
-        setupOverlayDetection()
+        try {
+            setupExternalDisplayMonitoring()
+            setupOverlayDetection()
+            Log.d(TAG, "Security features enabled successfully")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error enabling security features", e)
+        }
     }
 
     /**
      * بدء المراقبة
      */
     fun startMonitoring() {
-        // بدء مراقبة Overlays
-        overlayDetector?.startMonitoring()
-
-        // بدء مراقبة الكاميرا
-        // سيتم استدعاؤها من ExamActivity بعد تهيئة الكاميرا
+        try {
+            // بدء مراقبة Overlays
+            overlayDetector?.startMonitoring()
+            Log.d(TAG, "Monitoring started")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error starting monitoring", e)
+        }
     }
 
     /**
      * إيقاف المراقبة
      */
     fun stopMonitoring() {
-        overlayDetector?.stopMonitoring()
-        cameraMonitor?.stopMonitoring()
+        try {
+            overlayDetector?.stopMonitoring()
+            cameraMonitor?.stopMonitoring()
+            Log.d(TAG, "Monitoring stopped")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error stopping monitoring", e)
+        }
     }
 
     /**
      * إيقاف مؤقت للمراقبة
      */
     fun pauseMonitoring() {
-        cameraMonitor?.pauseMonitoring()
+        try {
+            cameraMonitor?.pauseMonitoring()
+            Log.d(TAG, "Monitoring paused")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error pausing monitoring", e)
+        }
     }
 
     /**
      * استئناف المراقبة
      */
     fun resumeMonitoring() {
-        cameraMonitor?.resumeMonitoring()
+        try {
+            cameraMonitor?.resumeMonitoring()
+            Log.d(TAG, "Monitoring resumed")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error resuming monitoring", e)
+        }
     }
 
     /**
@@ -110,27 +135,33 @@ class ExamSecurityManager(
      * مراقبة الشاشات الخارجية
      */
     private fun setupExternalDisplayMonitoring() {
-        displayManager.registerDisplayListener(
-            object : DisplayManager.DisplayListener {
-                override fun onDisplayAdded(displayId: Int) {
-                    logViolation("EXTERNAL_DISPLAY_CONNECTED")
-                    handleCriticalViolation()
-                }
+        try {
+            displayManager.registerDisplayListener(
+                object : DisplayManager.DisplayListener {
+                    override fun onDisplayAdded(displayId: Int) {
+                        logViolation("EXTERNAL_DISPLAY_CONNECTED")
+                        handleCriticalViolation()
+                    }
 
-                override fun onDisplayRemoved(displayId: Int) {
-                    // تسجيل فقط
-                }
+                    override fun onDisplayRemoved(displayId: Int) {
+                        // تسجيل فقط
+                        Log.d(TAG, "External display removed: $displayId")
+                    }
 
-                override fun onDisplayChanged(displayId: Int) {
-                    // تسجيل فقط
-                }
-            },
-            null
-        )
+                    override fun onDisplayChanged(displayId: Int) {
+                        // تسجيل فقط
+                        Log.d(TAG, "Display changed: $displayId")
+                    }
+                },
+                null
+            )
 
-        // فحص الشاشات الحالية
-        if (displayManager.displays.size > 1) {
-            logViolation("EXTERNAL_DISPLAY_ALREADY_CONNECTED")
+            // فحص الشاشات الحالية
+            if (displayManager.displays.size > 1) {
+                logViolation("EXTERNAL_DISPLAY_ALREADY_CONNECTED")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error setting up external display monitoring", e)
         }
     }
 
@@ -138,20 +169,25 @@ class ExamSecurityManager(
      * تسجيل مخالفة أمنية
      */
     fun logViolation(type: String) {
-        val violation = SecurityViolation(
-            type = type,
-            timestamp = System.currentTimeMillis(),
-            severity = calculateSeverity(type)
-        )
+        try {
+            val violation = SecurityViolation(
+                type = type,
+                timestamp = System.currentTimeMillis(),
+                severity = calculateSeverity(type)
+            )
 
-        _violations.value = _violations.value + violation
+            _violations.value = _violations.value + violation
+            Log.w(TAG, "Violation logged: $type (Severity: ${violation.severity})")
 
-        // اتخاذ إجراء حسب الشدة
-        when (violation.severity) {
-            Severity.CRITICAL -> handleCriticalViolation()
-            Severity.HIGH -> handleHighViolation()
-            Severity.MEDIUM -> handleMediumViolation()
-            Severity.LOW -> handleLowViolation()
+            // اتخاذ إجراء حسب الشدة
+            when (violation.severity) {
+                Severity.CRITICAL -> handleCriticalViolation()
+                Severity.HIGH -> handleHighViolation()
+                Severity.MEDIUM -> handleMediumViolation()
+                Severity.LOW -> handleLowViolation()
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error logging violation", e)
         }
     }
 
@@ -174,7 +210,8 @@ class ExamSecurityManager(
 
             "BACK_BUTTON_PRESSED",
             "LOOKING_AWAY",
-            "USER_FORCED_EXIT" -> Severity.MEDIUM
+            "USER_FORCED_EXIT",
+            "WINDOW_FOCUS_LOST" -> Severity.MEDIUM
 
             else -> Severity.LOW
         }
@@ -184,11 +221,14 @@ class ExamSecurityManager(
      * معالجة مخالفة حرجة
      */
     private fun handleCriticalViolation() {
-        pauseExam()
-        // إيقاف المراقبة مؤقتاً
-        pauseMonitoring()
-        // إنهاء فوري للاختبار في حالة Overlay
-        _shouldAutoSubmit.value = true
+        try {
+            pauseExam()
+            pauseMonitoring()
+            _shouldAutoSubmit.value = true
+            Log.e(TAG, "Critical violation - Auto submit triggered")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error handling critical violation", e)
+        }
     }
 
     /**
@@ -196,6 +236,7 @@ class ExamSecurityManager(
      */
     private fun handleHighViolation() {
         // تسجيل فقط - العقوبة ستكون في onAppResumed
+        Log.w(TAG, "High violation detected")
     }
 
     /**
@@ -203,6 +244,7 @@ class ExamSecurityManager(
      */
     private fun handleMediumViolation() {
         // تسجيل فقط
+        Log.w(TAG, "Medium violation detected")
     }
 
     /**
@@ -210,6 +252,7 @@ class ExamSecurityManager(
      */
     private fun handleLowViolation() {
         // تسجيل فقط
+        Log.i(TAG, "Low violation detected")
     }
 
     /**
@@ -217,6 +260,7 @@ class ExamSecurityManager(
      */
     fun pauseExam() {
         _isPaused.value = true
+        Log.d(TAG, "Exam paused")
     }
 
     /**
@@ -224,6 +268,7 @@ class ExamSecurityManager(
      */
     fun resumeExam() {
         _isPaused.value = false
+        Log.d(TAG, "Exam resumed")
     }
 
     /**
@@ -232,6 +277,7 @@ class ExamSecurityManager(
     fun onAppPaused() {
         appPausedTime = System.currentTimeMillis()
         pauseMonitoring()
+        Log.d(TAG, "App paused at: $appPausedTime")
     }
 
     /**
@@ -243,6 +289,7 @@ class ExamSecurityManager(
             totalTimeOutOfApp += duration
 
             exitAttempts++
+            Log.d(TAG, "App resumed after ${duration}ms, total attempts: $exitAttempts")
 
             logViolation("APP_RESUMED_AFTER_${duration}ms")
 
@@ -251,6 +298,7 @@ class ExamSecurityManager(
                 exitAttempts > maxExitAttempts -> {
                     // إنهاء تلقائي
                     _shouldAutoSubmit.value = true
+                    Log.e(TAG, "Max exit attempts exceeded - Auto submit")
                 }
                 else -> {
                     // إظهار تحذير
@@ -269,6 +317,7 @@ class ExamSecurityManager(
      */
     fun dismissWarning() {
         _shouldShowWarning.value = false
+        Log.d(TAG, "Warning dismissed")
     }
 
     /**
@@ -282,13 +331,15 @@ class ExamSecurityManager(
      * إنشاء التقرير الأمني النهائي
      */
     fun generateReport(): ExamSecurityReport {
-        return ExamSecurityReport(
+        val report = ExamSecurityReport(
             violations = _violations.value,
             totalExitAttempts = exitAttempts,
             totalTimeOutOfApp = totalTimeOutOfApp,
             securityScore = calculateSecurityScore(),
             timestamp = System.currentTimeMillis()
         )
+        Log.d(TAG, "Security report generated: Score=${report.securityScore}, Violations=${report.violations.size}")
+        return report
     }
 
     /**
@@ -306,16 +357,21 @@ class ExamSecurityManager(
             }
         }
 
-        return score.coerceIn(0, 100)
+        return score.coerceAtLeast(0).coerceAtMost(100)
     }
 
     /**
      * تنظيف الموارد
      */
     fun cleanup() {
-        stopMonitoring()
-        overlayDetector = null
-        cameraMonitor = null
+        try {
+            stopMonitoring()
+            overlayDetector = null
+            cameraMonitor = null
+            Log.d(TAG, "Security manager cleaned up")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error cleaning up security manager", e)
+        }
     }
 }
 

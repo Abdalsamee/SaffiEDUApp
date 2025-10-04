@@ -81,7 +81,9 @@ class ExamActivity : ComponentActivity() {
                 application = application,
                 onViolationDetected = { violationType ->
                     // تسجيل المخالفة في Security Manager
-                    securityManager.logViolation(violationType)
+                    if (::securityManager.isInitialized) {
+                        securityManager.logViolation(violationType)
+                    }
                 }
             )
             cameraViewModel = ViewModelProvider(this, factory)[CameraMonitorViewModel::class.java]
@@ -124,7 +126,9 @@ class ExamActivity : ComponentActivity() {
      * تهيئة الكاميرا
      */
     private fun initializeCamera() {
-        cameraViewModel.initializeCamera()
+        if (::cameraViewModel.isInitialized) {
+            cameraViewModel.initializeCamera()
+        }
         setupUI()
     }
 
@@ -134,12 +138,11 @@ class ExamActivity : ComponentActivity() {
     private fun setupUI() {
         setContent {
             SaffiEDUAppTheme {
-                val initState by cameraViewModel.initializationState.collectAsState()
                 val showCameraCheckScreen by showCameraCheck
                 val checkPassed by cameraCheckPassed
 
                 // إذا لم يتم الفحص بعد، اعرض شاشة الفحص
-                if (showCameraCheckScreen && !checkPassed) {
+                if (showCameraCheckScreen && !checkPassed && ::cameraViewModel.isInitialized) {
                     PreExamCameraCheckScreen(
                         viewModel = cameraViewModel,
                         onCheckPassed = {
@@ -155,7 +158,7 @@ class ExamActivity : ComponentActivity() {
                             finish()
                         }
                     )
-                } else {
+                } else if (checkPassed) {
                     // الاختبار الفعلي
                     ExamActivityContent()
                 }
@@ -278,6 +281,10 @@ class ExamActivity : ComponentActivity() {
             window.attributes.layoutInDisplayCutoutMode =
                 WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
         }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            setRecentsScreenshotEnabled(false)
+        }
     }
 
     private fun showMultiWindowBlockedDialog() {
@@ -290,16 +297,22 @@ class ExamActivity : ComponentActivity() {
         }
     }
 
-    override fun onMultiWindowModeChanged(isInMultiWindowMode: Boolean) {
-        super.onMultiWindowModeChanged(isInMultiWindowMode)
+    override fun onMultiWindowModeChanged(
+        isInMultiWindowMode: Boolean,
+        newConfig: android.content.res.Configuration
+    ) {
+        super.onMultiWindowModeChanged(isInMultiWindowMode, newConfig)
 
         if (isInMultiWindowMode) {
             Log.e("ExamActivity", "Multi-window mode activated during exam!")
-            securityManager.logViolation("MULTI_WINDOW_DETECTED")
+
+            if (::securityManager.isInitialized) {
+                securityManager.logViolation("MULTI_WINDOW_DETECTED")
+            }
 
             Toast.makeText(
                 this,
-                "تم إنهاء الاختبار: لا يُسمح بوضع النوافذ المتعددة",
+                "⚠️ تم إنهاء الاختبار: تم اكتشاف وضع تقسيم الشاشة",
                 Toast.LENGTH_LONG
             ).show()
 
@@ -308,13 +321,17 @@ class ExamActivity : ComponentActivity() {
     }
 
     override fun onPictureInPictureModeChanged(
-        isInPictureInPictureMode: Boolean
+        isInPictureInPictureMode: Boolean,
+        newConfig: android.content.res.Configuration
     ) {
-        super.onPictureInPictureModeChanged(isInPictureInPictureMode)
+        super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
 
         if (isInPictureInPictureMode) {
             Log.e("ExamActivity", "PIP mode detected!")
-            securityManager.logViolation("PIP_MODE_DETECTED")
+
+            if (::securityManager.isInitialized) {
+                securityManager.logViolation("PIP_MODE_DETECTED")
+            }
 
             Toast.makeText(
                 this,
@@ -326,41 +343,93 @@ class ExamActivity : ComponentActivity() {
         }
     }
 
+    override fun onConfigurationChanged(newConfig: android.content.res.Configuration) {
+        super.onConfigurationChanged(newConfig)
+
+        if (isInMultiWindowMode && ::securityManager.isInitialized) {
+            securityManager.logViolation("MULTI_WINDOW_CONFIG_CHANGE")
+            finishExam()
+        }
+    }
+
     override fun onPause() {
         super.onPause()
-        securityManager.onAppPaused()
+        if (::securityManager.isInitialized) {
+            securityManager.onAppPaused()
+        }
     }
 
     override fun onResume() {
         super.onResume()
-        securityManager.onAppResumed()
+
+        // فحص Multi-Window عند العودة
+        if (isInMultiWindowMode) {
+            if (::securityManager.isInitialized) {
+                securityManager.logViolation("MULTI_WINDOW_ON_RESUME")
+            }
+            Toast.makeText(this, "⚠️ تم اكتشاف وضع تقسيم الشاشة", Toast.LENGTH_LONG).show()
+            finish()
+            return
+        }
+
+        if (::securityManager.isInitialized) {
+            securityManager.onAppResumed()
+        }
     }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
         super.onWindowFocusChanged(hasFocus)
-        securityManager.onWindowFocusChanged(hasFocus)
 
-        if (!hasFocus) {
-            securityManager.logViolation("WINDOW_FOCUS_LOST")
+        if (::securityManager.isInitialized) {
+            securityManager.onWindowFocusChanged(hasFocus)
+
+            if (!hasFocus) {
+                securityManager.logViolation("WINDOW_FOCUS_LOST")
+            }
+        }
+    }
+
+    override fun onUserLeaveHint() {
+        super.onUserLeaveHint()
+
+        if (::securityManager.isInitialized) {
+            securityManager.logViolation("USER_LEFT_APP")
         }
     }
 
     private fun finishExam() {
-        val report = securityManager.generateReport()
-        Log.d("ExamActivity", "Security Report: $report")
+        try {
+            if (::securityManager.isInitialized) {
+                val report = securityManager.generateReport()
+                Log.d("ExamActivity", "Security Report: $report")
+                // TODO: رفع التقرير للسيرفر
+            }
 
-        // هنا يمكن رفع التقرير للسيرفر
+            // تنظيف الموارد
+            if (::cameraViewModel.isInitialized) {
+                cameraViewModel.stopMonitoring()
+            }
 
-        // تنظيف الموارد
-        cameraViewModel.stopMonitoring()
-        securityManager.cleanup()
-
-        finish()
+            if (::securityManager.isInitialized) {
+                securityManager.cleanup()
+            }
+        } catch (e: Exception) {
+            Log.e("ExamActivity", "Error in finishExam", e)
+        } finally {
+            finish()
+        }
     }
 
     override fun onDestroy() {
         super.onDestroy()
-        securityManager.stopMonitoring()
-        securityManager.cleanup()
+
+        try {
+            if (::securityManager.isInitialized) {
+                securityManager.stopMonitoring()
+                securityManager.cleanup()
+            }
+        } catch (e: Exception) {
+            Log.e("ExamActivity", "Error in onDestroy", e)
+        }
     }
 }

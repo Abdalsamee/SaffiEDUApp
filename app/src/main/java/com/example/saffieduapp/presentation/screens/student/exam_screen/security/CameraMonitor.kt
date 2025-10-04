@@ -2,8 +2,6 @@ package com.example.saffieduapp.presentation.screens.student.exam_screen.securit
 
 import android.content.Context
 import android.util.Log
-import androidx.annotation.OptIn
-import androidx.camera.core.ExperimentalGetImage
 import androidx.camera.view.PreviewView
 import androidx.lifecycle.LifecycleOwner
 import kotlinx.coroutines.*
@@ -56,7 +54,6 @@ class CameraMonitor(
     /**
      * بدء المراقبة الكاملة
      */
-    @OptIn(ExperimentalGetImage::class)
     fun startMonitoring(
         lifecycleOwner: LifecycleOwner,
         frontPreviewView: PreviewView
@@ -200,6 +197,11 @@ class CameraMonitor(
      * الحصول على حالة المراقبة
      */
     fun getMonitoringState() = faceDetectionMonitor.monitoringState
+
+    /**
+     * الحصول على آخر نتيجة كشف وجه
+     */
+    fun getLastDetectionResult() = faceDetectionMonitor.lastDetectionResult
 
     /**
      * الحصول على إحصائيات المراقبة
