@@ -32,7 +32,9 @@ class TeacherClassesViewModel @Inject constructor(
     fun refreshClasses() {
         viewModelScope.launch {
             _state.value = _state.value.copy(isRefreshing = true)
-            loadClasses()
+            // تأخير 2 ثانية
+            kotlinx.coroutines.delay(2000)
+            loadClasses() // إعادة تحميل البيانات
             _state.value = _state.value.copy(isRefreshing = false)
         }
     }
