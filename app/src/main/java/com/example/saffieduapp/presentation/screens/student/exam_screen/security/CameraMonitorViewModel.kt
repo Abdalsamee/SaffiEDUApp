@@ -31,6 +31,7 @@ class CameraMonitorViewModel(
     val isFrontCameraActive = cameraMonitor.isFrontCameraActive
     val isBackCameraActive = cameraMonitor.isBackCameraActive
     val monitoringState = cameraMonitor.getMonitoringState()
+    val lastDetectionResult = cameraMonitor.getLastDetectionResult()
 
     /**
      * تهيئة نظام الكاميرا

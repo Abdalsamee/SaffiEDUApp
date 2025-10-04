@@ -32,18 +32,54 @@ fun PreExamCameraCheckScreen(
     val initializationState by viewModel.initializationState.collectAsState()
     val cameraAvailability by viewModel.cameraAvailability.collectAsState()
     val monitoringState by viewModel.monitoringState.collectAsState()
+    val lastDetectionResult by viewModel.lastDetectionResult.collectAsState()
 
     var faceCheckStatus by remember { mutableStateOf<FaceCheckStatus>(FaceCheckStatus.Checking) }
     var showPreview by remember { mutableStateOf(false) }
+    var validFaceDetectedCount by remember { mutableStateOf(0) }
 
     LaunchedEffect(Unit) {
         viewModel.initializeCamera()
     }
 
-    // Log للتشخيص
-    LaunchedEffect(initializationState, cameraAvailability) {
-        android.util.Log.d("CameraCheck", "Init State: $initializationState")
-        android.util.Log.d("CameraCheck", "Camera Availability: $cameraAvailability")
+    // مراقبة نتائج Face Detection
+    LaunchedEffect(lastDetectionResult) {
+        lastDetectionResult?.let { result ->
+            android.util.Log.d("CameraCheck", "Detection Result: $result")
+
+            when (result) {
+                is FaceDetectionResult.ValidFace -> {
+                    validFaceDetectedCount++
+                    android.util.Log.d("CameraCheck", "Valid face count: $validFaceDetectedCount")
+
+                    // بعد 3 فحوصات ناجحة متتالية
+                    if (validFaceDetectedCount >= 3) {
+                        faceCheckStatus = FaceCheckStatus.Passed
+                    } else {
+                        faceCheckStatus = FaceCheckStatus.Checking
+                    }
+                }
+
+                is FaceDetectionResult.NoFace -> {
+                    validFaceDetectedCount = 0
+                    faceCheckStatus = FaceCheckStatus.Failed("لم يتم اكتشاف وجه - الرجاء التأكد من ظهور وجهك بوضوح")
+                }
+
+                is FaceDetectionResult.MultipleFaces -> {
+                    validFaceDetectedCount = 0
+                    faceCheckStatus = FaceCheckStatus.Failed("تم اكتشاف أكثر من وجه - يجب أن تكون وحيداً")
+                }
+
+                is FaceDetectionResult.LookingAway -> {
+                    validFaceDetectedCount = 0
+                    faceCheckStatus = FaceCheckStatus.Failed("الرجاء النظر مباشرة للكاميرا")
+                }
+
+                is FaceDetectionResult.Error -> {
+                    // لا تغير الحالة عند الخطأ
+                }
+            }
+        }
     }
 
     Box(
@@ -109,13 +145,6 @@ fun PreExamCameraCheckScreen(
                         text = "تم تهيئة الكاميرا بنجاح",
                         color = Color(0xFF4CAF50)
                     )
-
-                    // تحديث حالة فحص الوجه للنجاح مؤقتاً
-                    // في المستقبل سيتم الفحص الحقيقي
-                    LaunchedEffect(Unit) {
-                        kotlinx.coroutines.delay(2000)
-                        faceCheckStatus = FaceCheckStatus.Passed
-                    }
                 }
 
                 is InitializationState.Error -> {

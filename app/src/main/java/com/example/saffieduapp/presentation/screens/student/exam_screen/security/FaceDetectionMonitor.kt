@@ -21,6 +21,9 @@ class FaceDetectionMonitor(
     private val _monitoringState = MutableStateFlow<MonitoringState>(MonitoringState.Idle)
     val monitoringState: StateFlow<MonitoringState> = _monitoringState.asStateFlow()
 
+    private val _lastDetectionResult = MutableStateFlow<FaceDetectionResult?>(null)
+    val lastDetectionResult: StateFlow<FaceDetectionResult?> = _lastDetectionResult.asStateFlow()
+
     @Volatile
     private var isMonitoring = false
 
@@ -107,6 +110,9 @@ class FaceDetectionMonitor(
      * معالجة نتيجة الكشف
      */
     private fun handleDetectionResult(result: FaceDetectionResult) {
+        // تحديث آخر نتيجة
+        _lastDetectionResult.value = result
+
         when (result) {
             is FaceDetectionResult.ValidFace -> {
                 // وجه صحيح - إعادة تعيين العدادات
