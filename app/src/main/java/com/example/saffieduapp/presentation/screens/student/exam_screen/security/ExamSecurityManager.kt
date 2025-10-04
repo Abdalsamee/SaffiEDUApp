@@ -34,6 +34,11 @@ class ExamSecurityManager(
     private var exitAttempts = 0
     private val maxExitAttempts = 2 // بعد محاولتين يُنهى الاختبار
 
+    // ✅ تتبع مخالفات عدم ظهور الوجه
+    private var noFaceViolationCount = 0
+    private val maxNoFaceWarnings = 2 // تحذيرين
+    private val maxNoFaceBeforeTerminate = 5 // 5 مرات → إنهاء
+
     private val displayManager = context.getSystemService(Context.DISPLAY_SERVICE) as DisplayManager
 
     // ✅ Overlay Detector
@@ -170,6 +175,8 @@ class ExamSecurityManager(
      */
     fun logViolation(type: String) {
         try {
+            Log.w(TAG, "🚨 Violation logged: $type") // ✅ Log واضح
+
             val violation = SecurityViolation(
                 type = type,
                 timestamp = System.currentTimeMillis(),
@@ -177,14 +184,26 @@ class ExamSecurityManager(
             )
 
             _violations.value = _violations.value + violation
-            Log.w(TAG, "Violation logged: $type (Severity: ${violation.severity})")
+            Log.w(TAG, "Total violations: ${_violations.value.size}, Severity: ${violation.severity}")
 
             // اتخاذ إجراء حسب الشدة
             when (violation.severity) {
-                Severity.CRITICAL -> handleCriticalViolation()
-                Severity.HIGH -> handleHighViolation()
-                Severity.MEDIUM -> handleMediumViolation()
-                Severity.LOW -> handleLowViolation()
+                Severity.CRITICAL -> {
+                    Log.e(TAG, "⚠️ CRITICAL violation - calling handleCriticalViolation()")
+                    handleCriticalViolation()
+                }
+                Severity.HIGH -> {
+                    Log.w(TAG, "⚠️ HIGH violation - calling handleHighViolation()")
+                    handleHighViolation()
+                }
+                Severity.MEDIUM -> {
+                    Log.i(TAG, "ℹ️ MEDIUM violation - calling handleMediumViolation()")
+                    handleMediumViolation()
+                }
+                Severity.LOW -> {
+                    Log.i(TAG, "ℹ️ LOW violation - calling handleLowViolation()")
+                    handleLowViolation()
+                }
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error logging violation", e)
@@ -235,8 +254,56 @@ class ExamSecurityManager(
      * معالجة مخالفة عالية
      */
     private fun handleHighViolation() {
-        // تسجيل فقط - العقوبة ستكون في onAppResumed
-        Log.w(TAG, "High violation detected")
+        try {
+            val lastViolation = _violations.value.lastOrNull()
+
+            when (lastViolation?.type) {
+                "NO_FACE_DETECTED_LONG" -> {
+                    noFaceViolationCount++
+                    Log.w(TAG, "No face violation count: $noFaceViolationCount")
+
+                    when {
+                        // المرة 1-2: تحذير فقط
+                        noFaceViolationCount <= maxNoFaceWarnings -> {
+                            _shouldShowWarning.value = true
+                            Log.w(TAG, "Showing no-face warning")
+                        }
+
+                        // المرة 3-4: إيقاف مؤقت
+                        noFaceViolationCount <= maxNoFaceBeforeTerminate -> {
+                            pauseExam()
+                            pauseMonitoring()
+                            _shouldShowWarning.value = true
+                            Log.w(TAG, "Exam paused - no face detected")
+                        }
+
+                        // المرة 5+: إنهاء
+                        else -> {
+                            _shouldAutoSubmit.value = true
+                            Log.e(TAG, "Auto-submit triggered - too many no-face violations")
+                        }
+                    }
+                }
+
+                "MULTIPLE_FACES_DETECTED" -> {
+                    // أكثر من وجه → إنهاء فوري
+                    pauseExam()
+                    _shouldAutoSubmit.value = true
+                    Log.e(TAG, "Auto-submit triggered - multiple faces")
+                }
+
+                "USER_LEFT_APP" -> {
+                    // تسجيل فقط - سيتم المعالجة في onAppResumed
+                    Log.w(TAG, "User left app")
+                }
+
+                else -> {
+                    Log.w(TAG, "High violation: ${lastViolation?.type}")
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error handling high violation", e)
+        }
     }
 
     /**
@@ -268,7 +335,19 @@ class ExamSecurityManager(
      */
     fun resumeExam() {
         _isPaused.value = false
+        resumeMonitoring()
         Log.d(TAG, "Exam resumed")
+    }
+
+    /**
+     * إعادة تعيين عداد مخالفات عدم ظهور الوجه
+     * يتم استدعاؤها عندما يظهر الوجه مرة أخرى بعد فترة طويلة من الغياب
+     */
+    fun resetNoFaceViolations() {
+        if (noFaceViolationCount > 0) {
+            Log.d(TAG, "Resetting no-face violations (was: $noFaceViolationCount)")
+            noFaceViolationCount = 0
+        }
     }
 
     /**

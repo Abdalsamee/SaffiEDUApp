@@ -19,6 +19,7 @@ import com.example.saffieduapp.presentation.screens.student.exam_screen.componen
 import com.example.saffieduapp.presentation.screens.student.exam_screen.components.ExamExitWarningDialog
 import com.example.saffieduapp.presentation.screens.student.exam_screen.components.OverlayDetectedDialog
 import com.example.saffieduapp.presentation.screens.student.exam_screen.components.MultiWindowBlockedDialog
+import com.example.saffieduapp.presentation.screens.student.exam_screen.components.NoFaceWarningDialog
 import com.example.saffieduapp.presentation.screens.student.exam_screen.security.*
 import com.example.saffieduapp.ui.theme.SaffiEDUAppTheme
 import dagger.hilt.android.AndroidEntryPoint
@@ -174,11 +175,19 @@ class ExamActivity : ComponentActivity() {
      */
     private fun startBackgroundMonitoring() {
         try {
+            Log.d("ExamActivity", "🎯 Starting background monitoring...")
+
+            if (!::cameraViewModel.isInitialized) {
+                Log.e("ExamActivity", "❌ CameraViewModel not initialized!")
+                return
+            }
+
             cameraViewModel.getCameraMonitor().startMonitoring(
                 lifecycleOwner = this,
                 frontPreviewView = null // ✅ بدون preview - مراقبة خفية
             )
-            Log.d("ExamActivity", "✅ Background monitoring started")
+
+            Log.d("ExamActivity", "✅ Background monitoring started successfully")
         } catch (e: Exception) {
             Log.e("ExamActivity", "❌ Failed to start background monitoring", e)
         }
@@ -255,21 +264,43 @@ class ExamActivity : ComponentActivity() {
             )
         }
 
-        // Dialog تحذير العودة
+        // Dialog تحذير العودة أو عدم ظهور الوجه
         if (shouldShowWarning) {
-            val exitCount = remember(shouldShowWarning) {
-                securityManager.violations.value.count {
-                    it.type.startsWith("APP_RESUMED")
+            val lastViolation = violations.lastOrNull()
+
+            when (lastViolation?.type) {
+                "NO_FACE_DETECTED_LONG" -> {
+                    // حساب عدد مرات عدم ظهور الوجه
+                    val noFaceCount = violations.count { it.type == "NO_FACE_DETECTED_LONG" }
+                    val maxWarnings = 5
+                    val remainingWarnings = (maxWarnings - noFaceCount).coerceAtLeast(0)
+
+                    NoFaceWarningDialog(
+                        violationCount = noFaceCount,
+                        remainingWarnings = remainingWarnings,
+                        isPaused = isPaused,
+                        onDismiss = {
+                            securityManager.dismissWarning()
+                            if (isPaused) {
+                                securityManager.resumeExam()
+                            }
+                        }
+                    )
+                }
+
+                else -> {
+                    // Dialog تحذير العودة للتطبيق
+                    val exitCount = violations.count { it.type.startsWith("APP_RESUMED") }
+
+                    ExamReturnWarningDialog(
+                        exitAttempts = exitCount,
+                        remainingAttempts = securityManager.getRemainingAttempts(),
+                        onContinue = {
+                            securityManager.dismissWarning()
+                        }
+                    )
                 }
             }
-
-            ExamReturnWarningDialog(
-                exitAttempts = exitCount,
-                remainingAttempts = securityManager.getRemainingAttempts(),
-                onContinue = {
-                    securityManager.dismissWarning()
-                }
-            )
         }
 
         // Dialog تحذير Overlay
