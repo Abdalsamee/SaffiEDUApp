@@ -56,31 +56,35 @@ class CameraMonitor(
      */
     fun startMonitoring(
         lifecycleOwner: LifecycleOwner,
-        frontPreviewView: PreviewView
+        frontPreviewView: PreviewView? = null // ✅ اجعلها nullable
     ) {
+        Log.d(TAG, "🔹 startMonitoring called - Preview: ${frontPreviewView != null}")
+
         if (!_isInitialized.value) {
-            Log.e(TAG, "Cannot start monitoring - camera not initialized")
+            Log.e(TAG, "❌ Cannot start monitoring - camera not initialized")
             return
         }
 
         if (isMonitoring) {
-            Log.w(TAG, "Monitoring already active")
+            Log.w(TAG, "⚠️ Monitoring already active")
             return
         }
 
         isMonitoring = true
+        Log.d(TAG, "✅ isMonitoring = true")
 
         try {
             // بدء الكاميرا الأمامية مع Face Detection
             startFrontCameraWithDetection(lifecycleOwner, frontPreviewView)
 
-            // بدء الكاميرا الخلفية
-            startBackCameraForSnapshots(lifecycleOwner)
+            // ✅ تعطيل الكاميرا الخلفية مؤقتاً لحل مشكلة Multiple LifecycleCameras
+            // TODO: إضافة الكاميرا الخلفية لاحقاً بطريقة مختلفة
+            // startBackCameraForSnapshots(lifecycleOwner)
 
-            Log.d(TAG, "Camera monitoring started successfully")
+            Log.d(TAG, "✅ Camera monitoring started successfully")
 
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to start monitoring", e)
+            Log.e(TAG, "❌ Failed to start monitoring", e)
             isMonitoring = false
         }
     }
@@ -91,11 +95,11 @@ class CameraMonitor(
     @androidx.camera.core.ExperimentalGetImage
     private fun startFrontCameraWithDetection(
         lifecycleOwner: LifecycleOwner,
-        previewView: PreviewView
+        previewView: PreviewView? // ✅ nullable
     ) {
         cameraManager.startFrontCamera(
             lifecycleOwner = lifecycleOwner,
-            previewView = previewView,
+            previewView = previewView, // ✅ تمريرها كما هي
             onImageAnalysis = { imageProxy ->
                 // تمرير الصورة لـ Face Detection
                 faceDetectionMonitor.processImage(imageProxy)

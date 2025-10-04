@@ -19,6 +19,7 @@ import com.example.saffieduapp.presentation.screens.student.exam_screen.componen
 import com.example.saffieduapp.presentation.screens.student.exam_screen.components.ExamExitWarningDialog
 import com.example.saffieduapp.presentation.screens.student.exam_screen.components.OverlayDetectedDialog
 import com.example.saffieduapp.presentation.screens.student.exam_screen.components.MultiWindowBlockedDialog
+import com.example.saffieduapp.presentation.screens.student.exam_screen.components.NoFaceWarningDialog
 import com.example.saffieduapp.presentation.screens.student.exam_screen.security.*
 import com.example.saffieduapp.ui.theme.SaffiEDUAppTheme
 import dagger.hilt.android.AndroidEntryPoint
@@ -148,6 +149,7 @@ class ExamActivity : ComponentActivity() {
                         onCheckPassed = {
                             cameraCheckPassed.value = true
                             showCameraCheck.value = false
+                            // ✅ المراقبة تستمر تلقائياً - لا حاجة لإعادة البدء
                         },
                         onCheckFailed = { reason ->
                             Toast.makeText(
@@ -175,19 +177,21 @@ class ExamActivity : ComponentActivity() {
         var showOverlayDialog by remember { mutableStateOf(false) }
         var overlayViolationType by remember { mutableStateOf("") }
 
-        val shouldShowWarning by securityManager.shouldShowWarning.collectAsState()
+        // ✅ تدفقات منفصلة لكل نوع تحذير
+        val showNoFaceWarning by securityManager.showNoFaceWarning.collectAsState()
+        val showExitWarning by securityManager.showExitWarning.collectAsState()
         val shouldAutoSubmit by securityManager.shouldAutoSubmit.collectAsState()
+        val isPaused by securityManager.isPaused.collectAsState()
+        val violations by securityManager.violations.collectAsState()
 
-        // اعتراض زر الرجوع
         BackHandler {
             securityManager.logViolation("BACK_BUTTON_PRESSED")
             showExitDialog = true
         }
 
-        // إنهاء تلقائي عند الوصول للحد الأقصى
         LaunchedEffect(shouldAutoSubmit) {
             if (shouldAutoSubmit) {
-                val lastViolation = securityManager.violations.value.lastOrNull()
+                val lastViolation = violations.lastOrNull()
 
                 if (lastViolation?.severity == Severity.CRITICAL) {
                     overlayViolationType = lastViolation.type
@@ -198,32 +202,27 @@ class ExamActivity : ComponentActivity() {
                         "MULTI_WINDOW_DETECTED" -> "تم إنهاء الاختبار: تم اكتشاف وضع النوافذ المتعددة"
                         "EXTERNAL_DISPLAY_CONNECTED" -> "تم إنهاء الاختبار: تم اكتشاف شاشة خارجية"
                         "MULTIPLE_FACES_DETECTED" -> "تم إنهاء الاختبار: تم اكتشاف أكثر من شخص"
-                        else -> "تم إنهاء الاختبار تلقائياً بسبب تجاوز محاولات الخروج"
+                        "NO_FACE_DETECTED_LONG" -> "تم إنهاء الاختبار: عدم ظهور الوجه لفترة طويلة"
+                        else -> "تم إنهاء الاختبار تلقائياً"
                     }
-
                     Toast.makeText(this@ExamActivity, message, Toast.LENGTH_LONG).show()
                     finishExam()
                 }
             }
         }
 
-        // مراقبة Lifecycle
         LaunchedEffect(Unit) {
             securityManager.startMonitoring()
         }
 
-        // شاشة الاختبار الأصلية
         ExamScreen(
             onNavigateUp = {
                 securityManager.logViolation("NAVIGATE_UP_PRESSED")
                 showExitDialog = true
             },
-            onExamComplete = {
-                finishExam()
-            }
+            onExamComplete = { finishExam() }
         )
 
-        // Dialog تحذير الخروج
         if (showExitDialog) {
             ExamExitWarningDialog(
                 onDismiss = { showExitDialog = false },
@@ -234,24 +233,31 @@ class ExamActivity : ComponentActivity() {
             )
         }
 
-        // Dialog تحذير العودة
-        if (shouldShowWarning) {
-            val exitCount = remember(shouldShowWarning) {
-                securityManager.violations.value.count {
-                    it.type.startsWith("APP_RESUMED")
+        // ✅ Dialog عدم ظهور الوجه
+        if (showNoFaceWarning) {
+            NoFaceWarningDialog(
+                violationCount = securityManager.getNoFaceViolationCount(),
+                remainingWarnings = securityManager.getRemainingNoFaceWarnings(),
+                isPaused = isPaused,
+                onDismiss = {
+                    securityManager.dismissNoFaceWarning()
                 }
-            }
+            )
+        }
+
+        // ✅ Dialog تحذير الخروج
+        if (showExitWarning) {
+            val exitCount = violations.count { it.type.startsWith("APP_RESUMED") }
 
             ExamReturnWarningDialog(
                 exitAttempts = exitCount,
                 remainingAttempts = securityManager.getRemainingAttempts(),
                 onContinue = {
-                    securityManager.dismissWarning()
+                    securityManager.dismissExitWarning()
                 }
             )
         }
 
-        // Dialog تحذير Overlay
         if (showOverlayDialog) {
             OverlayDetectedDialog(
                 violationType = overlayViolationType,

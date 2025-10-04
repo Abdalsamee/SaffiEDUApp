@@ -34,7 +34,7 @@ class AddAssignmentViewModel @Inject constructor(
     private val auth = FirebaseAuth.getInstance()
 
     init {
-        fetchTeacherName()
+        fetchTeacherData()
     }
 
     fun onEvent(event: AddAssignmentEvent) {
@@ -64,19 +64,33 @@ class AddAssignmentViewModel @Inject constructor(
             }
         }
     }
-    private fun fetchTeacherName() {
+    // ← دالة جديدة لجلب بيانات المعلم بما فيها اسم المادة
+    private fun fetchTeacherData() {
         val email = FirebaseAuth.getInstance().currentUser?.email
         firestore.collection("teachers")
             .whereEqualTo("email", email)
             .get()
             .addOnSuccessListener { snapshot ->
                 if (!snapshot.isEmpty) {
-                    val name = snapshot.documents[0].getString("fullName") ?: ""
-                    _state.update { it.copy(teacherName = name) }
+                    val document = snapshot.documents[0]
+                    val name = document.getString("fullName") ?: ""
+                    val subject = document.getString("subject") ?: "" // ← جلب اسم المادة
+
+                    _state.update {
+                        it.copy(
+                            teacherName = name,
+                            subjectName = subject
+                        )
+                    }
                 }
             }
             .addOnFailureListener {
-                _state.update { it.copy(teacherName = "اسم غير معروف") }
+                _state.update {
+                    it.copy(
+                        teacherName = "اسم غير معروف",
+                        subjectName = "مادة غير معروفة"
+                    )
+                }
             }
     }
 
@@ -89,6 +103,7 @@ class AddAssignmentViewModel @Inject constructor(
         _state.update { it.copy(isSaving = true) }
 
         val teacherName = currentState.teacherName
+        val subjectName = currentState.subjectName // ← الحصول على اسم المادة
 
         kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
             val success = assigrepository.saveAssignment(
@@ -98,12 +113,18 @@ class AddAssignmentViewModel @Inject constructor(
                 className = currentState.selectedClass,
                 imageUri = currentState.selectedImageUri,
                 imageName = currentState.selectedImageName,
-                teacherName = currentState.teacherName
+                teacherName = currentState.teacherName,
+                subjectName = currentState.subjectName // ← إرسال اسم المادة
             )
 
             if (success) {
                 _eventFlow.emit("تم حفظ الواجب بنجاح!")
-                _state.update { AddAssignmentState(teacherName = teacherName) }
+                _state.update {
+                    AddAssignmentState(
+                        teacherName = teacherName,
+                        subjectName = subjectName
+                    )
+                }
             } else {
                 _eventFlow.emit("حدث خطأ أثناء حفظ الواجب")
                 _state.update { it.copy(isSaving = false) }
