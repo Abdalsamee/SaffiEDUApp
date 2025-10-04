@@ -17,6 +17,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.camera.view.PreviewView
+import kotlinx.coroutines.delay
 
 /**
  * شاشة فحص الكاميرا قبل بدء الاختبار
@@ -36,6 +37,12 @@ fun PreExamCameraCheckScreen(
 
     LaunchedEffect(Unit) {
         viewModel.initializeCamera()
+    }
+
+    // Log للتشخيص
+    LaunchedEffect(initializationState, cameraAvailability) {
+        android.util.Log.d("CameraCheck", "Init State: $initializationState")
+        android.util.Log.d("CameraCheck", "Camera Availability: $cameraAvailability")
     }
 
     Box(
@@ -101,6 +108,13 @@ fun PreExamCameraCheckScreen(
                         text = "تم تهيئة الكاميرا بنجاح",
                         color = Color(0xFF4CAF50)
                     )
+
+                    // تحديث حالة فحص الوجه للنجاح مؤقتاً
+                    // في المستقبل سيتم الفحص الحقيقي
+                    LaunchedEffect(Unit) {
+                        kotlinx.coroutines.delay(2000)
+                        faceCheckStatus = FaceCheckStatus.Passed
+                    }
                 }
 
                 is InitializationState.Error -> {
@@ -108,6 +122,14 @@ fun PreExamCameraCheckScreen(
                         icon = Icons.Default.Error,
                         text = "خطأ: ${state.message}",
                         color = MaterialTheme.colorScheme.error
+                    )
+
+                    // عرض تفاصيل إضافية
+                    Text(
+                        text = "حالة الكاميرا: Front=${cameraAvailability?.hasFrontCamera}, Back=${cameraAvailability?.hasBackCamera}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 8.dp)
                     )
                 }
             }

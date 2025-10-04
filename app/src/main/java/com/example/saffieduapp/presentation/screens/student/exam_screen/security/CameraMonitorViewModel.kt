@@ -43,7 +43,17 @@ class CameraMonitorViewModel(
         viewModelScope.launch {
             _initializationState.value = InitializationState.Initializing
 
-            // فحص توفر الكاميرات أولاً
+            // تهيئة الكاميرا أولاً
+            val result = cameraMonitor.initialize()
+
+            if (result.isFailure) {
+                _initializationState.value = InitializationState.Error(
+                    result.exceptionOrNull()?.message ?: "فشل في تهيئة الكاميرا"
+                )
+                return@launch
+            }
+
+            // بعد التهيئة الناجحة، فحص توفر الكاميرات
             val availability = cameraMonitor.checkCameraAvailability()
             _cameraAvailability.value = availability
 
@@ -52,16 +62,7 @@ class CameraMonitorViewModel(
                 return@launch
             }
 
-            // تهيئة الكاميرا
-            val result = cameraMonitor.initialize()
-
-            _initializationState.value = if (result.isSuccess) {
-                InitializationState.Success
-            } else {
-                InitializationState.Error(
-                    result.exceptionOrNull()?.message ?: "فشل في تهيئة الكاميرا"
-                )
-            }
+            _initializationState.value = InitializationState.Success
         }
     }
 

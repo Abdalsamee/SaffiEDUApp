@@ -2,6 +2,8 @@ package com.example.saffieduapp.presentation.screens.student.exam_screen.securit
 
 import android.content.Context
 import android.util.Log
+import androidx.annotation.OptIn
+import androidx.camera.core.ExperimentalGetImage
 import androidx.camera.view.PreviewView
 import androidx.lifecycle.LifecycleOwner
 import kotlinx.coroutines.*
@@ -54,6 +56,7 @@ class CameraMonitor(
     /**
      * بدء المراقبة الكاملة
      */
+    @OptIn(ExperimentalGetImage::class)
     fun startMonitoring(
         lifecycleOwner: LifecycleOwner,
         frontPreviewView: PreviewView
@@ -209,10 +212,10 @@ class CameraMonitor(
     fun checkCameraAvailability(): CameraAvailability {
         return CameraAvailability(
             hasFrontCamera = cameraManager.isCameraAvailable(
-                android.hardware.camera2.CameraCharacteristics.LENS_FACING_FRONT
+                androidx.camera.core.CameraSelector.LENS_FACING_FRONT
             ),
             hasBackCamera = cameraManager.isCameraAvailable(
-                android.hardware.camera2.CameraCharacteristics.LENS_FACING_BACK
+                androidx.camera.core.CameraSelector.LENS_FACING_BACK
             )
         )
     }
