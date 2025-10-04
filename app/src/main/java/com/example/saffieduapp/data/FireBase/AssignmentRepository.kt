@@ -17,7 +17,8 @@ data class Assignment(
     val dueDate: String,
     val className: String,
     val imageUrl: String? = null,
-    val teacherName: String
+    val teacherName: String,
+    val subjectName: String,
 )
 
 class AssignmentRepository @Inject constructor() {
@@ -32,7 +33,8 @@ class AssignmentRepository @Inject constructor() {
         className: String,
         imageUri: Uri?,
         imageName: String?,
-        teacherName: String // ← استقبل اسم المعلم
+        teacherName: String,
+        subjectName: String
     ): Boolean {
         return try {
             val imageUrl = imageUri?.let { uri ->
@@ -47,7 +49,8 @@ class AssignmentRepository @Inject constructor() {
                 dueDate = dueDate,
                 className = className,
                 imageUrl = imageUrl,
-                teacherName = teacherName // ← هنا
+                teacherName = teacherName,
+                subjectName = subjectName
             )
 
             firestore.collection("assignments")
