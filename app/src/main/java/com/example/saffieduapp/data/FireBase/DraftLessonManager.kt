@@ -29,8 +29,8 @@ class DraftLessonManager(private val context: Context) {
     // حفظ المسودة فقط
     suspend fun saveDraft(state: AddLessonState, isButtonClick: Boolean = false) {
         val stateToSave = state.copy(
-            selectedVideoUriString = state.selectedVideoUri?.toString(),
-            selectedPdfUriString = state.selectedPdfUri?.toString()
+            selectedPdfUriString = state.selectedPdfUri?.toString(),  // تحويل Uri إلى String
+            selectedVideoUriString = state.selectedVideoUri?.toString()
         )
         val json = gson.toJson(stateToSave)
         context.dataStore.edit { prefs ->

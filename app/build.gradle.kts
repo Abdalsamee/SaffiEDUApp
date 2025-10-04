@@ -132,5 +132,10 @@ dependencies {
 
     implementation ("com.google.code.gson:gson:2.10.1") // أو آخر نسخة متاحة
 
+    implementation ("com.google.firebase:firebase-appcheck-debug:17.1.2")
+    // أو إذا كنت تستخدم Kotlin:
+    implementation ("com.google.firebase:firebase-appcheck-ktx:17.1.2")
 
+    // للتطبيقات الإنتاجية أضف أيضاً:
+    implementation ("com.google.firebase:firebase-appcheck-playintegrity:17.1.2")
 }
