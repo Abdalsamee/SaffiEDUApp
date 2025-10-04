@@ -17,6 +17,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.camera.view.PreviewView
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import kotlinx.coroutines.delay
 
 /**
@@ -161,6 +162,37 @@ fun PreExamCameraCheckScreen(
 
 @Composable
 private fun CameraPreviewCard(viewModel: CameraMonitorViewModel) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val isInitialized by viewModel.isInitialized.collectAsState()
+
+    var previewView by remember { mutableStateOf<PreviewView?>(null) }
+
+    // بدء المعاينة فقط بعد التهيئة الناجحة
+    LaunchedEffect(previewView, isInitialized) {
+        if (isInitialized && previewView != null) {
+            android.util.Log.d("CameraPreview", "Starting camera monitoring...")
+            previewView?.let { preview ->
+                try {
+                    viewModel.getCameraMonitor().startMonitoring(
+                        lifecycleOwner = lifecycleOwner,
+                        frontPreviewView = preview
+                    )
+                    android.util.Log.d("CameraPreview", "✅ Camera monitoring started")
+                } catch (e: Exception) {
+                    android.util.Log.e("CameraPreview", "❌ Failed to start monitoring", e)
+                }
+            }
+        }
+    }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            android.util.Log.d("CameraPreview", "Pausing monitoring")
+            viewModel.pauseMonitoring()
+        }
+    }
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -170,14 +202,26 @@ private fun CameraPreviewCard(viewModel: CameraMonitorViewModel) {
             containerColor = Color.Black
         )
     ) {
-        AndroidView(
-            factory = { context ->
-                PreviewView(context).apply {
-                    implementationMode = PreviewView.ImplementationMode.COMPATIBLE
-                }
-            },
-            modifier = Modifier.fillMaxSize()
-        )
+        Box(modifier = Modifier.fillMaxSize()) {
+            AndroidView(
+                factory = { ctx ->
+                    PreviewView(ctx).apply {
+                        implementationMode = PreviewView.ImplementationMode.COMPATIBLE
+                        scaleType = PreviewView.ScaleType.FILL_CENTER
+                        previewView = this
+                    }
+                },
+                modifier = Modifier.fillMaxSize()
+            )
+
+            // مؤشر التحميل إذا لم تبدأ المعاينة بعد
+            if (!isInitialized) {
+                CircularProgressIndicator(
+                    modifier = Modifier.align(Alignment.Center),
+                    color = Color.White
+                )
+            }
+        }
     }
 }
 
