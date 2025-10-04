@@ -37,9 +37,6 @@ class HomeViewModel @Inject constructor(
 
     init {
         loadUserData()
-        viewModelScope.launch {
-            loadInitialData()
-        }
     }
 
     private fun loadUserData() {
@@ -75,6 +72,9 @@ class HomeViewModel @Inject constructor(
 
                             // الاستماع للدرس الجديد بعد معرفة الصف
                             listenForNewLessons(userData.grade)
+
+                            // ✅ بعد معرفة الصف، جلب أهم الدروس
+                            loadInitialData()
                         }
                     }
                 } catch (e: Exception) {

@@ -83,6 +83,10 @@ fun HomeScreen(
                     tasks = state.urgentTasks,
                     onTaskClick = { taskId ->
                         Toast.makeText(context, "Clicked Task ID: $taskId", Toast.LENGTH_SHORT).show()
+                    },
+                    onMoreClick = {
+                        // ✅ التنقل إلى شاشة المهام
+                        navController.navigate(Routes.TASKS_SCREEN)
                     }
                 )
             }

@@ -19,6 +19,6 @@ data class AddLessonState(
     val isSaving: Boolean = false,
     val selectedContentType: ContentType = ContentType.NONE
 ) {
-    val selectedVideoUri: Uri? get() = selectedVideoUriString?.let { Uri.parse(it) }
     val selectedPdfUri: Uri? get() = selectedPdfUriString?.let { Uri.parse(it) }
+    val selectedVideoUri: Uri? get() = selectedVideoUriString?.let { Uri.parse(it) }
 }

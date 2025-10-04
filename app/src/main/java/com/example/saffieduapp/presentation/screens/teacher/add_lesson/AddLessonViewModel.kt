@@ -79,9 +79,11 @@ class AddLessonViewModel @Inject constructor(
                     _isDraftSaved.value = true // الزر أصبح تم الحفظ
                 }
             }
+
             is AddLessonEvent.SaveClicked -> {
                 saveLesson(isDraft = false) // ← هنا بيتم تشغيل الحفظ الحقيقي
             }
+
             is AddLessonEvent.TitleChanged,
             is AddLessonEvent.DescriptionChanged,
             is AddLessonEvent.ClassSelected,
@@ -92,6 +94,7 @@ class AddLessonViewModel @Inject constructor(
                 updateStateFromEvent(event)
                 _isDraftSaved.value = false
             }
+
             else -> {}
         }
     }
@@ -111,6 +114,7 @@ class AddLessonViewModel @Inject constructor(
                     selectedPdfName = null
                 )
             }
+
             is AddLessonEvent.PdfSelected -> _state.update {
                 it.copy(
                     selectedPdfUriString = event.uri.toString(),
@@ -121,6 +125,7 @@ class AddLessonViewModel @Inject constructor(
                     description = ""
                 )
             }
+
             is AddLessonEvent.DateChanged -> _state.update { it.copy(publicationDate = event.date) }
             is AddLessonEvent.NotifyStudentsToggled -> _state.update { it.copy(notifyStudents = event.isEnabled) }
             else -> {}
@@ -218,13 +223,18 @@ class AddLessonViewModel @Inject constructor(
                 val (teacherId, subjectId, subjectName) = fetchTeacherAndSubjectIds(current.selectedClass)
 
                 if (teacherId == null) {
-                    Toast.makeText(context, "❌ لم يتم العثور على بيانات المعلم", Toast.LENGTH_LONG).show()
+                    Toast.makeText(context, "❌ لم يتم العثور على بيانات المعلم", Toast.LENGTH_LONG)
+                        .show()
                     _state.update { it.copy(isSaving = false) }
                     return@launch
                 }
 
                 if (subjectId == null) {
-                    Toast.makeText(context, "❌ لم يتم العثور على المادة للصف ${current.selectedClass}", Toast.LENGTH_LONG).show()
+                    Toast.makeText(
+                        context,
+                        "❌ لم يتم العثور على المادة للصف ${current.selectedClass}",
+                        Toast.LENGTH_LONG
+                    ).show()
                     _state.update { it.copy(isSaving = false) }
                     return@launch
                 }
@@ -235,9 +245,17 @@ class AddLessonViewModel @Inject constructor(
 
                 // رفع الفيديو إذا موجود
                 current.selectedVideoUri?.let { uri ->
+                    println("🚀 videoUri = $uri")
+                    println("📂 videoFileName = ${getFileName(uri)}")
+                    println("📏 videoFileSize = ${getFileSize(uri)} bytes")
+
                     val fileSize = getFileSize(uri)
                     if (fileSize > MAX_FILE_SIZE) {
-                        Toast.makeText(context, "حجم الفيديو كبير جداً. الحد الأقصى 200 ميغابايت", Toast.LENGTH_LONG).show()
+                        Toast.makeText(
+                            context,
+                            "حجم الفيديو كبير جداً. الحد الأقصى 200 ميغابايت",
+                            Toast.LENGTH_LONG
+                        ).show()
                         _state.update { it.copy(isSaving = false) }
                         return@launch
                     }
@@ -247,11 +265,19 @@ class AddLessonViewModel @Inject constructor(
                     )
                 }
 
-                // رفع PDF وحساب عدد الصفحات
+                  // رفع PDF وحساب عدد الصفحات
                 current.selectedPdfUri?.let { uri ->
+                    println("🚀 pdfUri = $uri")
+                    println("📂 pdfFileName = ${getFileName(uri)}")
+                    println("📏 pdfFileSize = ${getFileSize(uri)} bytes")
+
                     val fileSize = getFileSize(uri)
                     if (fileSize > MAX_FILE_SIZE) {
-                        Toast.makeText(context, "حجم الملف كبير جداً. الحد الأقصى 200 ميغابايت", Toast.LENGTH_LONG).show()
+                        Toast.makeText(
+                            context,
+                            "حجم الملف كبير جداً. الحد الأقصى 200 ميغابايت",
+                            Toast.LENGTH_LONG
+                        ).show()
                         _state.update { it.copy(isSaving = false) }
                         return@launch
                     }
@@ -285,7 +311,11 @@ class AddLessonViewModel @Inject constructor(
 
                 lessonRepository.saveLessonAndReturnId(lessonData)
 
-                Toast.makeText(context, "✅ تم حفظ الدرس ${current.selectedClass}", Toast.LENGTH_SHORT).show()
+                Toast.makeText(
+                    context,
+                    "✅ تم حفظ الدرس ${current.selectedClass}",
+                    Toast.LENGTH_SHORT
+                ).show()
 
                 // إعادة تعيين الحالة
                 _state.update {
@@ -308,6 +338,7 @@ class AddLessonViewModel @Inject constructor(
                 e.printStackTrace()
                 Toast.makeText(context, "❌ فشل حفظ الدرس: ${e.message}", Toast.LENGTH_LONG).show()
                 _state.update { it.copy(isSaving = false) }
+
             }
         }
     }
@@ -344,7 +375,8 @@ class AddLessonViewModel @Inject constructor(
 
     // حساب عدد صفحات PDF
     fun getPdfPageCount(file: File): Int {
-        val parcelFileDescriptor = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY)
+        val parcelFileDescriptor =
+            ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY)
         val pdfRenderer = PdfRenderer(parcelFileDescriptor)
         val count = pdfRenderer.pageCount
         pdfRenderer.close()

@@ -12,7 +12,6 @@ class LessonRepository @Inject constructor(
 ) {
 
     // حفظ الدرس وإرجاع مستند ID
-// في LessonRepository
     suspend fun saveLessonAndReturnId(lessonData: Map<String, Any?>): String {
         val docRef = firestore.collection("lessons").document()
         docRef.set(lessonData).await()
