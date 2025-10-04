@@ -77,8 +77,9 @@ class CameraMonitor(
             // بدء الكاميرا الأمامية مع Face Detection
             startFrontCameraWithDetection(lifecycleOwner, frontPreviewView)
 
-            // بدء الكاميرا الخلفية
-            startBackCameraForSnapshots(lifecycleOwner)
+            // ✅ تعطيل الكاميرا الخلفية مؤقتاً لحل مشكلة Multiple LifecycleCameras
+            // TODO: إضافة الكاميرا الخلفية لاحقاً بطريقة مختلفة
+            // startBackCameraForSnapshots(lifecycleOwner)
 
             Log.d(TAG, "✅ Camera monitoring started successfully")
 
