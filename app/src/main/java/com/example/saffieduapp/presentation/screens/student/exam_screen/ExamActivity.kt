@@ -15,11 +15,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.*
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModelProvider
-import com.example.saffieduapp.presentation.screens.student.exam_screen.components.ExamReturnWarningDialog
-import com.example.saffieduapp.presentation.screens.student.exam_screen.components.ExamExitWarningDialog
-import com.example.saffieduapp.presentation.screens.student.exam_screen.components.OverlayDetectedDialog
-import com.example.saffieduapp.presentation.screens.student.exam_screen.components.MultiWindowBlockedDialog
-import com.example.saffieduapp.presentation.screens.student.exam_screen.components.NoFaceWarningDialog
+import com.example.saffieduapp.presentation.screens.student.exam_screen.components.*
 import com.example.saffieduapp.presentation.screens.student.exam_screen.security.*
 import com.example.saffieduapp.ui.theme.SaffiEDUAppTheme
 import dagger.hilt.android.AndroidEntryPoint
@@ -51,7 +47,6 @@ class ExamActivity : ComponentActivity() {
             ).show()
             finish()
         } else {
-            // تهيئة الكاميرا
             initializeCamera()
         }
     }
@@ -60,7 +55,6 @@ class ExamActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         try {
-            // الحصول على examId
             examId = intent.getStringExtra("EXAM_ID") ?: ""
 
             // ✅ فحص Multi-Window قبل بدء الاختبار
@@ -81,7 +75,6 @@ class ExamActivity : ComponentActivity() {
             val factory = CameraMonitorViewModelFactory(
                 application = application,
                 onViolationDetected = { violationType ->
-                    // تسجيل المخالفة في Security Manager
                     if (::securityManager.isInitialized) {
                         securityManager.logViolation(violationType)
                     }
@@ -94,7 +87,6 @@ class ExamActivity : ComponentActivity() {
                 securityManager.setCameraMonitor(monitor)
             }
 
-            // طلب صلاحيات الكاميرا
             checkAndRequestCameraPermissions()
 
         } catch (e: Exception) {
@@ -104,13 +96,8 @@ class ExamActivity : ComponentActivity() {
         }
     }
 
-    /**
-     * فحص وطلب صلاحيات الكاميرا
-     */
     private fun checkAndRequestCameraPermissions() {
-        val permissions = arrayOf(
-            Manifest.permission.CAMERA
-        )
+        val permissions = arrayOf(Manifest.permission.CAMERA)
 
         val allGranted = permissions.all { permission ->
             ContextCompat.checkSelfPermission(this, permission) == PackageManager.PERMISSION_GRANTED
@@ -123,9 +110,6 @@ class ExamActivity : ComponentActivity() {
         }
     }
 
-    /**
-     * تهيئة الكاميرا
-     */
     private fun initializeCamera() {
         if (::cameraViewModel.isInitialized) {
             cameraViewModel.initializeCamera()
@@ -133,23 +117,18 @@ class ExamActivity : ComponentActivity() {
         setupUI()
     }
 
-    /**
-     * إعداد الواجهة
-     */
     private fun setupUI() {
         setContent {
             SaffiEDUAppTheme {
                 val showCameraCheckScreen by showCameraCheck
                 val checkPassed by cameraCheckPassed
 
-                // إذا لم يتم الفحص بعد، اعرض شاشة الفحص
                 if (showCameraCheckScreen && !checkPassed && ::cameraViewModel.isInitialized) {
                     PreExamCameraCheckScreen(
                         viewModel = cameraViewModel,
                         onCheckPassed = {
                             cameraCheckPassed.value = true
                             showCameraCheck.value = false
-                            // ✅ المراقبة تستمر تلقائياً - لا حاجة لإعادة البدء
                         },
                         onCheckFailed = { reason ->
                             Toast.makeText(
@@ -161,23 +140,18 @@ class ExamActivity : ComponentActivity() {
                         }
                     )
                 } else if (checkPassed) {
-                    // الاختبار الفعلي
                     ExamActivityContent()
                 }
             }
         }
     }
 
-    /**
-     * محتوى الاختبار الفعلي
-     */
     @Composable
     private fun ExamActivityContent() {
         var showExitDialog by remember { mutableStateOf(false) }
         var showOverlayDialog by remember { mutableStateOf(false) }
         var overlayViolationType by remember { mutableStateOf("") }
 
-        // ✅ تدفقات منفصلة لكل نوع تحذير
         val showNoFaceWarning by securityManager.showNoFaceWarning.collectAsState()
         val showExitWarning by securityManager.showExitWarning.collectAsState()
         val shouldAutoSubmit by securityManager.shouldAutoSubmit.collectAsState()
@@ -213,6 +187,8 @@ class ExamActivity : ComponentActivity() {
 
         LaunchedEffect(Unit) {
             securityManager.startMonitoring()
+            // ✅ إعلام SecurityManager أن الاختبار بدأ فعلياً
+            securityManager.startExam()
         }
 
         ExamScreen(
@@ -233,7 +209,6 @@ class ExamActivity : ComponentActivity() {
             )
         }
 
-        // ✅ Dialog عدم ظهور الوجه
         if (showNoFaceWarning) {
             NoFaceWarningDialog(
                 violationCount = securityManager.getNoFaceViolationCount(),
@@ -245,7 +220,6 @@ class ExamActivity : ComponentActivity() {
             )
         }
 
-        // ✅ Dialog تحذير الخروج
         if (showExitWarning) {
             val exitCount = violations.count { it.type.startsWith("APP_RESUMED") }
 
@@ -368,7 +342,6 @@ class ExamActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
 
-        // فحص Multi-Window عند العودة
         if (isInMultiWindowMode) {
             if (::securityManager.isInitialized) {
                 securityManager.logViolation("MULTI_WINDOW_ON_RESUME")
@@ -407,11 +380,10 @@ class ExamActivity : ComponentActivity() {
         try {
             if (::securityManager.isInitialized) {
                 val report = securityManager.generateReport()
-                Log.d("ExamActivity", "Security Report: $report")
+                Log.d("ExamActivity", "Security Report:\n$report")
                 // TODO: رفع التقرير للسيرفر
             }
 
-            // تنظيف الموارد
             if (::cameraViewModel.isInitialized) {
                 cameraViewModel.stopMonitoring()
             }

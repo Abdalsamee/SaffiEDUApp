@@ -23,15 +23,17 @@ class ExamSecurityManager(
     private val _isPaused = MutableStateFlow(false)
     val isPaused: StateFlow<Boolean> = _isPaused.asStateFlow()
 
-    // ✅ تدفقات منفصلة لكل نوع تحذير
-    private val _showNoFaceWarning = MutableStateFlow(false)
-    val showNoFaceWarning: StateFlow<Boolean> = _showNoFaceWarning.asStateFlow()
+    private val _shouldShowWarning = MutableStateFlow(false)
+    val shouldShowWarning: StateFlow<Boolean> = _shouldShowWarning.asStateFlow()
+
+    private val _shouldAutoSubmit = MutableStateFlow(false)
+    val shouldAutoSubmit: StateFlow<Boolean> = _shouldAutoSubmit.asStateFlow()
 
     private val _showExitWarning = MutableStateFlow(false)
     val showExitWarning: StateFlow<Boolean> = _showExitWarning.asStateFlow()
 
-    private val _shouldAutoSubmit = MutableStateFlow(false)
-    val shouldAutoSubmit: StateFlow<Boolean> = _shouldAutoSubmit.asStateFlow()
+    private val _showNoFaceWarning = MutableStateFlow(false)
+    val showNoFaceWarning: StateFlow<Boolean> = _showNoFaceWarning.asStateFlow()
 
     private var appPausedTime: Long = 0
     private var totalTimeOutOfApp: Long = 0
@@ -42,16 +44,20 @@ class ExamSecurityManager(
     private val maxNoFaceWarnings = 2
     private val maxNoFaceBeforeTerminate = 5
 
+    // ✅ للتمييز بين pause/resume الطبيعي والخروج الفعلي
+    private var examStarted = false
+
     private val displayManager = context.getSystemService(Context.DISPLAY_SERVICE) as DisplayManager
 
+    // ✅ Overlay Detector
     private var overlayDetector: OverlayDetector? = null
+
+    // ✅ Camera Monitor
     private var cameraMonitor: CameraMonitor? = null
 
-    fun setCameraMonitor(monitor: CameraMonitor) {
-        this.cameraMonitor = monitor
-        Log.d(TAG, "Camera monitor set successfully")
-    }
-
+    /**
+     * تفعيل جميع الميزات الأمنية
+     */
     fun enableSecurityFeatures() {
         try {
             setupExternalDisplayMonitoring()
@@ -62,6 +68,59 @@ class ExamSecurityManager(
         }
     }
 
+    /**
+     * إعداد كشف الـ Overlay
+     */
+    private fun setupOverlayDetection() {
+        overlayDetector = OverlayDetector(activity) {
+            logViolation("OVERLAY_DETECTED")
+            handleCriticalViolation()
+        }
+    }
+
+    /**
+     * إعداد مراقبة الشاشات الخارجية
+     */
+    private fun setupExternalDisplayMonitoring() {
+        try {
+            displayManager.registerDisplayListener(
+                object : DisplayManager.DisplayListener {
+                    override fun onDisplayAdded(displayId: Int) {
+                        if (displayId != 0) {
+                            Log.e(TAG, "External display detected: $displayId")
+                            logViolation("EXTERNAL_DISPLAY_CONNECTED")
+                            handleCriticalViolation()
+                        }
+                    }
+
+                    override fun onDisplayRemoved(displayId: Int) {}
+                    override fun onDisplayChanged(displayId: Int) {}
+                },
+                null
+            )
+        } catch (e: Exception) {
+            Log.e(TAG, "Error setting up display monitoring", e)
+        }
+    }
+
+    /**
+     * معالجة المخالفات الحرجة
+     */
+    private fun handleCriticalViolation() {
+        _shouldAutoSubmit.value = true
+    }
+
+    /**
+     * ربط CameraMonitor مع SecurityManager
+     */
+    fun setCameraMonitor(monitor: CameraMonitor) {
+        this.cameraMonitor = monitor
+        Log.d(TAG, "Camera monitor linked")
+    }
+
+    /**
+     * بدء المراقبة
+     */
     fun startMonitoring() {
         try {
             overlayDetector?.startMonitoring()
@@ -71,197 +130,181 @@ class ExamSecurityManager(
         }
     }
 
-    fun stopMonitoring() {
-        try {
-            overlayDetector?.stopMonitoring()
-            cameraMonitor?.stopMonitoring()
-            Log.d(TAG, "Monitoring stopped")
-        } catch (e: Exception) {
-            Log.e(TAG, "Error stopping monitoring", e)
-        }
+    /**
+     * ✅ بدء الاختبار الفعلي - يتم استدعاؤها عند دخول شاشة الاختبار
+     */
+    fun startExam() {
+        examStarted = true
+        Log.d(TAG, "Exam officially started - exit tracking enabled")
     }
 
+    /**
+     * إيقاف المراقبة مؤقتاً
+     */
     fun pauseMonitoring() {
-        try {
-            cameraMonitor?.pauseMonitoring()
-            Log.d(TAG, "Monitoring paused")
-        } catch (e: Exception) {
-            Log.e(TAG, "Error pausing monitoring", e)
-        }
-    }
-
-    fun resumeMonitoring() {
-        try {
-            cameraMonitor?.resumeMonitoring()
-            Log.d(TAG, "Monitoring resumed")
-        } catch (e: Exception) {
-            Log.e(TAG, "Error resuming monitoring", e)
-        }
-    }
-
-    private fun setupOverlayDetection() {
-        overlayDetector = OverlayDetector(activity) {
-            logViolation("OVERLAY_DETECTED")
-            handleCriticalViolation()
-        }
-    }
-
-    fun onWindowFocusChanged(hasFocus: Boolean) {
-        overlayDetector?.onWindowFocusChanged(hasFocus)
-    }
-
-    private fun setupExternalDisplayMonitoring() {
-        try {
-            displayManager.registerDisplayListener(
-                object : DisplayManager.DisplayListener {
-                    override fun onDisplayAdded(displayId: Int) {
-                        logViolation("EXTERNAL_DISPLAY_CONNECTED")
-                        handleCriticalViolation()
-                    }
-                    override fun onDisplayRemoved(displayId: Int) {}
-                    override fun onDisplayChanged(displayId: Int) {}
-                },
-                null
-            )
-
-            if (displayManager.displays.size > 1) {
-                logViolation("EXTERNAL_DISPLAY_ALREADY_CONNECTED")
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error setting up external display monitoring", e)
-        }
-    }
-
-    fun logViolation(type: String) {
-        try {
-            Log.w(TAG, "🚨 Violation: $type")
-
-            val violation = SecurityViolation(
-                type = type,
-                timestamp = System.currentTimeMillis(),
-                severity = calculateSeverity(type)
-            )
-
-            _violations.value = _violations.value + violation
-            Log.w(TAG, "Total violations: ${_violations.value.size}, Severity: ${violation.severity}")
-
-            when (violation.severity) {
-                Severity.CRITICAL -> handleCriticalViolation()
-                Severity.HIGH -> handleHighViolation(type)
-                Severity.MEDIUM -> handleMediumViolation()
-                Severity.LOW -> handleLowViolation()
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error logging violation", e)
-        }
-    }
-
-    private fun calculateSeverity(type: String): Severity {
-        return when (type) {
-            "EXTERNAL_DISPLAY_CONNECTED",
-            "EXTERNAL_DISPLAY_ALREADY_CONNECTED",
-            "MULTI_WINDOW_DETECTED",
-            "MULTI_WINDOW_ON_RESUME",
-            "MULTI_WINDOW_CONFIG_CHANGE",
-            "OVERLAY_DETECTED",
-            "PIP_MODE_DETECTED" -> Severity.CRITICAL
-
-            "USER_LEFT_APP",
-            "MULTIPLE_FACES_DETECTED",
-            "NO_FACE_DETECTED_LONG" -> Severity.HIGH
-
-            "BACK_BUTTON_PRESSED",
-            "LOOKING_AWAY",
-            "USER_FORCED_EXIT",
-            "WINDOW_FOCUS_LOST" -> Severity.MEDIUM
-
-            else -> Severity.LOW
-        }
-    }
-
-    private fun handleCriticalViolation() {
-        try {
-            pauseExam()
-            pauseMonitoring()
-            _shouldAutoSubmit.value = true
-            Log.e(TAG, "Critical violation - Auto submit triggered")
-        } catch (e: Exception) {
-            Log.e(TAG, "Error handling critical violation", e)
-        }
-    }
-
-    private fun handleHighViolation(type: String) {
-        try {
-            when (type) {
-                "NO_FACE_DETECTED_LONG" -> {
-                    noFaceViolationCount++
-                    Log.w(TAG, "No face violation #$noFaceViolationCount")
-
-                    when {
-                        noFaceViolationCount <= maxNoFaceWarnings -> {
-                            _showNoFaceWarning.value = true
-                            Log.w(TAG, "Showing no-face warning")
-                        }
-                        noFaceViolationCount <= maxNoFaceBeforeTerminate -> {
-                            pauseExam()
-                            pauseMonitoring()
-                            _showNoFaceWarning.value = true
-                            Log.w(TAG, "Exam paused - no face")
-                        }
-                        else -> {
-                            _shouldAutoSubmit.value = true
-                            Log.e(TAG, "Auto-submit - too many no-face violations")
-                        }
-                    }
-                }
-
-                "MULTIPLE_FACES_DETECTED" -> {
-                    pauseExam()
-                    _shouldAutoSubmit.value = true
-                    Log.e(TAG, "Auto-submit - multiple faces")
-                }
-
-                "USER_LEFT_APP" -> {
-                    Log.w(TAG, "User left app - will handle in onAppResumed")
-                }
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error handling high violation", e)
-        }
-    }
-
-    private fun handleMediumViolation() {
-        Log.w(TAG, "Medium violation detected")
-    }
-
-    private fun handleLowViolation() {
-        Log.i(TAG, "Low violation detected")
-    }
-
-    fun pauseExam() {
         _isPaused.value = true
-        Log.d(TAG, "Exam paused")
+        overlayDetector?.stopMonitoring()
+        cameraMonitor?.pauseMonitoring()
+        Log.d(TAG, "Monitoring paused")
     }
 
-    fun resumeExam() {
+    /**
+     * استئناف المراقبة
+     */
+    fun resumeMonitoring() {
         _isPaused.value = false
-        resumeMonitoring()
-        Log.d(TAG, "Exam resumed")
+        overlayDetector?.startMonitoring()
+        cameraMonitor?.resumeMonitoring()
+        Log.d(TAG, "Monitoring resumed")
     }
 
+    /**
+     * إيقاف كامل للمراقبة
+     */
+    fun stopMonitoring() {
+        overlayDetector?.stopMonitoring()
+        overlayDetector = null
+        cameraMonitor?.cleanup()
+        cameraMonitor = null
+        Log.d(TAG, "Monitoring stopped and cleaned up")
+    }
+
+    /**
+     * تنظيف الموارد
+     */
+    fun cleanup() {
+        stopMonitoring()
+        _violations.value = emptyList()
+        exitAttempts = 0
+        noFaceViolationCount = 0
+        examStarted = false
+        Log.d(TAG, "Cleanup completed")
+    }
+
+    /**
+     * ربط CameraMonitor مع SecurityManager
+     */
+    fun setCameraMonitor(monitor: CameraMonitor) {
+        this.cameraMonitor = monitor
+        Log.d(TAG, "Camera monitor linked")
+    }
+
+    /**
+     * معالجة مخالفة عدم وجود وجه
+     */
+    fun handleNoFaceDetected() {
+        noFaceViolationCount++
+        Log.w(TAG, "No face violation #$noFaceViolationCount")
+
+        when {
+            noFaceViolationCount > maxNoFaceBeforeTerminate -> {
+                _shouldAutoSubmit.value = true
+                logViolation("NO_FACE_AUTO_SUBMIT")
+            }
+            noFaceViolationCount > maxNoFaceWarnings -> {
+                _showNoFaceWarning.value = true
+                logViolation("NO_FACE_WARNING")
+            }
+            else -> {
+                logViolation("NO_FACE_DETECTED")
+            }
+        }
+    }
+
+    /**
+     * إعادة تعيين عداد عدم وجود وجه
+     */
+    fun resetNoFaceCount() {
+        noFaceViolationCount = 0
+    }
+
+    /**
+     * الحصول على عدد مخالفات عدم ظهور الوجه
+     */
+    fun getNoFaceViolationCount(): Int = noFaceViolationCount
+
+    /**
+     * الحصول على التحذيرات المتبقية قبل الإنهاء التلقائي
+     */
+    fun getRemainingNoFaceWarnings(): Int = maxNoFaceBeforeTerminate - noFaceViolationCount
+
+    /**
+     * الحصول على عدد المحاولات المتبقية للخروج
+     */
+    fun getRemainingAttempts(): Int = maxExitAttempts - exitAttempts
+
+    /**
+     * إخفاء تحذير عدم ظهور الوجه
+     */
+    fun dismissNoFaceWarning() {
+        _showNoFaceWarning.value = false
+    }
+
+    /**
+     * إخفاء تحذير الخروج
+     */
+    fun dismissExitWarning() {
+        _showExitWarning.value = false
+    }
+
+    /**
+     * الحصول على تقرير الأمان
+     */
+    fun getSecurityReport(): SecurityReport {
+        return SecurityReport(
+            violations = _violations.value,
+            totalExitAttempts = exitAttempts,
+            totalTimeOutOfApp = totalTimeOutOfApp,
+            noFaceViolations = noFaceViolationCount
+        )
+    }
+
+    /**
+     * إنشاء تقرير الأمان النهائي
+     */
+    fun generateReport(): String {
+        val report = getSecurityReport()
+        return """
+            |=== Security Report ===
+            |Total Violations: ${report.violations.size}
+            |Exit Attempts: ${report.totalExitAttempts}
+            |Time Out of App: ${report.totalTimeOutOfApp}ms
+            |No Face Violations: ${report.noFaceViolations}
+            |
+            |Violations:
+            |${report.violations.joinToString("\n") { "- ${it.type}: ${it.description} at ${it.timestamp}" }}
+            |======================
+        """.trimMargin()
+    }
+
+    /**
+     * معالجة خروج التطبيق للخلفية
+     */
     fun onAppPaused() {
-        appPausedTime = System.currentTimeMillis()
-        pauseMonitoring()
-        Log.d(TAG, "App paused")
+        if (examStarted) {
+            appPausedTime = System.currentTimeMillis()
+            pauseMonitoring()
+            Log.d(TAG, "App paused - exam is active")
+        }
     }
 
+    /**
+     * معالجة عودة التطبيق من الخلفية
+     */
     fun onAppResumed() {
+        // ✅ تجاهل resume إذا لم يبدأ الاختبار بعد
+        if (!examStarted) {
+            Log.d(TAG, "App resumed but exam not started yet - ignoring")
+            appPausedTime = 0
+            return
+        }
+
         if (appPausedTime > 0) {
             val duration = System.currentTimeMillis() - appPausedTime
             totalTimeOutOfApp += duration
             exitAttempts++
 
-            Log.d(TAG, "App resumed - Exit attempt #$exitAttempts")
+            Log.d(TAG, "App resumed - Exit attempt #$exitAttempts (duration: ${duration}ms)")
             logViolation("APP_RESUMED_AFTER_${duration}ms")
 
             when {
@@ -279,81 +322,101 @@ class ExamSecurityManager(
         }
     }
 
-    fun dismissNoFaceWarning() {
-        _showNoFaceWarning.value = false
-        if (_isPaused.value) {
-            resumeExam()
+    /**
+     * معالجة فقدان التركيز على النافذة
+     */
+    fun onWindowFocusChanged(hasFocus: Boolean) {
+        if (!hasFocus && examStarted) {
+            Log.w(TAG, "Window focus lost during exam")
         }
-        Log.d(TAG, "No-face warning dismissed")
     }
 
-    fun dismissExitWarning() {
+    /**
+     * إخفاء التحذيرات
+     */
+    fun dismissWarning() {
+        _shouldShowWarning.value = false
         _showExitWarning.value = false
-        Log.d(TAG, "Exit warning dismissed")
+        _showNoFaceWarning.value = false
     }
 
-    fun getRemainingAttempts(): Int {
-        return (maxExitAttempts - exitAttempts).coerceAtLeast(0)
-    }
-
-    fun getNoFaceViolationCount(): Int = noFaceViolationCount
-
-    fun getRemainingNoFaceWarnings(): Int {
-        return (maxNoFaceBeforeTerminate - noFaceViolationCount).coerceAtLeast(0)
-    }
-
-    fun generateReport(): ExamSecurityReport {
-        val report = ExamSecurityReport(
-            violations = _violations.value,
-            totalExitAttempts = exitAttempts,
-            totalTimeOutOfApp = totalTimeOutOfApp,
-            securityScore = calculateSecurityScore(),
-            timestamp = System.currentTimeMillis()
+    /**
+     * تسجيل مخالفة
+     */
+    fun logViolation(type: String) {
+        val violation = SecurityViolation(
+            type = type,
+            timestamp = System.currentTimeMillis(),
+            description = getViolationDescription(type),
+            severity = getViolationSeverity(type)
         )
-        Log.d(TAG, "Report: Score=${report.securityScore}, Violations=${report.violations.size}")
-        return report
+
+        _violations.value = _violations.value + violation
+        Log.w(TAG, "Violation logged: $type (${violation.severity})")
     }
 
-    private fun calculateSecurityScore(): Int {
-        var score = 100
-        _violations.value.forEach { violation ->
-            score -= when (violation.severity) {
-                Severity.CRITICAL -> 30
-                Severity.HIGH -> 15
-                Severity.MEDIUM -> 5
-                Severity.LOW -> 2
-            }
+    /**
+     * الحصول على وصف المخالفة
+     */
+    private fun getViolationDescription(type: String): String {
+        return when {
+            type.startsWith("OVERLAY_") -> "تم اكتشاف تطبيق يعمل فوق الاختبار"
+            type.startsWith("NO_FACE") -> "لم يتم اكتشاف وجه الطالب"
+            type.startsWith("APP_RESUMED") -> "خروج من التطبيق"
+            type.startsWith("MULTIPLE_FACES") -> "تم اكتشاف أكثر من وجه"
+            type.startsWith("MULTI_WINDOW") -> "تم اكتشاف وضع تقسيم الشاشة"
+            type.startsWith("PIP_MODE") -> "تم اكتشاف وضع Picture-in-Picture"
+            type.startsWith("EXTERNAL_DISPLAY") -> "تم اكتشاف شاشة خارجية"
+            type.contains("BACK_BUTTON") -> "محاولة الضغط على زر الرجوع"
+            type.contains("USER_LEFT") -> "مغادرة التطبيق"
+            else -> "مخالفة أمنية"
         }
-        return score.coerceAtLeast(0).coerceAtMost(100)
     }
 
-    fun cleanup() {
-        try {
-            stopMonitoring()
-            overlayDetector = null
-            cameraMonitor = null
-            Log.d(TAG, "Cleaned up")
-        } catch (e: Exception) {
-            Log.e(TAG, "Error cleaning up", e)
+    /**
+     * تحديد شدة المخالفة
+     */
+    private fun getViolationSeverity(type: String): Severity {
+        return when {
+            type.contains("MULTI_WINDOW") -> Severity.CRITICAL
+            type.contains("EXTERNAL_DISPLAY") -> Severity.CRITICAL
+            type.contains("PIP_MODE") -> Severity.CRITICAL
+            type.startsWith("OVERLAY_") -> Severity.CRITICAL
+            type.contains("AUTO_SUBMIT") -> Severity.CRITICAL
+            type.startsWith("MULTIPLE_FACES") -> Severity.HIGH
+            type.startsWith("NO_FACE") -> Severity.MEDIUM
+            type.contains("APP_RESUMED") -> Severity.MEDIUM
+            else -> Severity.LOW
         }
     }
 }
 
+/**
+ * مستويات شدة المخالفة
+ */
+enum class Severity {
+    LOW,
+    MEDIUM,
+    HIGH,
+    CRITICAL
+}
+
+/**
+ * بيانات المخالفة الأمنية
+ */
 data class SecurityViolation(
     val type: String,
     val timestamp: Long,
-    val severity: Severity,
-    val details: String = ""
+    val description: String,
+    val severity: Severity = Severity.LOW
 )
 
-enum class Severity {
-    LOW, MEDIUM, HIGH, CRITICAL
-}
-
-data class ExamSecurityReport(
+/**
+ * تقرير الأمان الكامل
+ */
+data class SecurityReport(
     val violations: List<SecurityViolation>,
     val totalExitAttempts: Int,
     val totalTimeOutOfApp: Long,
-    val securityScore: Int,
-    val timestamp: Long
+    val noFaceViolations: Int
 )
