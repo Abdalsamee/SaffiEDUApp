@@ -7,7 +7,6 @@ import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
-import com.google.common.util.concurrent.ListenableFuture
 import kotlinx.coroutines.suspendCancellableCoroutine
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
@@ -34,18 +33,48 @@ class CameraManager(private val context: Context) {
      * تهيئة الكاميرا
      */
     suspend fun initialize() = suspendCancellableCoroutine { continuation ->
+        Log.d(TAG, "Starting camera initialization...")
+
         val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
 
         cameraProviderFuture.addListener({
             try {
                 cameraProvider = cameraProviderFuture.get()
-                Log.d(TAG, "Camera provider initialized successfully")
+                Log.d(TAG, "✅ Camera provider initialized successfully")
+
+                // فحص الكاميرات المتاحة
+                val hasFront = hasCamera(CameraSelector.LENS_FACING_FRONT)
+                val hasBack = hasCamera(CameraSelector.LENS_FACING_BACK)
+
+                Log.d(TAG, "Camera availability: Front=$hasFront, Back=$hasBack")
+
                 continuation.resume(Unit)
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to initialize camera provider", e)
+                Log.e(TAG, "❌ Failed to initialize camera provider", e)
                 continuation.resumeWithException(e)
             }
         }, ContextCompat.getMainExecutor(context))
+
+        continuation.invokeOnCancellation {
+            Log.w(TAG, "Camera initialization cancelled")
+        }
+    }
+
+    /**
+     * فحص وجود كاميرا معينة
+     */
+    private fun hasCamera(lensFacing: Int): Boolean {
+        val provider = cameraProvider ?: return false
+        return try {
+            provider.hasCamera(
+                CameraSelector.Builder()
+                    .requireLensFacing(lensFacing)
+                    .build()
+            )
+        } catch (e: Exception) {
+            Log.e(TAG, "Error checking camera for lens facing $lensFacing", e)
+            false
+        }
     }
 
     /**
@@ -57,11 +86,13 @@ class CameraManager(private val context: Context) {
         onImageAnalysis: (ImageProxy) -> Unit
     ) {
         val provider = cameraProvider ?: run {
-            Log.e(TAG, "Camera provider not initialized")
+            Log.e(TAG, "❌ Camera provider not initialized")
             return
         }
 
         try {
+            Log.d(TAG, "Starting front camera...")
+
             // إيقاف أي استخدام سابق
             provider.unbindAll()
 
@@ -93,10 +124,10 @@ class CameraManager(private val context: Context) {
                 frontImageAnalysis
             )
 
-            Log.d(TAG, "Front camera started successfully")
+            Log.d(TAG, "✅ Front camera started successfully")
 
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to start front camera", e)
+            Log.e(TAG, "❌ Failed to start front camera", e)
         }
     }
 
@@ -107,11 +138,13 @@ class CameraManager(private val context: Context) {
         lifecycleOwner: LifecycleOwner
     ) {
         val provider = cameraProvider ?: run {
-            Log.e(TAG, "Camera provider not initialized")
+            Log.e(TAG, "❌ Camera provider not initialized")
             return
         }
 
         try {
+            Log.d(TAG, "Starting back camera...")
+
             // Image Capture
             backImageCapture = ImageCapture.Builder()
                 .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
@@ -127,10 +160,10 @@ class CameraManager(private val context: Context) {
                 backImageCapture
             )
 
-            Log.d(TAG, "Back camera started successfully")
+            Log.d(TAG, "✅ Back camera started successfully")
 
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to start back camera", e)
+            Log.e(TAG, "❌ Failed to start back camera", e)
         }
     }
 
@@ -157,7 +190,7 @@ class CameraManager(private val context: Context) {
             cameraProvider?.unbindAll()
             frontCamera = null
             backCamera = null
-            Log.d(TAG, "All cameras stopped")
+            Log.d(TAG, "✅ All cameras stopped")
         } catch (e: Exception) {
             Log.e(TAG, "Error stopping cameras", e)
         }
@@ -169,21 +202,15 @@ class CameraManager(private val context: Context) {
     fun cleanup() {
         stopAllCameras()
         cameraExecutor.shutdown()
+        Log.d(TAG, "✅ Camera manager cleaned up")
     }
 
     /**
      * فحص توفر الكاميرا
      */
     fun isCameraAvailable(lensFacing: Int): Boolean {
-        val provider = cameraProvider ?: return false
-        return try {
-            provider.hasCamera(
-                CameraSelector.Builder()
-                    .requireLensFacing(lensFacing)
-                    .build()
-            )
-        } catch (e: Exception) {
-            false
-        }
+        val isAvailable = hasCamera(lensFacing)
+        Log.d(TAG, "Camera availability check for lens $lensFacing: $isAvailable")
+        return isAvailable
     }
 }
