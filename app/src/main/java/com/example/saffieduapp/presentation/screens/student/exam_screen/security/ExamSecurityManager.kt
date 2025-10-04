@@ -37,6 +37,16 @@ class ExamSecurityManager(
     // ✅ Overlay Detector
     private var overlayDetector: OverlayDetector? = null
 
+    // ✅ Camera Monitor
+    private var cameraMonitor: CameraMonitor? = null
+
+    /**
+     * تعيين Camera Monitor
+     */
+    fun setCameraMonitor(monitor: CameraMonitor) {
+        this.cameraMonitor = monitor
+    }
+
     /**
      * تفعيل جميع ميزات الحماية
      */
@@ -51,6 +61,9 @@ class ExamSecurityManager(
     fun startMonitoring() {
         // بدء مراقبة Overlays
         overlayDetector?.startMonitoring()
+
+        // بدء مراقبة الكاميرا
+        // سيتم استدعاؤها من ExamActivity بعد تهيئة الكاميرا
     }
 
     /**
@@ -58,6 +71,21 @@ class ExamSecurityManager(
      */
     fun stopMonitoring() {
         overlayDetector?.stopMonitoring()
+        cameraMonitor?.stopMonitoring()
+    }
+
+    /**
+     * إيقاف مؤقت للمراقبة
+     */
+    fun pauseMonitoring() {
+        cameraMonitor?.pauseMonitoring()
+    }
+
+    /**
+     * استئناف المراقبة
+     */
+    fun resumeMonitoring() {
+        cameraMonitor?.resumeMonitoring()
     }
 
     /**
@@ -138,7 +166,7 @@ class ExamSecurityManager(
             "MULTI_WINDOW_ON_RESUME",
             "MULTI_WINDOW_CONFIG_CHANGE",
             "OVERLAY_DETECTED",
-            "PIP_MODE_DETECTED" -> Severity.CRITICAL // ✅ جميع هذه المخالفات خطيرة
+            "PIP_MODE_DETECTED" -> Severity.CRITICAL
 
             "USER_LEFT_APP",
             "MULTIPLE_FACES_DETECTED",
@@ -157,6 +185,8 @@ class ExamSecurityManager(
      */
     private fun handleCriticalViolation() {
         pauseExam()
+        // إيقاف المراقبة مؤقتاً
+        pauseMonitoring()
         // إنهاء فوري للاختبار في حالة Overlay
         _shouldAutoSubmit.value = true
     }
@@ -201,6 +231,7 @@ class ExamSecurityManager(
      */
     fun onAppPaused() {
         appPausedTime = System.currentTimeMillis()
+        pauseMonitoring()
     }
 
     /**
@@ -224,6 +255,8 @@ class ExamSecurityManager(
                 else -> {
                     // إظهار تحذير
                     _shouldShowWarning.value = true
+                    // استئناف المراقبة
+                    resumeMonitoring()
                 }
             }
 
@@ -274,6 +307,15 @@ class ExamSecurityManager(
         }
 
         return score.coerceIn(0, 100)
+    }
+
+    /**
+     * تنظيف الموارد
+     */
+    fun cleanup() {
+        stopMonitoring()
+        overlayDetector = null
+        cameraMonitor = null
     }
 }
 
