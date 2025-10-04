@@ -29,6 +29,14 @@ class TeacherClassesViewModel @Inject constructor(
         loadClasses()
     }
 
+    fun refreshClasses() {
+        viewModelScope.launch {
+            _state.value = _state.value.copy(isRefreshing = true)
+            loadClasses()
+            _state.value = _state.value.copy(isRefreshing = false)
+        }
+    }
+
     private fun loadClasses() {
         viewModelScope.launch {
             try {

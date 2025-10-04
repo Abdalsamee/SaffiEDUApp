@@ -17,5 +17,6 @@ data class ClassItem(
 // ٢. تعريف الحالة الكاملة للشاشة
 data class TeacherClassesState(
     val isLoading: Boolean = true,
+    val isRefreshing: Boolean = false,
     val classes: List<ClassItem> = emptyList()
 )
