@@ -46,7 +46,7 @@ class TeacherClassesViewModel @Inject constructor(
 
                 val currentEmail = auth.currentUser?.email ?: return@launch
 
-                // 🔹 جلب teacherId من مجموعة "teachers"
+                // جلب teacherId من مجموعة "teachers"
                 val teacherQuery = firestore.collection("teachers")
                     .whereEqualTo("email", currentEmail)
                     .get()
@@ -59,19 +59,31 @@ class TeacherClassesViewModel @Inject constructor(
 
                 val teacherId = teacherQuery.documents.first().id
 
-                // 🔹 جلب المواد التي يدرّسها المعلم من مجموعة "subjects"
+                // جلب المواد التي يدرّسها المعلم
                 val subjectsSnapshot = firestore.collection("subjects")
                     .whereEqualTo("teacherId", teacherId)
                     .get()
                     .await()
 
-                // 🔹 تجهيز قائمة الصفوف مع جلب عدد الواجبات لكل صف ومادة
                 val classesList = subjectsSnapshot.documents.map { doc ->
                     async {
                         val className = doc.getString("className") ?: "غير معروف"
                         val subjectName = doc.getString("subjectName") ?: "بدون اسم"
 
-                        // 🔹 استدعاء الدالة لحساب عدد الواجبات الفعلي
+                        // جلب جميع الدروس لهذا الصف والمادة
+                        val lessonsSnapshot = firestore.collection("lessons")
+                            .whereEqualTo("className", className)
+                            .whereEqualTo("subjectName", subjectName)
+                            .get()
+                            .await()
+
+                        var videoCount = 0
+                        var pdfCount = 0
+                        lessonsSnapshot.documents.forEach { lesson ->
+                            if (!lesson.getString("videoUrl").isNullOrEmpty()) videoCount++
+                            if (!lesson.getString("pdfUrl").isNullOrEmpty()) pdfCount++
+                        }
+
                         val assignmentCount = getAssignmentsCountForClass(subjectName, className)
 
                         ClassItem(
@@ -80,13 +92,13 @@ class TeacherClassesViewModel @Inject constructor(
                             subjectName = subjectName,
                             subjectImageUrl = doc.getString("subjectImageUrl") ?: "",
                             quizCount = (doc.getLong("quizCount") ?: 0).toInt(),
-                            assignmentCount = assignmentCount, // العدد الحقيقي
-                            videoLessonCount = (doc.getLong("videoLessonCount") ?: 0).toInt(),
-                            pdfLessonCount = (doc.getLong("pdfLessonCount") ?: 0).toInt(),
+                            assignmentCount = assignmentCount,
+                            videoLessonCount = videoCount,
+                            pdfLessonCount = pdfCount,
                             studentCount = (doc.getLong("studentCount") ?: 0).toInt()
                         )
                     }
-                }.awaitAll() // انتظار كل العمليات المتوازية
+                }.awaitAll()
 
                 _state.value = TeacherClassesState(isLoading = false, classes = classesList)
 
