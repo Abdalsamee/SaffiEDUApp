@@ -152,4 +152,7 @@ dependencies {
 
     // للتطبيقات الإنتاجية أضف أيضاً:
     implementation ("com.google.firebase:firebase-appcheck-playintegrity:17.1.2")
+
+    implementation ("com.google.accompanist:accompanist-swiperefresh:0.30.1")
+
 }

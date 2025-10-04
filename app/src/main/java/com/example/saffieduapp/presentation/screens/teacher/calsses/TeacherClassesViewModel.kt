@@ -8,6 +8,8 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.QuerySnapshot
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
@@ -27,6 +29,16 @@ class TeacherClassesViewModel @Inject constructor(
         loadClasses()
     }
 
+    fun refreshClasses() {
+        viewModelScope.launch {
+            _state.value = _state.value.copy(isRefreshing = true)
+            // تأخير 2 ثانية
+            kotlinx.coroutines.delay(2000)
+            loadClasses() // إعادة تحميل البيانات
+            _state.value = _state.value.copy(isRefreshing = false)
+        }
+    }
+
     private fun loadClasses() {
         viewModelScope.launch {
             try {
@@ -34,7 +46,7 @@ class TeacherClassesViewModel @Inject constructor(
 
                 val currentEmail = auth.currentUser?.email ?: return@launch
 
-                // 🔹 الخطوة 1: جلب teacherId من مجموعة "teachers"
+                // جلب teacherId من مجموعة "teachers"
                 val teacherQuery = firestore.collection("teachers")
                     .whereEqualTo("email", currentEmail)
                     .get()
@@ -47,25 +59,46 @@ class TeacherClassesViewModel @Inject constructor(
 
                 val teacherId = teacherQuery.documents.first().id
 
-                // 🔹 الخطوة 2: جلب المواد التي يدرّسها هذا المعلم من مجموعة "subjects"
+                // جلب المواد التي يدرّسها المعلم
                 val subjectsSnapshot = firestore.collection("subjects")
                     .whereEqualTo("teacherId", teacherId)
                     .get()
                     .await()
 
                 val classesList = subjectsSnapshot.documents.map { doc ->
-                    ClassItem(
-                        classId = doc.id,
-                        className = doc.getString("className") ?: "غير معروف",
-                        subjectName = doc.getString("subjectName") ?: "بدون اسم",
-                        subjectImageUrl = doc.getString("subjectImageUrl") ?: "",
-                        quizCount = (doc.getLong("quizCount") ?: 0).toInt(),
-                        assignmentCount = (doc.getLong("assignmentCount") ?: 0).toInt(),
-                        videoLessonCount = (doc.getLong("videoLessonCount") ?: 0).toInt(),
-                        pdfLessonCount = (doc.getLong("pdfLessonCount") ?: 0).toInt(),
-                        studentCount = (doc.getLong("studentCount") ?: 0).toInt()
-                    )
-                }
+                    async {
+                        val className = doc.getString("className") ?: "غير معروف"
+                        val subjectName = doc.getString("subjectName") ?: "بدون اسم"
+
+                        // جلب جميع الدروس لهذا الصف والمادة
+                        val lessonsSnapshot = firestore.collection("lessons")
+                            .whereEqualTo("className", className)
+                            .whereEqualTo("subjectName", subjectName)
+                            .get()
+                            .await()
+
+                        var videoCount = 0
+                        var pdfCount = 0
+                        lessonsSnapshot.documents.forEach { lesson ->
+                            if (!lesson.getString("videoUrl").isNullOrEmpty()) videoCount++
+                            if (!lesson.getString("pdfUrl").isNullOrEmpty()) pdfCount++
+                        }
+
+                        val assignmentCount = getAssignmentsCountForClass(subjectName, className)
+
+                        ClassItem(
+                            classId = doc.id,
+                            className = className,
+                            subjectName = subjectName,
+                            subjectImageUrl = doc.getString("subjectImageUrl") ?: "",
+                            quizCount = (doc.getLong("quizCount") ?: 0).toInt(),
+                            assignmentCount = assignmentCount,
+                            videoLessonCount = videoCount,
+                            pdfLessonCount = pdfCount,
+                            studentCount = (doc.getLong("studentCount") ?: 0).toInt()
+                        )
+                    }
+                }.awaitAll()
 
                 _state.value = TeacherClassesState(isLoading = false, classes = classesList)
 
@@ -73,6 +106,19 @@ class TeacherClassesViewModel @Inject constructor(
                 e.printStackTrace()
                 _state.value = _state.value.copy(isLoading = false, classes = emptyList())
             }
+        }
+    }
+
+    private suspend fun getAssignmentsCountForClass(subjectName: String, className: String): Int {
+        return try {
+            val snapshot = firestore.collection("assignments")
+                .whereEqualTo("subjectName", subjectName)
+                .whereEqualTo("className", className)
+                .get()
+                .await()
+            snapshot.size()
+        } catch (e: Exception) {
+            0
         }
     }
 }

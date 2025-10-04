@@ -16,6 +16,8 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.saffieduapp.presentation.screens.student.components.CommonTopAppBar
 import com.example.saffieduapp.presentation.screens.teacher.calsses.components.TeacherClassCard
+import com.google.accompanist.swiperefresh.SwipeRefresh
+import com.google.accompanist.swiperefresh.rememberSwipeRefreshState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -24,6 +26,7 @@ fun TeacherClassesScreen(
 ) {
     val state by viewModel.state.collectAsState()
     val context = LocalContext.current
+    val swipeRefreshState = rememberSwipeRefreshState(isRefreshing = state.isRefreshing)
 
      fun extractClassNumber(className: String): Int {
         return when {
@@ -45,39 +48,41 @@ fun TeacherClassesScreen(
     Scaffold(
         topBar = { CommonTopAppBar(title = "صفوفي") }
     ) { innerPadding ->
-        when {
-            state.isLoading -> {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(innerPadding),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator()
-                }
-            }
 
-            else -> {
-                LazyVerticalGrid(
-                    columns = GridCells.Adaptive(minSize = 180.dp), // ريسبونسف: يوزع حسب عرض الشاشة
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(innerPadding),
-                    contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    items(state.classes.sortedBy { extractClassNumber(it.className) }) { classItem ->
-                        TeacherClassCard(
-                            classItem = classItem,
-                            onClick = {
-                                Toast.makeText(
-                                    context,
-                                    "Clicked on ${classItem.className}",
-                                    Toast.LENGTH_SHORT
-                                ).show()
-                            }
-                        )
+        SwipeRefresh(
+            state = swipeRefreshState,
+            onRefresh = { viewModel.refreshClasses() }, // هنا سحب الشاشة للأسفل
+            modifier = Modifier.padding(innerPadding)
+        ) {
+            when {
+                state.isLoading && !state.isRefreshing -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator()
+                    }
+                }
+                else -> {
+                    LazyVerticalGrid(
+                        columns = GridCells.Adaptive(minSize = 180.dp),
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        items(state.classes.sortedBy { extractClassNumber(it.className) }) { classItem ->
+                            TeacherClassCard(
+                                classItem = classItem,
+                                onClick = {
+                                    Toast.makeText(
+                                        context,
+                                        "Clicked on ${classItem.className}",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                }
+                            )
+                        }
                     }
                 }
             }
