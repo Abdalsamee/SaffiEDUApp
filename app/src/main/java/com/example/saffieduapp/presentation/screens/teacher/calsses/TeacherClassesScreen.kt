@@ -27,18 +27,18 @@ fun TeacherClassesScreen(
 
      fun extractClassNumber(className: String): Int {
         return when {
-            className.contains("الصف الأول") -> 1
-            className.contains("الصف الثاني") -> 2
-            className.contains("الصف الثالث") -> 3
-            className.contains("الصف الرابع") -> 4
-            className.contains("الصف الخامس") -> 5
-            className.contains("الصف السادس") -> 6
-            className.contains("الصف السابع") -> 7
-            className.contains("الصف الثامن") -> 8
-            className.contains("الصف التاسع") -> 9
-            className.contains("الصف العاشر") -> 10
-            className.contains("الصف الحادي عشر") -> 11
-            className.contains("الصف الثاني عشر") -> 12
+            className.contains("الثاني عشر") -> 12
+            className.contains("الحادي عشر") -> 11
+            className.contains("العاشر") -> 10
+            className.contains("التاسع") -> 9
+            className.contains("الثامن") -> 8
+            className.contains("السابع") -> 7
+            className.contains("السادس") -> 6
+            className.contains("الخامس") -> 5
+            className.contains("الرابع") -> 4
+            className.contains("الثالث") -> 3
+            className.contains("الثاني") -> 2
+            className.contains("الأول") -> 1
             else -> 0
         }
     }
