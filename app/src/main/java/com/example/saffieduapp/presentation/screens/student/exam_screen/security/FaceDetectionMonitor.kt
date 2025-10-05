@@ -9,9 +9,11 @@ import kotlinx.coroutines.flow.asStateFlow
 
 /**
  * مراقب كشف الوجوه - يدير عملية المراقبة المستمرة
+ * محدّث: يتضمن callback للـ snapshots
  */
 class FaceDetectionMonitor(
-    private val onViolationDetected: (String) -> Unit
+    private val onViolationDetected: (String) -> Unit,
+    private val onSnapshotNeeded: ((ImageProxy, FaceDetectionResult) -> Unit)? = null // ✅ جديد
 ) {
     private val TAG = "FaceDetectionMonitor"
 
@@ -95,23 +97,28 @@ class FaceDetectionMonitor(
                 _monitoringState.value = MonitoringState.Processing
 
                 val result = faceDetector.detectFaces(imageProxy)
-                handleDetectionResult(result)
+                handleDetectionResult(result, imageProxy)
 
                 _monitoringState.value = MonitoringState.Active
 
             } catch (e: Exception) {
                 Log.e(TAG, "Error processing image", e)
                 _monitoringState.value = MonitoringState.Error(e.message ?: "Unknown error")
+                imageProxy.close()
             }
         }
     }
 
     /**
      * معالجة نتيجة الكشف
+     * ✅ محدّث: يرسل ImageProxy للـ snapshot callback
      */
-    private fun handleDetectionResult(result: FaceDetectionResult) {
+    private fun handleDetectionResult(result: FaceDetectionResult, imageProxy: ImageProxy) {
         // تحديث آخر نتيجة
         _lastDetectionResult.value = result
+
+        // متغير لتتبع ما إذا كنا بحاجة لـ snapshot
+        var needsSnapshot = false
 
         when (result) {
             is FaceDetectionResult.ValidFace -> {
@@ -119,18 +126,22 @@ class FaceDetectionMonitor(
                 noFaceCount = 0
                 lookingAwayCount = 0
                 Log.d(TAG, "✅ Valid face detected")
+                imageProxy.close() // ✅ لا نحتاج snapshot
             }
 
             is FaceDetectionResult.NoFace -> {
                 noFaceCount++
-                lookingAwayCount = 0 // إعادة تعيين
+                lookingAwayCount = 0
 
                 Log.w(TAG, "⚠️ No face detected - Count: $noFaceCount")
 
                 if (noFaceCount >= MAX_NO_FACE_COUNT) {
                     onViolationDetected("NO_FACE_DETECTED_LONG")
-                    noFaceCount = 0 // إعادة تعيين بعد الإبلاغ
+                    noFaceCount = 0
                 }
+
+                // ✅ نحتاج snapshot
+                needsSnapshot = true
             }
 
             is FaceDetectionResult.MultipleFaces -> {
@@ -138,23 +149,37 @@ class FaceDetectionMonitor(
                 onViolationDetected("MULTIPLE_FACES_DETECTED")
                 noFaceCount = 0
                 lookingAwayCount = 0
+
+                // ✅ نحتاج snapshot (أولوية عالية)
+                needsSnapshot = true
             }
 
             is FaceDetectionResult.LookingAway -> {
                 lookingAwayCount++
-                noFaceCount = 0 // إعادة تعيين
+                noFaceCount = 0
 
                 Log.w(TAG, "⚠️ Looking away - Count: $lookingAwayCount, Angle: ${result.angle}")
 
                 if (lookingAwayCount >= MAX_LOOKING_AWAY_COUNT) {
                     onViolationDetected("LOOKING_AWAY")
-                    lookingAwayCount = 0 // إعادة تعيين بعد الإبلاغ
+                    lookingAwayCount = 0
                 }
+
+                // ✅ نحتاج snapshot
+                needsSnapshot = true
             }
 
             is FaceDetectionResult.Error -> {
                 Log.e(TAG, "Face detection error: ${result.message}")
+                imageProxy.close()
             }
+        }
+
+        // ✅ إرسال للـ snapshot callback إذا كان مطلوباً
+        if (needsSnapshot && onSnapshotNeeded != null) {
+            onSnapshotNeeded.invoke(imageProxy, result)
+        } else if (!needsSnapshot) {
+            // imageProxy already closed above for ValidFace
         }
     }
 

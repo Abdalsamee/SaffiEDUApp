@@ -2,24 +2,41 @@ package com.example.saffieduapp.presentation.screens.student.exam_screen.securit
 
 import android.content.Context
 import android.util.Log
+import androidx.annotation.OptIn
+import androidx.camera.core.ExperimentalGetImage
 import androidx.camera.view.PreviewView
 import androidx.lifecycle.LifecycleOwner
+import com.example.saffieduapp.presentation.screens.student.exam_screen.session.ExamSessionManager
+import com.example.saffieduapp.presentation.screens.student.exam_screen.session.FrontCameraSnapshotManager
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 /**
- * مراقب الكاميرا الشامل - يدمج الكاميرا مع Face Detection
+ * مراقب الكاميرا الشامل - يدمج الكاميرا مع Face Detection و Snapshots
+ * ✅ محدّث: يتضمن ExamSessionManager و SnapshotManager
  */
 class CameraMonitor(
     private val context: Context,
-    private val onViolationDetected: (String) -> Unit
+    private val onViolationDetected: (String) -> Unit,
+    private val sessionManager: ExamSessionManager
 ) {
     private val TAG = "CameraMonitor"
 
     private val cameraManager = CameraManager(context)
-    private val faceDetectionMonitor = FaceDetectionMonitor(onViolationDetected)
+
+    // ✅ SnapshotManager
+    private val snapshotManager = FrontCameraSnapshotManager(sessionManager)
+
+    // ✅ FaceDetectionMonitor مع callback للـ snapshots
+    private val faceDetectionMonitor = FaceDetectionMonitor(
+        onViolationDetected = onViolationDetected,
+        onSnapshotNeeded = { imageProxy, result ->
+            // معالجة الصورة للـ snapshot
+            snapshotManager.processFaceDetectionResult(result, imageProxy)
+        }
+    )
 
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
@@ -54,9 +71,10 @@ class CameraMonitor(
     /**
      * بدء المراقبة الكاملة
      */
+    @OptIn(ExperimentalGetImage::class)
     fun startMonitoring(
         lifecycleOwner: LifecycleOwner,
-        frontPreviewView: PreviewView? = null // ✅ اجعلها nullable
+        frontPreviewView: PreviewView? = null
     ) {
         Log.d(TAG, "🔹 startMonitoring called - Preview: ${frontPreviewView != null}")
 
@@ -77,10 +95,6 @@ class CameraMonitor(
             // بدء الكاميرا الأمامية مع Face Detection
             startFrontCameraWithDetection(lifecycleOwner, frontPreviewView)
 
-            // ✅ تعطيل الكاميرا الخلفية مؤقتاً لحل مشكلة Multiple LifecycleCameras
-            // TODO: إضافة الكاميرا الخلفية لاحقاً بطريقة مختلفة
-            // startBackCameraForSnapshots(lifecycleOwner)
-
             Log.d(TAG, "✅ Camera monitoring started successfully")
 
         } catch (e: Exception) {
@@ -95,13 +109,14 @@ class CameraMonitor(
     @androidx.camera.core.ExperimentalGetImage
     private fun startFrontCameraWithDetection(
         lifecycleOwner: LifecycleOwner,
-        previewView: PreviewView? // ✅ nullable
+        previewView: PreviewView?
     ) {
         cameraManager.startFrontCamera(
             lifecycleOwner = lifecycleOwner,
-            previewView = previewView, // ✅ تمريرها كما هي
+            previewView = previewView,
             onImageAnalysis = { imageProxy ->
                 // تمرير الصورة لـ Face Detection
+                // الـ FaceDetectionMonitor سيستدعي callback الـ snapshot تلقائياً
                 faceDetectionMonitor.processImage(imageProxy)
             }
         )
@@ -111,55 +126,6 @@ class CameraMonitor(
         _isFrontCameraActive.value = true
 
         Log.d(TAG, "Front camera with face detection started")
-    }
-
-    /**
-     * بدء الكاميرا الخلفية للقطات عشوائية
-     */
-    private fun startBackCameraForSnapshots(lifecycleOwner: LifecycleOwner) {
-        cameraManager.startBackCamera(lifecycleOwner)
-        _isBackCameraActive.value = true
-
-        // جدولة التقاط صور عشوائية
-        scheduleRandomSnapshots()
-
-        Log.d(TAG, "Back camera for snapshots started")
-    }
-
-    /**
-     * جدولة التقاط صور عشوائية من الكاميرا الخلفية
-     */
-    private fun scheduleRandomSnapshots() {
-        scope.launch {
-            while (isMonitoring && _isBackCameraActive.value) {
-                // انتظار عشوائي بين 2-5 دقائق
-                val randomDelay = (120_000L..300_000L).random()
-                delay(randomDelay)
-
-                if (isMonitoring) {
-                    captureBackCameraSnapshot()
-                }
-            }
-        }
-    }
-
-    /**
-     * التقاط صورة من الكاميرا الخلفية
-     */
-    private suspend fun captureBackCameraSnapshot() {
-        try {
-            Log.d(TAG, "Capturing back camera snapshot...")
-            val image = cameraManager.captureBackCameraImage()
-
-            if (image != null) {
-                Log.d(TAG, "Back camera snapshot captured successfully")
-                // هنا سيتم حفظ ورفع الصورة لاحقاً
-            } else {
-                Log.w(TAG, "Failed to capture back camera snapshot")
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error capturing back camera snapshot", e)
-        }
     }
 
     /**
@@ -213,6 +179,16 @@ class CameraMonitor(
     fun getMonitoringStats() = faceDetectionMonitor.getStats()
 
     /**
+     * الحصول على إحصائيات الـ Snapshots
+     */
+    fun getSnapshotStats() = snapshotManager.snapshotStats
+
+    /**
+     * الحصول على عدد الـ snapshots المتبقية
+     */
+    fun getRemainingSnapshotsCount() = snapshotManager.getRemainingSnapshotsCount()
+
+    /**
      * فحص توفر الكاميرات
      */
     fun checkCameraAvailability(): CameraAvailability {
@@ -233,6 +209,7 @@ class CameraMonitor(
         stopMonitoring()
         scope.cancel()
         faceDetectionMonitor.cleanup()
+        snapshotManager.cleanup()
         cameraManager.cleanup()
         _isInitialized.value = false
         Log.d(TAG, "Camera monitor cleaned up")

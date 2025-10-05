@@ -224,22 +224,26 @@ class OverlayDetector(
     /**
      * معالجة اكتشاف Overlay
      */
+    /**
+     * معالجة اكتشاف Overlay
+     */
     private fun handleOverlayDetected(reason: String) {
         if (!isMonitoring) return
 
         Log.e(TAG, "⚠️ OVERLAY DETECTED: $reason")
 
-        // استدعاء الـ Callback
-        handler.post {
-            try {
-                onOverlayDetected()
-            } catch (e: Exception) {
-                Log.e(TAG, "Error calling overlay callback", e)
-            }
+        // ✅ استدعاء الـ Callback مباشرة بدون handler.post
+        try {
+            onOverlayDetected()
+            Log.d(TAG, "✅ Overlay callback executed successfully")
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Error calling overlay callback", e)
         }
 
-        // إيقاف المراقبة لتجنب Multiple Triggers
-        stopMonitoring()
+        // ✅ إيقاف المراقبة بعد تأخير قصير لضمان تنفيذ الـ callback
+        handler.postDelayed({
+            stopMonitoring()
+        }, 200)
     }
 
     /**
