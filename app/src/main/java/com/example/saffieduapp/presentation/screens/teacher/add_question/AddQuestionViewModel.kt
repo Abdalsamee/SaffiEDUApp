@@ -1,5 +1,6 @@
 package com.example.saffieduapp.presentation.screens.teacher.add_question
 
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.toMutableStateList
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -100,8 +101,31 @@ class AddQuestionViewModel @Inject constructor() : ViewModel() {
         viewModelScope.launch {
             val currentState = state.value
 
-            println("Question Saved: $currentState")
-            _state.value = AddQuestionState()
+            // تحويل الحالة الحالية إلى QuestionData
+            val questionData = QuestionData(
+                text = currentState.currentQuestionText,
+                type = currentState.currentQuestionType,
+                points = currentState.currentQuestionPoints,
+                choices = currentState.currentChoices.toList(), // نسخ القائمة
+                essayAnswer = currentState.currentEssayAnswer
+            )
+
+            // تحديث الحالة مع إضافة السؤال إلى القائمة وإعادة تهيئة الحقول
+            _state.update {
+                it.copy(
+                    currentQuestionText = "",
+                    currentQuestionPoints = "",
+                    currentChoices = when (currentState.currentQuestionType) {
+                        QuestionType.TRUE_FALSE -> mutableStateListOf(Choice(text = "صح"), Choice(text = "خطأ"))
+                        QuestionType.MULTIPLE_CHOICE_SINGLE,
+                        QuestionType.MULTIPLE_CHOICE_MULTIPLE -> mutableStateListOf(Choice(), Choice())
+                        QuestionType.ESSAY -> mutableStateListOf()
+                    },
+                    currentEssayAnswer = "",
+                    createdQuestions = it.createdQuestions + questionData
+                )
+            }
         }
     }
+
 }
