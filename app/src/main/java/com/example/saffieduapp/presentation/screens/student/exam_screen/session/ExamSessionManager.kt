@@ -2,7 +2,6 @@ package com.example.saffieduapp.presentation.screens.student.exam_screen.session
 
 import android.content.Context
 import android.util.Log
-import androidx.camera.core.ImageProxy
 import com.google.gson.Gson
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -120,7 +119,7 @@ class ExamSessionManager(
      * حفظ snapshot من الكاميرا الأمامية
      */
     fun saveSnapshot(
-        imageProxy: ImageProxy,
+        imageProxy: ImageData,
         reason: SnapshotReason
     ): Boolean {
         val session = currentSession ?: return false

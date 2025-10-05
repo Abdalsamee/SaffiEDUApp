@@ -37,15 +37,12 @@ class FrontCameraSnapshotManager(
             is com.example.saffieduapp.presentation.screens.student.exam_screen.security.FaceDetectionResult.NoFace -> {
                 shouldCaptureForReason(SnapshotReason.NO_FACE_DETECTED)
             }
-
             is com.example.saffieduapp.presentation.screens.student.exam_screen.security.FaceDetectionResult.MultipleFaces -> {
                 true
             }
-
             is com.example.saffieduapp.presentation.screens.student.exam_screen.security.FaceDetectionResult.LookingAway -> {
                 shouldCaptureForReason(SnapshotReason.LOOKING_AWAY)
             }
-
             else -> false
         }
 
@@ -60,36 +57,13 @@ class FrontCameraSnapshotManager(
                 else -> SnapshotReason.PERIODIC_CHECK
             }
 
-            // ✅ معالجة في background thread
+            // ✅ نسخ البيانات فوراً قبل إغلاق ImageProxy
+            val imageData = copyImageProxyData(imageProxy)
+            imageProxy.close() // إغلاق فوري
+
+            // معالجة في background
             scope.launch {
-                captureSnapshot(imageProxy, reason)
-            }
-        } else {
-            imageProxy.close()
-        }
-    }
-
-    fun captureManualSnapshot(imageProxy: ImageProxy) {
-        if (!sessionManager.canCaptureMoreSnapshots()) {
-            Log.w(TAG, "⚠️ Max snapshots reached")
-            imageProxy.close()
-            return
-        }
-
-        scope.launch {
-            captureSnapshot(imageProxy, SnapshotReason.MANUAL_CAPTURE)
-        }
-    }
-
-    fun capturePeriodicSnapshot(imageProxy: ImageProxy) {
-        if (!sessionManager.canCaptureMoreSnapshots()) {
-            imageProxy.close()
-            return
-        }
-
-        if (shouldCaptureForReason(SnapshotReason.PERIODIC_CHECK)) {
-            scope.launch {
-                captureSnapshot(imageProxy, SnapshotReason.PERIODIC_CHECK)
+                captureSnapshot(imageData, reason)
             }
         } else {
             imageProxy.close()
@@ -97,14 +71,47 @@ class FrontCameraSnapshotManager(
     }
 
     /**
-     * ✅ التقاط snapshot - يعمل على background thread
+     * ✅ نسخ بيانات ImageProxy قبل إغلاقه
      */
-    private suspend fun captureSnapshot(imageProxy: ImageProxy, reason: SnapshotReason) {
+    private fun copyImageProxyData(imageProxy: ImageProxy): ImageData {
+        return try {
+            val yPlane = imageProxy.planes[0]
+            val uPlane = imageProxy.planes[1]
+            val vPlane = imageProxy.planes[2]
+
+            ImageData(
+                width = imageProxy.width,
+                height = imageProxy.height,
+                format = imageProxy.format,
+                rotationDegrees = imageProxy.imageInfo.rotationDegrees,
+                yData = copyBuffer(yPlane.buffer),
+                uData = copyBuffer(uPlane.buffer),
+                vData = copyBuffer(vPlane.buffer),
+                yRowStride = yPlane.rowStride,
+                uRowStride = uPlane.rowStride,
+                vRowStride = vPlane.rowStride,
+                yPixelStride = yPlane.pixelStride,
+                uPixelStride = uPlane.pixelStride,
+                vPixelStride = vPlane.pixelStride
+            )
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to copy ImageProxy data", e)
+            throw e
+        }
+    }
+
+    private fun copyBuffer(buffer: java.nio.ByteBuffer): ByteArray {
+        val data = ByteArray(buffer.remaining())
+        buffer.get(data)
+        buffer.rewind()
+        return data
+    }
+
+    private suspend fun captureSnapshot(imageData: ImageData, reason: SnapshotReason) {
         try {
             Log.d(TAG, "📸 Capturing snapshot for: ${reason.name}")
 
-            // ✅ saveSnapshot سيغلق imageProxy داخلياً
-            val success = sessionManager.saveSnapshot(imageProxy, reason)
+            val success = sessionManager.saveSnapshot(imageData, reason)
 
             if (success) {
                 lastSnapshotTime[reason] = System.currentTimeMillis()
@@ -118,12 +125,39 @@ class FrontCameraSnapshotManager(
         } catch (e: Exception) {
             Log.e(TAG, "❌ Error capturing snapshot", e)
             updateStats(reason, success = false)
-            // التأكد من إغلاق ImageProxy في حالة الخطأ
-            try {
-                imageProxy.close()
-            } catch (ex: Exception) {
-                // تجاهل إذا كان مغلقاً بالفعل
+        }
+    }
+
+    fun captureManualSnapshot(imageProxy: ImageProxy) {
+        if (!sessionManager.canCaptureMoreSnapshots()) {
+            Log.w(TAG, "⚠️ Max snapshots reached")
+            imageProxy.close()
+            return
+        }
+
+        val imageData = copyImageProxyData(imageProxy)
+        imageProxy.close()
+
+        scope.launch {
+            captureSnapshot(imageData, SnapshotReason.MANUAL_CAPTURE)
+        }
+    }
+
+    fun capturePeriodicSnapshot(imageProxy: ImageProxy) {
+        if (!sessionManager.canCaptureMoreSnapshots()) {
+            imageProxy.close()
+            return
+        }
+
+        if (shouldCaptureForReason(SnapshotReason.PERIODIC_CHECK)) {
+            val imageData = copyImageProxyData(imageProxy)
+            imageProxy.close()
+
+            scope.launch {
+                captureSnapshot(imageData, SnapshotReason.PERIODIC_CHECK)
             }
+        } else {
+            imageProxy.close()
         }
     }
 
@@ -183,6 +217,25 @@ class FrontCameraSnapshotManager(
         resetStats()
     }
 }
+
+/**
+ * ✅ بيانات منسوخة من ImageProxy
+ */
+data class ImageData(
+    val width: Int,
+    val height: Int,
+    val format: Int,
+    val rotationDegrees: Int,
+    val yData: ByteArray,
+    val uData: ByteArray,
+    val vData: ByteArray,
+    val yRowStride: Int,
+    val uRowStride: Int,
+    val vRowStride: Int,
+    val yPixelStride: Int,
+    val uPixelStride: Int,
+    val vPixelStride: Int
+)
 
 data class SnapshotStats(
     val noFaceSnapshots: Int = 0,

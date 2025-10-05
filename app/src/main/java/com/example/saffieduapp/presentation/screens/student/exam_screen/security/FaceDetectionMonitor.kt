@@ -37,12 +37,10 @@ class FaceDetectionMonitor(
 
     fun startMonitoring() {
         if (isMonitoring) return
-
         isMonitoring = true
         noFaceCount = 0
         lookingAwayCount = 0
         lastFaceDetectionTime = System.currentTimeMillis()
-
         _monitoringState.value = MonitoringState.Active
         Log.d(TAG, "Face detection monitoring started")
     }
@@ -77,14 +75,9 @@ class FaceDetectionMonitor(
         processingJob = scope.launch {
             try {
                 _monitoringState.value = MonitoringState.Processing
-
                 val result = faceDetector.detectFaces(imageProxy)
-
-                // ✅ معالجة النتيجة مع ImageProxy مفتوح
                 handleDetectionResult(result, imageProxy)
-
                 _monitoringState.value = MonitoringState.Active
-
             } catch (e: Exception) {
                 Log.e(TAG, "Error processing image", e)
                 _monitoringState.value = MonitoringState.Error(e.message ?: "Unknown error")
@@ -95,7 +88,6 @@ class FaceDetectionMonitor(
 
     private fun handleDetectionResult(result: FaceDetectionResult, imageProxy: ImageProxy) {
         _lastDetectionResult.value = result
-
         var needsSnapshot = false
 
         when (result) {
@@ -103,21 +95,18 @@ class FaceDetectionMonitor(
                 noFaceCount = 0
                 lookingAwayCount = 0
                 Log.d(TAG, "✅ Valid face detected")
-                // ✅ إغلاق ImageProxy مباشرة لأننا لا نحتاج snapshot
                 imageProxy.close()
             }
 
             is FaceDetectionResult.NoFace -> {
                 noFaceCount++
                 lookingAwayCount = 0
-
                 Log.w(TAG, "⚠️ No face detected - Count: $noFaceCount")
 
                 if (noFaceCount >= MAX_NO_FACE_COUNT) {
                     onViolationDetected("NO_FACE_DETECTED_LONG")
                     noFaceCount = 0
                 }
-
                 needsSnapshot = true
             }
 
@@ -132,14 +121,12 @@ class FaceDetectionMonitor(
             is FaceDetectionResult.LookingAway -> {
                 lookingAwayCount++
                 noFaceCount = 0
-
                 Log.w(TAG, "⚠️ Looking away - Count: $lookingAwayCount, Angle: ${result.angle}")
 
                 if (lookingAwayCount >= MAX_LOOKING_AWAY_COUNT) {
                     onViolationDetected("LOOKING_AWAY")
                     lookingAwayCount = 0
                 }
-
                 needsSnapshot = true
             }
 
@@ -149,12 +136,10 @@ class FaceDetectionMonitor(
             }
         }
 
-        // ✅ إرسال ImageProxy للـ callback (لن يُغلق هنا)
-        // الـ callback مسؤول عن إغلاقه
         if (needsSnapshot && onSnapshotNeeded != null) {
+            // ✅ إرسال ImageProxy - المسؤولية على الـ callback لإغلاقه
             onSnapshotNeeded.invoke(imageProxy, result)
         } else if (needsSnapshot) {
-            // إذا لم يكن هناك callback، نغلق ImageProxy
             imageProxy.close()
         }
     }
