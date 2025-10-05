@@ -5,14 +5,13 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 
 /**
- * Factory لإنشاء CameraMonitorViewModel مع parameters
- * ✅ محدّث: يتضمن examId و studentId
+ * Factory لإنشاء CameraMonitorViewModel
  */
 class CameraMonitorViewModelFactory(
     private val application: Application,
-    private val examId: String,
-    private val studentId: String,
-    private val onViolationDetected: (String) -> Unit
+    private val onViolationDetected: (String) -> Unit,
+    private val examId: String? = null,
+    private val studentId: String? = null
 ) : ViewModelProvider.Factory {
 
     @Suppress("UNCHECKED_CAST")
@@ -20,11 +19,11 @@ class CameraMonitorViewModelFactory(
         if (modelClass.isAssignableFrom(CameraMonitorViewModel::class.java)) {
             return CameraMonitorViewModel(
                 application = application,
-                examId = examId,
-                studentId = studentId,
-                onViolationDetected = onViolationDetected
+                onViolationDetected = onViolationDetected,
+                examId = examId.toString(),
+                studentId = studentId.toString()
             ) as T
         }
-        throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
+        throw IllegalArgumentException("Unknown ViewModel class")
     }
 }

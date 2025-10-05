@@ -15,10 +15,13 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.*
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.lifecycleScope
 import com.example.saffieduapp.presentation.screens.student.exam_screen.components.*
 import com.example.saffieduapp.presentation.screens.student.exam_screen.security.*
 import com.example.saffieduapp.ui.theme.SaffiEDUAppTheme
+import com.google.firebase.auth.FirebaseAuth
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.launch
 
 @AndroidEntryPoint
 class ExamActivity : ComponentActivity() {
@@ -64,18 +67,40 @@ class ExamActivity : ComponentActivity() {
 
             setupSecureScreen()
 
+            val studentId = FirebaseAuth.getInstance().currentUser?.uid ?: ""
+
             val factory = CameraMonitorViewModelFactory(
                 application = application,
                 onViolationDetected = { violationType ->
                     if (::securityManager.isInitialized) {
                         securityManager.logViolation(violationType)
                     }
-                }
+                },
+                examId = examId,
+                studentId = studentId
             )
             cameraViewModel = ViewModelProvider(this, factory)[CameraMonitorViewModel::class.java]
 
             cameraViewModel.getCameraMonitor().let { monitor ->
                 securityManager.setCameraMonitor(monitor)
+            }
+
+            cameraViewModel.getSessionState()?.let { sessionStateFlow ->
+                lifecycleScope.launch {
+                    sessionStateFlow.collect { session ->
+                        session?.let {
+                            Log.d("ExamActivity", "📊 Session Update: ID=${it.sessionId}, Snapshots=${it.snapshots.size}/10, Violations=${it.violations.size}")
+                        }
+                    }
+                }
+            }
+
+            cameraViewModel.getSnapshotStats()?.let { snapshotStatsFlow ->
+                lifecycleScope.launch {
+                    snapshotStatsFlow.collect { stats ->
+                        Log.d("ExamActivity", "📸 Snapshots: NoFace=${stats.noFaceSnapshots}, Multiple=${stats.multipleFacesSnapshots}, LookingAway=${stats.lookingAwaySnapshots}, Total=${stats.totalSuccessful}, Success=${String.format("%.1f", stats.successRate)}%")
+                    }
+                }
             }
 
             checkAndRequestCameraPermissions()
@@ -104,6 +129,7 @@ class ExamActivity : ComponentActivity() {
     private fun initializeCamera() {
         if (::cameraViewModel.isInitialized) {
             cameraViewModel.initializeCamera()
+            cameraViewModel.startExamSession()
         }
         setupUI()
     }
@@ -150,14 +176,13 @@ class ExamActivity : ComponentActivity() {
         val isPaused by securityManager.isPaused.collectAsState()
         val violations by securityManager.violations.collectAsState()
 
+        // مراقبة face detection - بدون استخدام lastDetectionResult كمتغير
         if (::cameraViewModel.isInitialized) {
-            val lastDetectionResult by cameraViewModel.lastDetectionResult.collectAsState()
+            val detectionResult by cameraViewModel.lastDetectionResult.collectAsState(initial = null)
 
-            LaunchedEffect(lastDetectionResult) {
-                lastDetectionResult?.let { result ->
-                    if (result is FaceDetectionResult.ValidFace) {
-                        securityManager.resetMultipleFacesCount()
-                    }
+            LaunchedEffect(detectionResult) {
+                if (detectionResult is FaceDetectionResult.ValidFace) {
+                    securityManager.resetMultipleFacesCount()
                 }
             }
         }
@@ -353,6 +378,10 @@ class ExamActivity : ComponentActivity() {
         if (::securityManager.isInitialized) {
             securityManager.onAppPaused()
         }
+
+        if (::cameraViewModel.isInitialized) {
+            cameraViewModel.pauseExamSession()
+        }
     }
 
     override fun onResume() {
@@ -369,6 +398,10 @@ class ExamActivity : ComponentActivity() {
 
         if (::securityManager.isInitialized) {
             securityManager.onAppResumed()
+        }
+
+        if (::cameraViewModel.isInitialized) {
+            cameraViewModel.resumeExamSession()
         }
     }
 
@@ -394,6 +427,27 @@ class ExamActivity : ComponentActivity() {
 
     private fun finishExam() {
         try {
+            if (::cameraViewModel.isInitialized) {
+                cameraViewModel.endExamSession()
+
+                val stats = cameraViewModel.getSessionStats()
+                stats?.let {
+                    Log.d("ExamActivity", """
+                        =====================================
+                        📊 Exam Session Completed
+                        =====================================
+                        Session ID: ${it.sessionId}
+                        Duration: ${it.duration / 1000}s (${it.duration / 60000}m)
+                        Snapshots: ${it.snapshotsCount}/10
+                        Violations: ${it.violationsCount}
+                        Security Events: ${it.eventsCount}
+                        Back Video: ${it.hasBackVideo}
+                        Status: ${it.status}
+                        =====================================
+                    """.trimIndent())
+                }
+            }
+
             if (::securityManager.isInitialized) {
                 val report = securityManager.generateReport()
                 Log.d("ExamActivity", "Security Report:\n$report")
