@@ -3,48 +3,52 @@ package com.example.saffieduapp.presentation.screens.student.exam_screen.securit
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.saffieduapp.presentation.screens.student.exam_screen.session.ExamSessionManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 /**
- * ViewModel لإدارة مراقبة الكاميرا
+ * ViewModel لإدارة الكاميرا والجلسة
+ * ✅ محدّث: يتضمن ExamSessionManager
  */
 class CameraMonitorViewModel(
     application: Application,
+    private val examId: String,
+    private val studentId: String,
     private val onViolationDetected: (String) -> Unit
 ) : AndroidViewModel(application) {
 
-    private val cameraMonitor = CameraMonitor(
-        context = application.applicationContext,
-        onViolationDetected = onViolationDetected
+    // ExamSessionManager
+    private val sessionManager = ExamSessionManager(
+        context = application,
+        examId = examId,
+        studentId = studentId
     )
 
+    // CameraMonitor مع SessionManager
+    private val cameraMonitor = CameraMonitor(
+        context = application,
+        onViolationDetected = onViolationDetected,
+        sessionManager = sessionManager
+    )
+
+    // حالة التهيئة
     private val _initializationState = MutableStateFlow<InitializationState>(InitializationState.Idle)
     val initializationState: StateFlow<InitializationState> = _initializationState.asStateFlow()
 
+    // توفر الكاميرات
     private val _cameraAvailability = MutableStateFlow<CameraAvailability?>(null)
     val cameraAvailability: StateFlow<CameraAvailability?> = _cameraAvailability.asStateFlow()
 
-    val isInitialized = cameraMonitor.isInitialized
-    val isFrontCameraActive = cameraMonitor.isFrontCameraActive
-    val isBackCameraActive = cameraMonitor.isBackCameraActive
-    val monitoringState = cameraMonitor.getMonitoringState()
-    val lastDetectionResult = cameraMonitor.getLastDetectionResult()
-
     /**
-     * تهيئة نظام الكاميرا
+     * تهيئة الكاميرا والجلسة
      */
     fun initializeCamera() {
-        if (_initializationState.value is InitializationState.Initializing) {
-            return
-        }
-
         viewModelScope.launch {
             _initializationState.value = InitializationState.Initializing
 
-            // تهيئة الكاميرا أولاً
             val result = cameraMonitor.initialize()
 
             if (result.isFailure) {
@@ -68,14 +72,72 @@ class CameraMonitorViewModel(
     }
 
     /**
+     * بدء جلسة الاختبار
+     */
+    fun startExamSession() {
+        sessionManager.startSession()
+    }
+
+    /**
+     * إنهاء جلسة الاختبار
+     */
+    fun endExamSession() {
+        sessionManager.endSession()
+    }
+
+    /**
+     * إيقاف مؤقت للجلسة
+     */
+    fun pauseExamSession() {
+        sessionManager.pauseSession()
+        cameraMonitor.pauseMonitoring()
+    }
+
+    /**
+     * استئناف الجلسة
+     */
+    fun resumeExamSession() {
+        sessionManager.resumeSession()
+        cameraMonitor.resumeMonitoring()
+    }
+
+    /**
+     * إنهاء قسري للجلسة
+     */
+    fun terminateExamSession(reason: String) {
+        sessionManager.terminateSession(reason)
+        cameraMonitor.stopMonitoring()
+    }
+
+    /**
      * الحصول على CameraMonitor للاستخدام في Activity
      */
     fun getCameraMonitor(): CameraMonitor = cameraMonitor
 
     /**
+     * الحصول على SessionManager
+     */
+    fun getSessionManager(): ExamSessionManager = sessionManager
+
+    /**
      * الحصول على إحصائيات المراقبة
      */
-    fun getStats() = cameraMonitor.getMonitoringStats()
+    fun getMonitoringStats() = cameraMonitor.getMonitoringStats()
+
+    /**
+     * الحصول على إحصائيات الـ Snapshots
+     */
+    fun getSnapshotStats() = cameraMonitor.getSnapshotStats()
+
+    /**
+     * الحصول على حالة الجلسة
+     */
+    fun getSessionState() = sessionManager.sessionState
+
+    /**
+     * الحصول على إحصائيات الجلسة
+     */
+    fun getSessionStats() = sessionManager.getSessionStats()
 
     /**
      * إيقاف المراقبة
@@ -101,6 +163,7 @@ class CameraMonitorViewModel(
     override fun onCleared() {
         super.onCleared()
         cameraMonitor.cleanup()
+        sessionManager.cleanup()
     }
 }
 
