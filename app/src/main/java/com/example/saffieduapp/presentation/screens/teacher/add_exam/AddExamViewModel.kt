@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.saffieduapp.data.FireBase.Exam
 import com.example.saffieduapp.data.FireBase.ExamRepository
+import com.example.saffieduapp.data.local.preferences.PreferencesManager
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -22,11 +23,38 @@ import kotlinx.coroutines.tasks.await
 class AddExamViewModel @Inject constructor(
     private val repository: ExamRepository,
     private val auth: FirebaseAuth,
-    private val firestore: FirebaseFirestore
+    private val firestore: FirebaseFirestore,
+    private val preferencesManager: PreferencesManager
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(AddExamState())
     val state = _state.asStateFlow()
+    init {
+        loadExamFromDataStore()
+    }
+
+    // تحميل بيانات الاختبار المحفوظة من DataStore عند فتح الصفحة
+    private fun loadExamFromDataStore() {
+        viewModelScope.launch {
+            preferencesManager.getExam().collect { exam ->
+                if (exam != null) {
+                    _state.update {
+                        it.copy(
+                            selectedClass = exam.className,
+                            examTitle = exam.examTitle,
+                            examType = exam.examType,
+                            examDate = exam.examDate,
+                            examStartTime = exam.examStartTime,
+                            examTime = exam.examTime,
+                            randomQuestions = exam.randomQuestions,
+                            showResultsImmediately = exam.showResultsImmediately,
+                            isDraftSaved = true // هذا سيخبر الـ UI أن الزر يجب أن يكون معطلًا
+                        )
+                    }
+                }
+            }
+        }
+    }
 
     fun onEvent(event: AddExamEvent) {
         when (event) {
@@ -39,9 +67,29 @@ class AddExamViewModel @Inject constructor(
             is AddExamEvent.RandomQuestionsToggled -> _state.update { it.copy(randomQuestions = event.isEnabled) }
             is AddExamEvent.ShowResultsToggled -> _state.update { it.copy(showResultsImmediately = event.isEnabled) }
             is AddExamEvent.NextClicked -> saveExam()
+            is AddExamEvent.SaveDraftClicked -> saveDraft() // إضافة حدث حفظ كمسودة
         }
     }
 
+    private fun saveDraft() {
+        val current = _state.value
+        val exam = Exam(
+            className = current.selectedClass,
+            examTitle = current.examTitle,
+            examType = current.examType,
+            examDate = current.examDate,
+            examStartTime = current.examStartTime,
+            examTime = current.examTime,
+            randomQuestions = current.randomQuestions,
+            showResultsImmediately = current.showResultsImmediately,
+            createdAt = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.ENGLISH).format(Date())
+        )
+
+        viewModelScope.launch {
+            preferencesManager.saveExam(exam) // حفظ البيانات في DataStore
+            _state.update { it.copy(isDraftSaved = true) } // تعطيل الزر وتغيير نصه
+        }
+    }
 
     private fun saveExam() {
         val current = _state.value

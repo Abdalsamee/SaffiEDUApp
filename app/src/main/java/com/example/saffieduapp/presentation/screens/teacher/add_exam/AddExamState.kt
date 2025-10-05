@@ -10,5 +10,6 @@ data class AddExamState(
     val randomQuestions: Boolean = false,
     val showResultsImmediately: Boolean = false,
     val isSaving: Boolean = false,
-    val success: Boolean? = null
+    val success: Boolean? = null,
+    val isDraftSaved: Boolean = false
 )

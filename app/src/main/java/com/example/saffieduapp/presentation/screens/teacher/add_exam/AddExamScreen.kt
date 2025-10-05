@@ -186,15 +186,19 @@ fun AddExamScreen(
 
             // زر "حفظ كمسودة"
             Button(
-                onClick = { /* TODO: Handle save as draft */ },
+                onClick = { viewModel.onEvent(AddExamEvent.SaveDraftClicked) },
                 shape = RoundedCornerShape(8.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = AppPrimary),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (state.isDraftSaved) Color.Gray else AppPrimary
+                ),
                 modifier = Modifier
                     .align(Alignment.TopEnd)
-                    .padding(top = 90.dp, end = 20.dp)
+                    .padding(top = 90.dp, end = 20.dp),
+                enabled = !state.isDraftSaved
             ) {
-                Text(text = "حفظ كمسودة", color = Color.White)
+                Text(text = if (state.isDraftSaved) "تم الحفظ" else "حفظ كمسودة", color = Color.White)
             }
+
         }
     }
 }
