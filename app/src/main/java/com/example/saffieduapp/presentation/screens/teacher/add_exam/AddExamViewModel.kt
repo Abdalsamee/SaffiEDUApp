@@ -58,18 +58,35 @@ class AddExamViewModel @Inject constructor(
 
     fun onEvent(event: AddExamEvent) {
         when (event) {
-            is AddExamEvent.ClassSelected -> _state.update { it.copy(selectedClass = event.className) }
-            is AddExamEvent.TitleChanged -> _state.update { it.copy(examTitle = event.title) }
-            is AddExamEvent.TypeChanged -> _state.update { it.copy(examType = event.type) }
-            is AddExamEvent.DateChanged -> _state.update { it.copy(examDate = event.date) }
-            is AddExamEvent.StartTimeChanged -> _state.update { it.copy(examStartTime = event.time) }
-            is AddExamEvent.TimeChanged -> _state.update { it.copy(examTime = event.time) }
-            is AddExamEvent.RandomQuestionsToggled -> _state.update { it.copy(randomQuestions = event.isEnabled) }
-            is AddExamEvent.ShowResultsToggled -> _state.update { it.copy(showResultsImmediately = event.isEnabled) }
+            is AddExamEvent.ClassSelected -> _state.update {
+                it.copy(selectedClass = event.className, isDraftSaved = false)
+            }
+            is AddExamEvent.TitleChanged -> _state.update {
+                it.copy(examTitle = event.title, isDraftSaved = false)
+            }
+            is AddExamEvent.TypeChanged -> _state.update {
+                it.copy(examType = event.type, isDraftSaved = false)
+            }
+            is AddExamEvent.DateChanged -> _state.update {
+                it.copy(examDate = event.date, isDraftSaved = false)
+            }
+            is AddExamEvent.StartTimeChanged -> _state.update {
+                it.copy(examStartTime = event.time, isDraftSaved = false)
+            }
+            is AddExamEvent.TimeChanged -> _state.update {
+                it.copy(examTime = event.time, isDraftSaved = false)
+            }
+            is AddExamEvent.RandomQuestionsToggled -> _state.update {
+                it.copy(randomQuestions = event.isEnabled, isDraftSaved = false)
+            }
+            is AddExamEvent.ShowResultsToggled -> _state.update {
+                it.copy(showResultsImmediately = event.isEnabled, isDraftSaved = false)
+            }
             is AddExamEvent.NextClicked -> saveExam()
-            is AddExamEvent.SaveDraftClicked -> saveDraft() // إضافة حدث حفظ كمسودة
+            is AddExamEvent.SaveDraftClicked -> saveDraft()
         }
     }
+
 
     private fun saveDraft() {
         val current = _state.value
