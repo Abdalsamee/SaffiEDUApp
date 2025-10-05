@@ -20,9 +20,6 @@ import com.example.saffieduapp.presentation.screens.student.exam_screen.security
 import com.example.saffieduapp.ui.theme.SaffiEDUAppTheme
 import dagger.hilt.android.AndroidEntryPoint
 
-/**
- * Activity منفصلة للاختبار مع حماية كاملة
- */
 @AndroidEntryPoint
 class ExamActivity : ComponentActivity() {
 
@@ -33,7 +30,6 @@ class ExamActivity : ComponentActivity() {
     private var showCameraCheck = mutableStateOf(true)
     private var cameraCheckPassed = mutableStateOf(false)
 
-    // طلب صلاحيات الكاميرا
     private val cameraPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
@@ -57,21 +53,17 @@ class ExamActivity : ComponentActivity() {
         try {
             examId = intent.getStringExtra("EXAM_ID") ?: ""
 
-            // ✅ فحص Multi-Window قبل بدء الاختبار
             if (isInMultiWindowMode) {
                 Log.w("ExamActivity", "Multi-window detected at onCreate")
                 showMultiWindowBlockedDialog()
                 return
             }
 
-            // تفعيل الحماية الأمنية
             securityManager = ExamSecurityManager(this, this)
             securityManager.enableSecurityFeatures()
 
-            // إعداد الشاشة
             setupSecureScreen()
 
-            // إنشاء Camera ViewModel
             val factory = CameraMonitorViewModelFactory(
                 application = application,
                 onViolationDetected = { violationType ->
@@ -82,7 +74,6 @@ class ExamActivity : ComponentActivity() {
             )
             cameraViewModel = ViewModelProvider(this, factory)[CameraMonitorViewModel::class.java]
 
-            // ربط CameraMonitor مع SecurityManager
             cameraViewModel.getCameraMonitor().let { monitor ->
                 securityManager.setCameraMonitor(monitor)
             }
@@ -154,9 +145,22 @@ class ExamActivity : ComponentActivity() {
 
         val showNoFaceWarning by securityManager.showNoFaceWarning.collectAsState()
         val showExitWarning by securityManager.showExitWarning.collectAsState()
+        val showMultipleFacesWarning by securityManager.showMultipleFacesWarning.collectAsState()
         val shouldAutoSubmit by securityManager.shouldAutoSubmit.collectAsState()
         val isPaused by securityManager.isPaused.collectAsState()
         val violations by securityManager.violations.collectAsState()
+
+        if (::cameraViewModel.isInitialized) {
+            val lastDetectionResult by cameraViewModel.lastDetectionResult.collectAsState()
+
+            LaunchedEffect(lastDetectionResult) {
+                lastDetectionResult?.let { result ->
+                    if (result is FaceDetectionResult.ValidFace) {
+                        securityManager.resetMultipleFacesCount()
+                    }
+                }
+            }
+        }
 
         BackHandler {
             securityManager.logViolation("BACK_BUTTON_PRESSED")
@@ -187,7 +191,6 @@ class ExamActivity : ComponentActivity() {
 
         LaunchedEffect(Unit) {
             securityManager.startMonitoring()
-            // ✅ إعلام SecurityManager أن الاختبار بدأ فعلياً
             securityManager.startExam()
         }
 
@@ -216,6 +219,14 @@ class ExamActivity : ComponentActivity() {
                 isPaused = isPaused,
                 onDismiss = {
                     securityManager.dismissNoFaceWarning()
+                }
+            )
+        }
+
+        if (showMultipleFacesWarning) {
+            MultipleFacesWarningDialog(
+                onDismiss = {
+                    securityManager.dismissMultipleFacesWarning()
                 }
             )
         }
@@ -381,7 +392,6 @@ class ExamActivity : ComponentActivity() {
             if (::securityManager.isInitialized) {
                 val report = securityManager.generateReport()
                 Log.d("ExamActivity", "Security Report:\n$report")
-                // TODO: رفع التقرير للسيرفر
             }
 
             if (::cameraViewModel.isInitialized) {
