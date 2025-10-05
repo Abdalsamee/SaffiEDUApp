@@ -9,5 +9,6 @@ data class AddExamState(
     val examTime: String = "",
     val randomQuestions: Boolean = false,
     val showResultsImmediately: Boolean = false,
-    val isSaving: Boolean = false
+    val isSaving: Boolean = false,
+    val success: Boolean? = null
 )

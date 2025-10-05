@@ -121,7 +121,6 @@ fun AddExamScreen(
                             },
                             modifier = Modifier.fillMaxWidth(0.4f)
                         )
-
                     }
 
 
@@ -172,13 +171,17 @@ fun AddExamScreen(
                 )
                 Spacer(modifier = Modifier.weight(1f))
                 AppButton(
-                    text = "التالي",
-                    onClick = onNavigateToNext ,
+                    text = if (state.isSaving) "جاري الحفظ..." else "التالي",
+                    onClick = {
+                        viewModel.onEvent(AddExamEvent.NextClicked)
+                        onNavigateToNext()
+                    },
                     modifier = Modifier.fillMaxWidth(),
-                    enabled = false
+                    enabled = !state.isSaving &&
+                            state.examTitle.isNotBlank() &&
+                            state.selectedClass.isNotBlank()
                 )
                 Spacer(modifier = Modifier.height(20.dp))
-
             }
 
             // زر "حفظ كمسودة"
