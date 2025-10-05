@@ -15,6 +15,10 @@ class ExamSecurityManager(
     private val context: Context,
     private val activity: Activity
 ) {
+
+    private val _showMultipleFacesWarning = MutableStateFlow(false)
+
+
     private val TAG = "ExamSecurityManager"
 
     private val _violations = MutableStateFlow<List<SecurityViolation>>(emptyList())
@@ -43,6 +47,9 @@ class ExamSecurityManager(
     private var noFaceViolationCount = 0
     private val maxNoFaceWarnings = 2
     private val maxNoFaceBeforeTerminate = 5
+
+    private var multipleFacesCount = 0  // ✅ عداد لأكثر من وجه
+    private val maxMultipleFacesWarnings = 1  // تحذير واحد فقط
 
     private var examStarted = false
 
@@ -111,7 +118,22 @@ class ExamSecurityManager(
      */
     fun setCameraMonitor(monitor: CameraMonitor) {
         this.cameraMonitor = monitor
+
+        // ✅ مراقبة نتائج Face Detection لإعادة تعيين العدادات
+        // عندما يتم اكتشاف وجه صحيح، نعيد تعيين جميع العدادات
+        monitor.getLastDetectionResult()
+
         Log.d(TAG, "Camera monitor linked")
+    }
+
+    /**
+     * إعادة تعيين عداد الوجوه المتعددة عند اكتشاف وجه صحيح
+     */
+    fun resetMultipleFacesCount() {
+        if (multipleFacesCount > 0) {
+            Log.d(TAG, "Resetting multiple faces count (was: $multipleFacesCount)")
+            multipleFacesCount = 0
+        }
     }
 
     /**
@@ -173,6 +195,7 @@ class ExamSecurityManager(
         _violations.value = emptyList()
         exitAttempts = 0
         noFaceViolationCount = 0
+        multipleFacesCount = 0  // ✅ إعادة تعيين
         examStarted = false
         Log.d(TAG, "Cleanup completed")
     }
@@ -332,6 +355,7 @@ class ExamSecurityManager(
         _shouldShowWarning.value = false
         _showExitWarning.value = false
         _showNoFaceWarning.value = false
+        _showMultipleFacesWarning.value = false  // ✅ إضافة
     }
 
     /**
@@ -348,13 +372,41 @@ class ExamSecurityManager(
         _violations.value = _violations.value + violation
         Log.w(TAG, "Violation logged: $type (${violation.severity})")
 
-        // ✅ معالجة تلقائية لمخالفات عدم الوجه
+        // ✅ معالجة تلقائية للمخالفات
         when {
             type == "NO_FACE_DETECTED_LONG" -> handleNoFaceDetected()
-            type == "MULTIPLE_FACES_DETECTED" -> {
+            type == "MULTIPLE_FACES_DETECTED" -> handleMultipleFacesDetected()
+        }
+    }
+
+    /**
+     * معالجة اكتشاف أكثر من وجه
+     */
+    private fun handleMultipleFacesDetected() {
+        multipleFacesCount++
+        Log.w(TAG, "Multiple faces violation #$multipleFacesCount")
+
+        when {
+            multipleFacesCount > maxMultipleFacesWarnings -> {
                 _shouldAutoSubmit.value = true
+                _showMultipleFacesWarning.value = false
+                Log.e(TAG, "🚨 Auto-submit triggered - multiple faces detected again")
+            }
+            else -> {
+                _showMultipleFacesWarning.value = true
+                pauseMonitoring()
+                Log.w(TAG, "⚠️ Multiple faces warning shown")
             }
         }
+    }
+
+    /**
+     * إخفاء تحذير أكثر من وجه
+     */
+    fun dismissMultipleFacesWarning() {
+        _showMultipleFacesWarning.value = false
+        resumeMonitoring()
+        Log.d(TAG, "Multiple faces warning dismissed - monitoring resumed")
     }
 
     /**
