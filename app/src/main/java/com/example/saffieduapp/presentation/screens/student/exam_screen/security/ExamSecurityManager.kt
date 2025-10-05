@@ -44,15 +44,11 @@ class ExamSecurityManager(
     private val maxNoFaceWarnings = 2
     private val maxNoFaceBeforeTerminate = 5
 
-    // ✅ للتمييز بين pause/resume الطبيعي والخروج الفعلي
     private var examStarted = false
 
     private val displayManager = context.getSystemService(Context.DISPLAY_SERVICE) as DisplayManager
 
-    // ✅ Overlay Detector
     private var overlayDetector: OverlayDetector? = null
-
-    // ✅ Camera Monitor
     private var cameraMonitor: CameraMonitor? = null
 
     /**
@@ -131,7 +127,7 @@ class ExamSecurityManager(
     }
 
     /**
-     * ✅ بدء الاختبار الفعلي - يتم استدعاؤها عند دخول شاشة الاختبار
+     * بدء الاختبار الفعلي
      */
     fun startExam() {
         examStarted = true
@@ -182,31 +178,26 @@ class ExamSecurityManager(
     }
 
     /**
-     * ربط CameraMonitor مع SecurityManager
-     */
-    fun setCameraMonitor(monitor: CameraMonitor) {
-        this.cameraMonitor = monitor
-        Log.d(TAG, "Camera monitor linked")
-    }
-
-    /**
      * معالجة مخالفة عدم وجود وجه
      */
     fun handleNoFaceDetected() {
         noFaceViolationCount++
-        Log.w(TAG, "No face violation #$noFaceViolationCount")
+        Log.w(TAG, "No face violation #$noFaceViolationCount (max: $maxNoFaceBeforeTerminate)")
 
         when {
-            noFaceViolationCount > maxNoFaceBeforeTerminate -> {
+            noFaceViolationCount >= maxNoFaceBeforeTerminate -> {
                 _shouldAutoSubmit.value = true
+                _showNoFaceWarning.value = false // إخفاء التحذير عند الإنهاء
                 logViolation("NO_FACE_AUTO_SUBMIT")
+                Log.e(TAG, "🚨 Auto-submit triggered - too many no-face violations")
             }
-            noFaceViolationCount > maxNoFaceWarnings -> {
+            noFaceViolationCount >= maxNoFaceWarnings -> {
                 _showNoFaceWarning.value = true
-                logViolation("NO_FACE_WARNING")
+                pauseMonitoring()
+                Log.w(TAG, "⚠️ No-face warning shown - count: $noFaceViolationCount")
             }
             else -> {
-                logViolation("NO_FACE_DETECTED")
+                Log.d(TAG, "No-face count: $noFaceViolationCount (warning at $maxNoFaceWarnings)")
             }
         }
     }
@@ -238,6 +229,8 @@ class ExamSecurityManager(
      */
     fun dismissNoFaceWarning() {
         _showNoFaceWarning.value = false
+        resumeMonitoring()
+        Log.d(TAG, "No-face warning dismissed - monitoring resumed")
     }
 
     /**
@@ -292,7 +285,6 @@ class ExamSecurityManager(
      * معالجة عودة التطبيق من الخلفية
      */
     fun onAppResumed() {
-        // ✅ تجاهل resume إذا لم يبدأ الاختبار بعد
         if (!examStarted) {
             Log.d(TAG, "App resumed but exam not started yet - ignoring")
             appPausedTime = 0
@@ -326,6 +318,8 @@ class ExamSecurityManager(
      * معالجة فقدان التركيز على النافذة
      */
     fun onWindowFocusChanged(hasFocus: Boolean) {
+        overlayDetector?.onWindowFocusChanged(hasFocus)
+
         if (!hasFocus && examStarted) {
             Log.w(TAG, "Window focus lost during exam")
         }
@@ -353,6 +347,14 @@ class ExamSecurityManager(
 
         _violations.value = _violations.value + violation
         Log.w(TAG, "Violation logged: $type (${violation.severity})")
+
+        // ✅ معالجة تلقائية لمخالفات عدم الوجه
+        when {
+            type == "NO_FACE_DETECTED_LONG" -> handleNoFaceDetected()
+            type == "MULTIPLE_FACES_DETECTED" -> {
+                _shouldAutoSubmit.value = true
+            }
+        }
     }
 
     /**
