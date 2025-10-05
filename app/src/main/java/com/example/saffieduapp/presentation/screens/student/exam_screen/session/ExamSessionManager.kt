@@ -116,10 +116,10 @@ class ExamSessionManager(
     }
 
     /**
-     * حفظ snapshot من الكاميرا الأمامية
+     * ✅ حفظ snapshot من الكاميرا الأمامية - معدل ليقبل ImageData
      */
     fun saveSnapshot(
-        imageProxy: ImageData,
+        imageData: ImageData,
         reason: SnapshotReason
     ): Boolean {
         val session = currentSession ?: return false
@@ -131,7 +131,7 @@ class ExamSessionManager(
         }
 
         // حفظ الصورة
-        val snapshot = mediaStorage.saveSnapshot(imageProxy, session.sessionId, reason)
+        val snapshot = mediaStorage.saveSnapshot(imageData, session.sessionId, reason)
 
         if (snapshot != null) {
             session.addSnapshot(snapshot)

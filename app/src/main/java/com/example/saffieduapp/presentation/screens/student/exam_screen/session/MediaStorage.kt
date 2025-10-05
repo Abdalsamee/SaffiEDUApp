@@ -8,11 +8,9 @@ import android.graphics.Matrix
 import android.graphics.Rect
 import android.graphics.YuvImage
 import android.util.Log
-import androidx.camera.core.ImageProxy
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileOutputStream
-import java.nio.ByteBuffer
 import java.util.UUID
 import javax.crypto.SecretKey
 
@@ -28,17 +26,20 @@ class MediaStorage(
         private const val MAX_IMAGE_HEIGHT = 720
     }
 
+    /**
+     * ✅ حفظ snapshot من ImageData
+     */
     fun saveSnapshot(
-        imageProxy: ImageProxy,
+        imageData: ImageData,
         sessionId: String,
         reason: SnapshotReason
     ): MediaSnapshot? {
         return try {
             val snapshotId = UUID.randomUUID().toString()
 
-            // تحويل ImageProxy إلى Bitmap بشكل صحيح
-            val bitmap = imageProxyToBitmap(imageProxy) ?: run {
-                Log.e(TAG, "Failed to convert ImageProxy to Bitmap")
+            // تحويل ImageData إلى Bitmap
+            val bitmap = imageDataToBitmap(imageData) ?: run {
+                Log.e(TAG, "Failed to convert ImageData to Bitmap")
                 return null
             }
 
@@ -68,41 +69,42 @@ class MediaStorage(
     }
 
     /**
-     * تحويل ImageProxy إلى Bitmap - الطريقة الصحيحة
+     * ✅ تحويل ImageData إلى Bitmap
      */
-    private fun imageProxyToBitmap(imageProxy: ImageProxy): Bitmap? {
+    private fun imageDataToBitmap(imageData: ImageData): Bitmap? {
         return try {
             // التحقق من صيغة الصورة
-            if (imageProxy.format != ImageFormat.YUV_420_888) {
-                Log.e(TAG, "Unsupported image format: ${imageProxy.format}")
+            if (imageData.format != ImageFormat.YUV_420_888) {
+                Log.e(TAG, "Unsupported image format: ${imageData.format}")
                 return null
             }
 
-            val yBuffer = imageProxy.planes[0].buffer
-            val uBuffer = imageProxy.planes[1].buffer
-            val vBuffer = imageProxy.planes[2].buffer
-
-            val ySize = yBuffer.remaining()
-            val uSize = uBuffer.remaining()
-            val vSize = vBuffer.remaining()
+            // حساب الحجم الكامل للبيانات
+            val ySize = imageData.yData.size
+            val uSize = imageData.uData.size
+            val vSize = imageData.vData.size
 
             val nv21 = ByteArray(ySize + uSize + vSize)
 
             // نسخ Y
-            yBuffer.get(nv21, 0, ySize)
+            System.arraycopy(imageData.yData, 0, nv21, 0, ySize)
 
             // تحويل U و V إلى NV21 format
-            val pixelStride = imageProxy.planes[2].pixelStride
-            if (pixelStride == 1) {
+            if (imageData.vPixelStride == 1) {
                 // حالة simple: U و V متتاليين
-                vBuffer.get(nv21, ySize, vSize)
-                uBuffer.get(nv21, ySize + vSize, uSize)
+                System.arraycopy(imageData.vData, 0, nv21, ySize, vSize)
+                System.arraycopy(imageData.uData, 0, nv21, ySize + vSize, uSize)
             } else {
                 // حالة معقدة: interleaved
                 var pos = ySize
+                val pixelStride = imageData.vPixelStride
                 for (i in 0 until vSize step pixelStride) {
-                    nv21[pos++] = vBuffer.get(i)
-                    nv21[pos++] = uBuffer.get(i)
+                    if (i < imageData.vData.size) {
+                        nv21[pos++] = imageData.vData[i]
+                    }
+                    if (i < imageData.uData.size) {
+                        nv21[pos++] = imageData.uData[i]
+                    }
                 }
             }
 
@@ -110,14 +112,14 @@ class MediaStorage(
             val yuvImage = YuvImage(
                 nv21,
                 ImageFormat.NV21,
-                imageProxy.width,
-                imageProxy.height,
+                imageData.width,
+                imageData.height,
                 null
             )
 
             val out = ByteArrayOutputStream()
             yuvImage.compressToJpeg(
-                Rect(0, 0, imageProxy.width, imageProxy.height),
+                Rect(0, 0, imageData.width, imageData.height),
                 100,
                 out
             )
@@ -126,15 +128,14 @@ class MediaStorage(
             val bitmap = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
 
             // تصحيح الدوران
-            val rotationDegrees = imageProxy.imageInfo.rotationDegrees
-            if (rotationDegrees != 0) {
-                rotateBitmap(bitmap, rotationDegrees.toFloat())
+            if (imageData.rotationDegrees != 0) {
+                rotateBitmap(bitmap, imageData.rotationDegrees.toFloat())
             } else {
                 bitmap
             }
 
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to convert ImageProxy to Bitmap", e)
+            Log.e(TAG, "Failed to convert ImageData to Bitmap", e)
             null
         }
     }
