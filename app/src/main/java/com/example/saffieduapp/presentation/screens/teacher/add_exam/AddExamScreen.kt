@@ -121,7 +121,6 @@ fun AddExamScreen(
                             },
                             modifier = Modifier.fillMaxWidth(0.4f)
                         )
-
                     }
 
 
@@ -172,26 +171,34 @@ fun AddExamScreen(
                 )
                 Spacer(modifier = Modifier.weight(1f))
                 AppButton(
-                    text = "التالي",
-                    onClick = onNavigateToNext ,
+                    text = if (state.isSaving) "جاري الحفظ..." else "التالي",
+                    onClick = {
+                        viewModel.onEvent(AddExamEvent.NextClicked)
+                        onNavigateToNext()
+                    },
                     modifier = Modifier.fillMaxWidth(),
-                    enabled = false
+                    enabled = !state.isSaving &&
+                            state.examTitle.isNotBlank() &&
+                            state.selectedClass.isNotBlank()
                 )
                 Spacer(modifier = Modifier.height(20.dp))
-
             }
 
             // زر "حفظ كمسودة"
             Button(
-                onClick = { /* TODO: Handle save as draft */ },
+                onClick = { viewModel.onEvent(AddExamEvent.SaveDraftClicked) },
                 shape = RoundedCornerShape(8.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = AppPrimary),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (state.isDraftSaved) Color.Gray else AppPrimary
+                ),
                 modifier = Modifier
                     .align(Alignment.TopEnd)
-                    .padding(top = 90.dp, end = 20.dp)
+                    .padding(top = 90.dp, end = 20.dp),
+                enabled = !state.isDraftSaved
             ) {
-                Text(text = "حفظ كمسودة", color = Color.White)
+                Text(text = if (state.isDraftSaved) "تم الحفظ" else "حفظ كمسودة", color = Color.White)
             }
+
         }
     }
 }

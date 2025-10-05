@@ -23,6 +23,14 @@ data class AddQuestionState(
     val currentQuestionPoints: String = "",
     val currentChoices: SnapshotStateList<Choice> = mutableStateListOf(Choice(), Choice()),
     val currentEssayAnswer: String = "",
-    val createdQuestions: List<Any> = emptyList(),
+    val createdQuestions: List<QuestionData> = emptyList(), // حفظ الأسئلة المضافة مؤقتًا
     val isSaving: Boolean = false
+)
+// لتمثيل السؤال الذي سيتم حفظه مؤقتًا
+data class QuestionData(
+    val text: String,
+    val type: QuestionType,
+    val points: String,
+    val choices: List<Choice> = emptyList(),
+    val essayAnswer: String = ""
 )
