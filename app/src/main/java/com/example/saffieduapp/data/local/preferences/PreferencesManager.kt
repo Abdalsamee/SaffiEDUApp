@@ -12,6 +12,8 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import com.example.saffieduapp.data.FireBase.Exam
+import com.google.gson.Gson
 
 // PreferencesManager.kt
 @Singleton
@@ -21,6 +23,8 @@ class PreferencesManager @Inject constructor(
     // نقل تعريف الـ DataStore إلى companion object لضمان أنه Singleton
     companion object {
         private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "user_credentials")
+        private val DRAFT_EXAM_KEY = stringPreferencesKey("draft_exam")
+
         val USER_ID = stringPreferencesKey("user_id")
         val USER_PASSWORD = stringPreferencesKey("user_password")
 
@@ -51,7 +55,19 @@ class PreferencesManager @Inject constructor(
                 )
             }
     }
+    private val gson = Gson()
 
+    suspend fun saveExam(exam: Exam) {
+        context.dataStore.edit { prefs ->
+            prefs[DRAFT_EXAM_KEY] = gson.toJson(exam)
+        }
+    }
+
+    fun getExam(): Flow<Exam?> {
+        return context.dataStore.data.map { prefs ->
+            prefs[DRAFT_EXAM_KEY]?.let { gson.fromJson(it, Exam::class.java) }
+        }
+    }
 
 
     val isSubjectActivated: Flow<Boolean> = context.dataStore.data

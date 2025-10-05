@@ -10,4 +10,5 @@ sealed interface AddExamEvent {
     data class RandomQuestionsToggled(val isEnabled: Boolean) : AddExamEvent
     data class ShowResultsToggled(val isEnabled: Boolean) : AddExamEvent
     data object NextClicked : AddExamEvent
+    object SaveDraftClicked : AddExamEvent
 }

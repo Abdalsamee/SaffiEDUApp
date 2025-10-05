@@ -7,13 +7,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-/**
- * مراقب كشف الوجوه - يدير عملية المراقبة المستمرة
- * محدّث: يتضمن callback للـ snapshots
- */
 class FaceDetectionMonitor(
     private val onViolationDetected: (String) -> Unit,
-    private val onSnapshotNeeded: ((ImageProxy, FaceDetectionResult) -> Unit)? = null // ✅ جديد
+    private val onSnapshotNeeded: ((ImageProxy, FaceDetectionResult) -> Unit)? = null
 ) {
     private val TAG = "FaceDetectionMonitor"
 
@@ -29,36 +25,26 @@ class FaceDetectionMonitor(
     @Volatile
     private var isMonitoring = false
 
-    // إحصائيات المراقبة
     private var noFaceCount = 0
     private var lookingAwayCount = 0
     private var lastFaceDetectionTime = 0L
 
-    // الحدود للكشف
-    private val MAX_NO_FACE_COUNT = 3 // بعد 3 محاولات متتالية
-    private val MAX_LOOKING_AWAY_COUNT = 5 // بعد 5 محاولات متتالية
-    private val DETECTION_INTERVAL = 2000L // كل 2 ثانية
+    private val MAX_NO_FACE_COUNT = 3
+    private val MAX_LOOKING_AWAY_COUNT = 5
+    private val DETECTION_INTERVAL = 2000L
 
     private var processingJob: Job? = null
 
-    /**
-     * بدء المراقبة
-     */
     fun startMonitoring() {
         if (isMonitoring) return
-
         isMonitoring = true
         noFaceCount = 0
         lookingAwayCount = 0
         lastFaceDetectionTime = System.currentTimeMillis()
-
         _monitoringState.value = MonitoringState.Active
         Log.d(TAG, "Face detection monitoring started")
     }
 
-    /**
-     * إيقاف المراقبة
-     */
     fun stopMonitoring() {
         isMonitoring = false
         processingJob?.cancel()
@@ -66,9 +52,6 @@ class FaceDetectionMonitor(
         Log.d(TAG, "Face detection monitoring stopped")
     }
 
-    /**
-     * معالجة صورة من الكاميرا
-     */
     @androidx.camera.core.ExperimentalGetImage
     fun processImage(imageProxy: ImageProxy) {
         if (!isMonitoring) {
@@ -76,13 +59,11 @@ class FaceDetectionMonitor(
             return
         }
 
-        // تجنب المعالجة المتزامنة
         if (processingJob?.isActive == true) {
             imageProxy.close()
             return
         }
 
-        // التحقق من الفاصل الزمني
         val now = System.currentTimeMillis()
         if (now - lastFaceDetectionTime < DETECTION_INTERVAL) {
             imageProxy.close()
@@ -91,16 +72,12 @@ class FaceDetectionMonitor(
 
         lastFaceDetectionTime = now
 
-        // معالجة الصورة
         processingJob = scope.launch {
             try {
                 _monitoringState.value = MonitoringState.Processing
-
                 val result = faceDetector.detectFaces(imageProxy)
                 handleDetectionResult(result, imageProxy)
-
                 _monitoringState.value = MonitoringState.Active
-
             } catch (e: Exception) {
                 Log.e(TAG, "Error processing image", e)
                 _monitoringState.value = MonitoringState.Error(e.message ?: "Unknown error")
@@ -109,38 +86,27 @@ class FaceDetectionMonitor(
         }
     }
 
-    /**
-     * معالجة نتيجة الكشف
-     * ✅ محدّث: يرسل ImageProxy للـ snapshot callback
-     */
     private fun handleDetectionResult(result: FaceDetectionResult, imageProxy: ImageProxy) {
-        // تحديث آخر نتيجة
         _lastDetectionResult.value = result
-
-        // متغير لتتبع ما إذا كنا بحاجة لـ snapshot
         var needsSnapshot = false
 
         when (result) {
             is FaceDetectionResult.ValidFace -> {
-                // وجه صحيح - إعادة تعيين العدادات
                 noFaceCount = 0
                 lookingAwayCount = 0
                 Log.d(TAG, "✅ Valid face detected")
-                imageProxy.close() // ✅ لا نحتاج snapshot
+                imageProxy.close()
             }
 
             is FaceDetectionResult.NoFace -> {
                 noFaceCount++
                 lookingAwayCount = 0
-
                 Log.w(TAG, "⚠️ No face detected - Count: $noFaceCount")
 
                 if (noFaceCount >= MAX_NO_FACE_COUNT) {
                     onViolationDetected("NO_FACE_DETECTED_LONG")
                     noFaceCount = 0
                 }
-
-                // ✅ نحتاج snapshot
                 needsSnapshot = true
             }
 
@@ -149,23 +115,18 @@ class FaceDetectionMonitor(
                 onViolationDetected("MULTIPLE_FACES_DETECTED")
                 noFaceCount = 0
                 lookingAwayCount = 0
-
-                // ✅ نحتاج snapshot (أولوية عالية)
                 needsSnapshot = true
             }
 
             is FaceDetectionResult.LookingAway -> {
                 lookingAwayCount++
                 noFaceCount = 0
-
                 Log.w(TAG, "⚠️ Looking away - Count: $lookingAwayCount, Angle: ${result.angle}")
 
                 if (lookingAwayCount >= MAX_LOOKING_AWAY_COUNT) {
                     onViolationDetected("LOOKING_AWAY")
                     lookingAwayCount = 0
                 }
-
-                // ✅ نحتاج snapshot
                 needsSnapshot = true
             }
 
@@ -175,17 +136,14 @@ class FaceDetectionMonitor(
             }
         }
 
-        // ✅ إرسال للـ snapshot callback إذا كان مطلوباً
         if (needsSnapshot && onSnapshotNeeded != null) {
+            // ✅ إرسال ImageProxy - المسؤولية على الـ callback لإغلاقه
             onSnapshotNeeded.invoke(imageProxy, result)
-        } else if (!needsSnapshot) {
-            // imageProxy already closed above for ValidFace
+        } else if (needsSnapshot) {
+            imageProxy.close()
         }
     }
 
-    /**
-     * الحصول على إحصائيات المراقبة
-     */
     fun getStats(): MonitoringStats {
         return MonitoringStats(
             noFaceCount = noFaceCount,
@@ -194,9 +152,6 @@ class FaceDetectionMonitor(
         )
     }
 
-    /**
-     * تنظيف الموارد
-     */
     fun cleanup() {
         stopMonitoring()
         scope.cancel()
@@ -205,9 +160,6 @@ class FaceDetectionMonitor(
     }
 }
 
-/**
- * حالة المراقبة
- */
 sealed class MonitoringState {
     object Idle : MonitoringState()
     object Active : MonitoringState()
@@ -216,9 +168,6 @@ sealed class MonitoringState {
     data class Error(val message: String) : MonitoringState()
 }
 
-/**
- * إحصائيات المراقبة
- */
 data class MonitoringStats(
     val noFaceCount: Int,
     val lookingAwayCount: Int,

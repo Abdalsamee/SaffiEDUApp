@@ -8,11 +8,8 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 
-/**
- * مدير التقاط الصور الذكي من الكاميرا الأمامية
- * يلتقط تلقائياً عند اكتشاف مخالفات
- */
 class FrontCameraSnapshotManager(
     private val sessionManager: ExamSessionManager
 ) {
@@ -20,24 +17,16 @@ class FrontCameraSnapshotManager(
 
     private val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
 
-    // إحصائيات الـ Snapshots
     private val _snapshotStats = MutableStateFlow(SnapshotStats())
     val snapshotStats: StateFlow<SnapshotStats> = _snapshotStats.asStateFlow()
 
-    // تتبع آخر snapshot لكل سبب (لمنع التكرار السريع)
     private val lastSnapshotTime = mutableMapOf<SnapshotReason, Long>()
-
-    // الحد الأدنى للوقت بين snapshots من نفس النوع (30 ثانية)
     private val MIN_SNAPSHOT_INTERVAL = 30_000L
 
-    /**
-     * معالجة نتيجة Face Detection والتقاط snapshot إذا لزم الأمر
-     */
     fun processFaceDetectionResult(
         result: com.example.saffieduapp.presentation.screens.student.exam_screen.security.FaceDetectionResult,
         imageProxy: ImageProxy
     ) {
-        // فحص إمكانية الالتقاط
         if (!sessionManager.canCaptureMoreSnapshots()) {
             Log.w(TAG, "⚠️ Max snapshots reached, skipping capture")
             imageProxy.close()
@@ -46,20 +35,14 @@ class FrontCameraSnapshotManager(
 
         val shouldCapture = when (result) {
             is com.example.saffieduapp.presentation.screens.student.exam_screen.security.FaceDetectionResult.NoFace -> {
-                // التقاط عند عدم وجود وجه
                 shouldCaptureForReason(SnapshotReason.NO_FACE_DETECTED)
             }
-
             is com.example.saffieduapp.presentation.screens.student.exam_screen.security.FaceDetectionResult.MultipleFaces -> {
-                // التقاط عند وجود عدة وجوه (أولوية عالية)
                 true
             }
-
             is com.example.saffieduapp.presentation.screens.student.exam_screen.security.FaceDetectionResult.LookingAway -> {
-                // التقاط عند النظر بعيداً
                 shouldCaptureForReason(SnapshotReason.LOOKING_AWAY)
             }
-
             else -> false
         }
 
@@ -74,57 +57,65 @@ class FrontCameraSnapshotManager(
                 else -> SnapshotReason.PERIODIC_CHECK
             }
 
-            captureSnapshot(imageProxy, reason)
+            // ✅ نسخ البيانات فوراً قبل إغلاق ImageProxy
+            val imageData = copyImageProxyData(imageProxy)
+            imageProxy.close() // إغلاق فوري
+
+            // معالجة في background
+            scope.launch {
+                captureSnapshot(imageData, reason)
+            }
         } else {
             imageProxy.close()
         }
     }
 
     /**
-     * التقاط snapshot يدوياً
+     * ✅ نسخ بيانات ImageProxy قبل إغلاقه
      */
-    fun captureManualSnapshot(imageProxy: ImageProxy) {
-        if (!sessionManager.canCaptureMoreSnapshots()) {
-            Log.w(TAG, "⚠️ Max snapshots reached")
-            imageProxy.close()
-            return
-        }
+    private fun copyImageProxyData(imageProxy: ImageProxy): ImageData {
+        return try {
+            val yPlane = imageProxy.planes[0]
+            val uPlane = imageProxy.planes[1]
+            val vPlane = imageProxy.planes[2]
 
-        captureSnapshot(imageProxy, SnapshotReason.MANUAL_CAPTURE)
+            ImageData(
+                width = imageProxy.width,
+                height = imageProxy.height,
+                format = imageProxy.format,
+                rotationDegrees = imageProxy.imageInfo.rotationDegrees,
+                yData = copyBuffer(yPlane.buffer),
+                uData = copyBuffer(uPlane.buffer),
+                vData = copyBuffer(vPlane.buffer),
+                yRowStride = yPlane.rowStride,
+                uRowStride = uPlane.rowStride,
+                vRowStride = vPlane.rowStride,
+                yPixelStride = yPlane.pixelStride,
+                uPixelStride = uPlane.pixelStride,
+                vPixelStride = vPlane.pixelStride
+            )
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to copy ImageProxy data", e)
+            throw e
+        }
     }
 
-    /**
-     * التقاط snapshot دوري
-     */
-    fun capturePeriodicSnapshot(imageProxy: ImageProxy) {
-        if (!sessionManager.canCaptureMoreSnapshots()) {
-            imageProxy.close()
-            return
-        }
-
-        if (shouldCaptureForReason(SnapshotReason.PERIODIC_CHECK)) {
-            captureSnapshot(imageProxy, SnapshotReason.PERIODIC_CHECK)
-        } else {
-            imageProxy.close()
-        }
+    private fun copyBuffer(buffer: java.nio.ByteBuffer): ByteArray {
+        val data = ByteArray(buffer.remaining())
+        buffer.get(data)
+        buffer.rewind()
+        return data
     }
 
-    /**
-     * التقاط snapshot
-     */
-    private fun captureSnapshot(imageProxy: ImageProxy, reason: SnapshotReason) {
+    private suspend fun captureSnapshot(imageData: ImageData, reason: SnapshotReason) {
         try {
             Log.d(TAG, "📸 Capturing snapshot for: ${reason.name}")
 
-            val success = sessionManager.saveSnapshot(imageProxy, reason)
+            val success = sessionManager.saveSnapshot(imageData, reason)
 
             if (success) {
-                // تحديث وقت آخر snapshot
                 lastSnapshotTime[reason] = System.currentTimeMillis()
-
-                // تحديث الإحصائيات
                 updateStats(reason, success = true)
-
                 Log.d(TAG, "✅ Snapshot captured successfully: ${reason.name}")
             } else {
                 updateStats(reason, success = false)
@@ -134,30 +125,53 @@ class FrontCameraSnapshotManager(
         } catch (e: Exception) {
             Log.e(TAG, "❌ Error capturing snapshot", e)
             updateStats(reason, success = false)
-        } finally {
+        }
+    }
+
+    fun captureManualSnapshot(imageProxy: ImageProxy) {
+        if (!sessionManager.canCaptureMoreSnapshots()) {
+            Log.w(TAG, "⚠️ Max snapshots reached")
+            imageProxy.close()
+            return
+        }
+
+        val imageData = copyImageProxyData(imageProxy)
+        imageProxy.close()
+
+        scope.launch {
+            captureSnapshot(imageData, SnapshotReason.MANUAL_CAPTURE)
+        }
+    }
+
+    fun capturePeriodicSnapshot(imageProxy: ImageProxy) {
+        if (!sessionManager.canCaptureMoreSnapshots()) {
+            imageProxy.close()
+            return
+        }
+
+        if (shouldCaptureForReason(SnapshotReason.PERIODIC_CHECK)) {
+            val imageData = copyImageProxyData(imageProxy)
+            imageProxy.close()
+
+            scope.launch {
+                captureSnapshot(imageData, SnapshotReason.PERIODIC_CHECK)
+            }
+        } else {
             imageProxy.close()
         }
     }
 
-    /**
-     * فحص إمكانية الالتقاط لسبب معين
-     */
     private fun shouldCaptureForReason(reason: SnapshotReason): Boolean {
-        // Multiple faces دائماً يتم التقاطها (أولوية عالية)
         if (reason == SnapshotReason.MULTIPLE_FACES) {
             return true
         }
 
-        // التحقق من الوقت المنقضي منذ آخر snapshot من نفس النوع
         val lastTime = lastSnapshotTime[reason] ?: 0L
         val timeSinceLastSnapshot = System.currentTimeMillis() - lastTime
 
         return timeSinceLastSnapshot >= MIN_SNAPSHOT_INTERVAL
     }
 
-    /**
-     * تحديث الإحصائيات
-     */
     private fun updateStats(reason: SnapshotReason, success: Boolean) {
         val current = _snapshotStats.value
 
@@ -190,32 +204,39 @@ class FrontCameraSnapshotManager(
         }
     }
 
-    /**
-     * الحصول على عدد الـ snapshots المتبقية
-     */
     fun getRemainingSnapshotsCount(): Int {
         return sessionManager.getRemainingSnapshotsCount()
     }
 
-    /**
-     * إعادة تعيين الإحصائيات
-     */
     fun resetStats() {
         _snapshotStats.value = SnapshotStats()
         lastSnapshotTime.clear()
     }
 
-    /**
-     * تنظيف الموارد
-     */
     fun cleanup() {
         resetStats()
     }
 }
 
 /**
- * إحصائيات الـ Snapshots
+ * ✅ بيانات منسوخة من ImageProxy
  */
+data class ImageData(
+    val width: Int,
+    val height: Int,
+    val format: Int,
+    val rotationDegrees: Int,
+    val yData: ByteArray,
+    val uData: ByteArray,
+    val vData: ByteArray,
+    val yRowStride: Int,
+    val uRowStride: Int,
+    val vRowStride: Int,
+    val yPixelStride: Int,
+    val uPixelStride: Int,
+    val vPixelStride: Int
+)
+
 data class SnapshotStats(
     val noFaceSnapshots: Int = 0,
     val multipleFacesSnapshots: Int = 0,
