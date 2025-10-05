@@ -171,20 +171,25 @@ class ExamActivity : ComponentActivity() {
             if (shouldAutoSubmit) {
                 val lastViolation = violations.lastOrNull()
 
-                if (lastViolation?.severity == Severity.CRITICAL) {
-                    overlayViolationType = lastViolation.type
-                    showOverlayDialog = true
-                } else {
-                    val message = when (lastViolation?.type) {
-                        "OVERLAY_DETECTED" -> "تم إنهاء الاختبار: تم اكتشاف نافذة منبثقة"
-                        "MULTI_WINDOW_DETECTED" -> "تم إنهاء الاختبار: تم اكتشاف وضع النوافذ المتعددة"
-                        "EXTERNAL_DISPLAY_CONNECTED" -> "تم إنهاء الاختبار: تم اكتشاف شاشة خارجية"
-                        "MULTIPLE_FACES_DETECTED" -> "تم إنهاء الاختبار: تم اكتشاف أكثر من شخص"
-                        "NO_FACE_DETECTED_LONG" -> "تم إنهاء الاختبار: عدم ظهور الوجه لفترة طويلة"
-                        else -> "تم إنهاء الاختبار تلقائياً"
+                Log.d("ExamActivity", "Auto-submit triggered. Last violation: ${lastViolation?.type}, Severity: ${lastViolation?.severity}")
+
+                when {
+                    lastViolation?.severity == Severity.CRITICAL -> {
+                        overlayViolationType = lastViolation.type
+                        showOverlayDialog = true
                     }
-                    Toast.makeText(this@ExamActivity, message, Toast.LENGTH_LONG).show()
-                    finishExam()
+                    else -> {
+                        val message = when (lastViolation?.type) {
+                            "OVERLAY_DETECTED" -> "تم إنهاء الاختبار: تم اكتشاف نافذة منبثقة"
+                            "MULTI_WINDOW_DETECTED" -> "تم إنهاء الاختبار: تم اكتشاف وضع النوافذ المتعددة"
+                            "EXTERNAL_DISPLAY_CONNECTED" -> "تم إنهاء الاختبار: تم اكتشاف شاشة خارجية"
+                            "MULTIPLE_FACES_DETECTED" -> "تم إنهاء الاختبار: تم اكتشاف أكثر من شخص"
+                            "NO_FACE_DETECTED_LONG" -> "تم إنهاء الاختبار: عدم ظهور الوجه لفترة طويلة"
+                            else -> "تم إنهاء الاختبار تلقائياً"
+                        }
+                        Toast.makeText(this@ExamActivity, message, Toast.LENGTH_LONG).show()
+                        finishExam()
+                    }
                 }
             }
         }
