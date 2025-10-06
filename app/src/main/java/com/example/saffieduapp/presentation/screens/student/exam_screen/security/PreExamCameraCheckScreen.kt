@@ -14,7 +14,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -26,8 +25,8 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import kotlinx.coroutines.delay
 
 /**
- * شاشة فحص الكاميرا قبل بدء الاختبار
- * ✅ مصححة بالكامل: تعمل مع ViewModel الموجود
+ * شاشة فحص الكاميرا قبل بدء الاختبار - محسّنة
+ * التحسينات: عرض تفصيلي للحالة + شريط تقدم + رسائل واضحة
  */
 @Composable
 fun PreExamCameraCheckScreen(
@@ -43,6 +42,10 @@ fun PreExamCameraCheckScreen(
     var initState by remember { mutableStateOf<InitState>(InitState.Idle) }
     var cameraAvailability by remember { mutableStateOf<CameraAvailability?>(null) }
 
+    // التحسينات الجديدة
+    var lastMessage by remember { mutableStateOf("في انتظار التحقق...") }
+    var totalChecks by remember { mutableStateOf(0) }
+
     // تهيئة الكاميرا
     LaunchedEffect(Unit) {
         initState = InitState.Initializing
@@ -56,8 +59,10 @@ fun PreExamCameraCheckScreen(
             if (availability.hasFrontCamera) {
                 initState = InitState.Success
                 showPreview = true
+                Log.d("CameraCheck", "Camera initialized successfully")
             } else {
                 initState = InitState.Error("الكاميرا الأمامية غير متوفرة")
+                Log.e("CameraCheck", "Front camera not available")
             }
         } catch (e: Exception) {
             initState = InitState.Error(e.message ?: "خطأ في تهيئة الكاميرا")
@@ -65,14 +70,41 @@ fun PreExamCameraCheckScreen(
         }
     }
 
-    // مراقبة نتائج الكشف
-    LaunchedEffect(lastDetectionResult) {
+    // إضافة عداد timestamp لتتبع التحديثات
+    var lastUpdateTime by remember { mutableStateOf(0L) }
+
+    // مراقبة نتائج الكشف مع timestamp
+    LaunchedEffect(lastDetectionResult, lastUpdateTime) {
+        if (lastDetectionResult == null) return@LaunchedEffect
+
+        val result = lastDetectionResult ?: return@LaunchedEffect
+        val currentTime = System.currentTimeMillis()
+
+        // تحديث timestamp لإجبار LaunchedEffect على التشغيل
+        if (result is FaceDetectionResult.ValidFace) {
+            delay(100)
+            lastUpdateTime = currentTime
+        }
+
         lastDetectionResult?.let { result ->
+            // تجنب العد المتكرر لنفس النتيجة
+            if (result != lastDetectionResult) return@let
+
+            totalChecks++
+            Log.d("CameraCheck", "🔍 Check #$totalChecks - Result: $result")
+
             when (result) {
                 is FaceDetectionResult.ValidFace -> {
                     validFaceDetectedCount++
+                    lastMessage = "وجه صحيح ($validFaceDetectedCount/3)"
+                    Log.d("CameraCheck", "Valid face $validFaceDetectedCount/3")
+
                     if (validFaceDetectedCount >= 3) {
                         faceCheckStatus = FaceCheckStatus.Passed
+                        lastMessage = "تم التحقق بنجاح"
+                        Log.d("CameraCheck", "CHECK PASSED - Proceeding to exam")
+                        delay(800)
+                        onCheckPassed()
                     } else {
                         faceCheckStatus = FaceCheckStatus.Checking
                     }
@@ -80,20 +112,29 @@ fun PreExamCameraCheckScreen(
 
                 is FaceDetectionResult.NoFace -> {
                     validFaceDetectedCount = 0
+                    lastMessage = "لم يتم اكتشاف وجه"
+                    Log.w("CameraCheck", "No face detected - counter reset")
                     faceCheckStatus = FaceCheckStatus.Failed("لم يتم اكتشاف وجه - الرجاء التأكد من ظهور وجهك بوضوح")
                 }
 
                 is FaceDetectionResult.MultipleFaces -> {
                     validFaceDetectedCount = 0
+                    lastMessage = "أكثر من وجه (${result.count})"
+                    Log.w("CameraCheck", "Multiple faces: ${result.count} - counter reset")
                     faceCheckStatus = FaceCheckStatus.Failed("تم اكتشاف أكثر من وجه - يجب أن تكون وحيداً")
                 }
 
                 is FaceDetectionResult.LookingAway -> {
                     validFaceDetectedCount = 0
+                    lastMessage = "انظر للكاميرا مباشرة"
+                    Log.w("CameraCheck", "Looking away: ${result.angle}° - counter reset")
                     faceCheckStatus = FaceCheckStatus.Failed("الرجاء النظر مباشرة للكاميرا")
                 }
 
-                else -> Unit
+                else -> {
+                    lastMessage = "خطأ في الكشف"
+                    Log.e("CameraCheck", "Detection error")
+                }
             }
         }
     }
@@ -104,7 +145,6 @@ fun PreExamCameraCheckScreen(
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
     ) {
-        // جعل الشاشة قابلة للتمرير
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -112,7 +152,6 @@ fun PreExamCameraCheckScreen(
                 .padding(horizontal = 24.dp, vertical = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // العنوان
             Text(
                 text = "فحص الكاميرا",
                 style = MaterialTheme.typography.headlineSmall,
@@ -132,18 +171,27 @@ fun PreExamCameraCheckScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // عرض معاينة الكاميرا
+            // معاينة الكاميرا
             if (showPreview) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .aspectRatio(3f / 4f) // يجعل العرض متناسبًا على مختلف الأجهزة
+                        .aspectRatio(3f / 4f)
                 ) {
                     CameraPreviewCard(viewModel)
                 }
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // بطاقة التقدم - جديد
+            ProgressCard(
+                lastMessage = lastMessage,
+                validCount = validFaceDetectedCount,
+                totalChecks = totalChecks
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
 
             // حالة التهيئة
             when (val state = initState) {
@@ -211,17 +259,64 @@ fun PreExamCameraCheckScreen(
     }
 }
 
+/**
+ * بطاقة عرض التقدم - جديد
+ */
+@Composable
+private fun ProgressCard(
+    lastMessage: String,
+    validCount: Int,
+    totalChecks: Int
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.secondaryContainer
+        )
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = lastMessage,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center,
+                color = MaterialTheme.colorScheme.onSecondaryContainer
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            LinearProgressIndicator(
+                progress = { validCount / 3f },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(8.dp),
+                color = if (validCount >= 3) Color(0xFF4CAF50) else MaterialTheme.colorScheme.primary,
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = "إجمالي المحاولات: $totalChecks",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
 @Composable
 private fun CameraPreviewCard(viewModel: CameraMonitorViewModel) {
     val lifecycleOwner = LocalLifecycleOwner.current
     var previewView by remember { mutableStateOf<PreviewView?>(null) }
     var isMonitoringStarted by remember { mutableStateOf(false) }
 
-    // بدء المعاينة
     LaunchedEffect(previewView) {
         if (previewView != null && !isMonitoringStarted) {
             Log.d("CameraPreview", "Starting camera monitoring...")
-            delay(500) // انتظار قصير
+            delay(500)
 
             previewView?.let { preview ->
                 try {
@@ -230,9 +325,9 @@ private fun CameraPreviewCard(viewModel: CameraMonitorViewModel) {
                         frontPreviewView = preview
                     )
                     isMonitoringStarted = true
-                    Log.d("CameraPreview", "✅ Camera monitoring started")
+                    Log.d("CameraPreview", "Camera monitoring started")
                 } catch (e: Exception) {
-                    Log.e("CameraPreview", "❌ Failed to start monitoring", e)
+                    Log.e("CameraPreview", "Failed to start monitoring", e)
                 }
             }
         }
@@ -240,7 +335,7 @@ private fun CameraPreviewCard(viewModel: CameraMonitorViewModel) {
 
     DisposableEffect(Unit) {
         onDispose {
-            Log.d("CameraPreview", "Preview screen disposed - monitoring continues in background")
+            Log.d("CameraPreview", "Preview disposed")
         }
     }
 
@@ -265,7 +360,6 @@ private fun CameraPreviewCard(viewModel: CameraMonitorViewModel) {
                 modifier = Modifier.fillMaxSize()
             )
 
-            // مؤشر التحميل
             if (!isMonitoringStarted) {
                 CircularProgressIndicator(
                     modifier = Modifier.align(Alignment.Center),
@@ -428,9 +522,6 @@ private fun ControlButtons(
     }
 }
 
-/**
- * حالة التهيئة المحلية
- */
 sealed class InitState {
     object Idle : InitState()
     object Initializing : InitState()
@@ -438,9 +529,6 @@ sealed class InitState {
     data class Error(val message: String) : InitState()
 }
 
-/**
- * حالة فحص الوجه
- */
 sealed class FaceCheckStatus {
     object Checking : FaceCheckStatus()
     object Passed : FaceCheckStatus()
