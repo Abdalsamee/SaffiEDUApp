@@ -9,6 +9,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.saffieduapp.presentation.screens.student.components.CommonTopAppBar
+import com.example.saffieduapp.presentation.screens.teacher.add_question.QuestionData
 import com.example.saffieduapp.presentation.screens.teacher.components.AppButton
 import com.example.saffieduapp.presentation.screens.teacher.quiz_summary.components.QuestionSummaryItem
 import com.example.saffieduapp.ui.theme.SaffiEDUAppTheme
@@ -18,7 +19,8 @@ import com.example.saffieduapp.ui.theme.SaffiEDUAppTheme
 @Composable
 fun QuizSummaryScreen(
     onNavigateUp: () -> Unit,
-    onPublish:() ->Unit
+    onPublish:() ->Unit,
+    questions: List<QuestionData>, // استقبال الأسئلة
     // TODO: Add ViewModel
 ) {
     var showDeleteConfirmationDialog by remember { mutableStateOf(false) }
@@ -65,14 +67,15 @@ fun QuizSummaryScreen(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                items(listOf("السؤال الأوdfdfdfdffdxdwcل", "dfdfdfdffdfالسؤال الثاني", "dfvffvgالسؤال الثالث")) { question ->
+                items(questions) { question -> // ← استبدال القائمة الوهمية
                     QuestionSummaryItem(
-                        questionText = question,
+                        questionText = question.text,
                         onEditClick = { /* TODO: Navigate to edit question */ },
                         onDeleteClick = { showDeleteConfirmationDialog = true }
                     )
                 }
             }
+
 
             AppButton(
                 text = "نشر الاختبار",

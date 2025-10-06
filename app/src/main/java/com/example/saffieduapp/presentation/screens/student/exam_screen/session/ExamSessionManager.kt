@@ -123,7 +123,10 @@ class ExamSessionManager(
         imageData: ImageData,
         reason: SnapshotReason
     ): Boolean {
-        val session = currentSession ?: return false
+        val session = currentSession ?: run {
+            Log.e(TAG, "No active session")
+            return false
+        }
 
         // فحص الحد الأقصى
         if (session.snapshots.size >= ExamSession.MAX_SNAPSHOTS) {
@@ -131,59 +134,86 @@ class ExamSessionManager(
             return false
         }
 
-        // حفظ الصورة
-        val snapshot = mediaStorage.saveSnapshot(imageData, session.sessionId, reason)
+        return try {
+            // تحويل ImageData إلى JPEG
+            val jpegBytes = convertToJpeg(imageData)
 
-        if (snapshot != null) {
-            session.addSnapshot(snapshot)
+            if (jpegBytes == null) {
+                Log.e(TAG, "Failed to convert image to JPEG")
+                return false
+            }
 
-            logSecurityEvent(
-                SecurityEventType.SNAPSHOT_CAPTURED,
-                "Snapshot captured: ${reason.name}, Total: ${session.snapshots.size}"
-            )
+            // حفظ الصورة باستخدام MediaStorage
+            val snapshot = mediaStorage.saveSnapshot(imageData, session.sessionId, reason)
 
-            saveSession()
-            _sessionState.value = session
+            if (snapshot != null) {
+                session.addSnapshot(snapshot)
 
-            Log.d(TAG, "✅ Snapshot saved: ${snapshot.id}, Reason: ${reason.name}")
-            return true
+                logSecurityEvent(
+                    SecurityEventType.SNAPSHOT_CAPTURED,
+                    "Snapshot captured: ${reason.name}, Total: ${session.snapshots.size}"
+                )
+
+                saveSession()
+                _sessionState.value = session
+
+                Log.d(TAG, "✅ Snapshot saved: ${snapshot.id}, Reason: ${reason.name}")
+                return true
+            }
+
+            false
+
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Error saving snapshot", e)
+            false
         }
-
-        return false
     }
 
     /**
-     * حفظ فيديو الكاميرا الخلفية
+     * تحويل ImageData إلى JPEG
      */
-    fun saveBackCameraVideo(videoFile: File): Boolean {
-        val session = currentSession ?: return false
-
-        // التأكد من عدم وجود فيديو مسبقاً
-        if (session.backCameraVideo != null) {
-            Log.w(TAG, "⚠️ Back camera video already exists")
-            return false
-        }
-
-        // حفظ الفيديو
-        val video = mediaStorage.saveVideo(videoFile, session.sessionId)
-
-        if (video != null) {
-            // تحديث الجلسة
-            currentSession = session.copy(backCameraVideo = video)
-
-            logSecurityEvent(
-                SecurityEventType.VIDEO_RECORDED,
-                "Back camera video recorded, Duration: ${video.duration}ms"
+    private fun convertToJpeg(imageData: ImageData): ByteArray? {
+        return try {
+            val yuvImage = android.graphics.YuvImage(
+                combineYuvPlanes(imageData),
+                android.graphics.ImageFormat.NV21,
+                imageData.width,
+                imageData.height,
+                null
             )
 
-            saveSession()
-            _sessionState.value = currentSession
+            val outputStream = java.io.ByteArrayOutputStream()
+            yuvImage.compressToJpeg(
+                android.graphics.Rect(0, 0, imageData.width, imageData.height),
+                85, // جودة 85%
+                outputStream
+            )
 
-            Log.d(TAG, "✅ Back camera video saved: ${video.id}")
-            return true
+            outputStream.toByteArray()
+        } catch (e: Exception) {
+            Log.e(TAG, "Error converting to JPEG", e)
+            null
         }
+    }
 
-        return false
+    /**
+     * دمج YUV planes إلى NV21 format
+     */
+    private fun combineYuvPlanes(imageData: ImageData): ByteArray {
+        val ySize = imageData.yData.size
+        val uvSize = imageData.uData.size + imageData.vData.size
+
+        return ByteArray(ySize + uvSize).apply {
+            // نسخ Y plane
+            System.arraycopy(imageData.yData, 0, this, 0, ySize)
+
+            // Interleave U and V planes (NV21 format)
+            var index = ySize
+            for (i in imageData.uData.indices) {
+                this[index++] = imageData.vData[i]  // V أولاً في NV21
+                this[index++] = imageData.uData[i]  // ثم U
+            }
+        }
     }
 
     /**

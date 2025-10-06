@@ -127,5 +127,8 @@ class AddQuestionViewModel @Inject constructor() : ViewModel() {
             }
         }
     }
+    fun getCreatedQuestions(): List<QuestionData> {
+        return _state.value.createdQuestions
+    }
 
 }
