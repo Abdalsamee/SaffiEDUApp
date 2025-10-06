@@ -20,6 +20,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.camera.view.PreviewView
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import kotlinx.coroutines.delay
 
@@ -33,7 +35,6 @@ fun PreExamCameraCheckScreen(
     onCheckPassed: () -> Unit,
     onCheckFailed: (String) -> Unit
 ) {
-    // ✅ استخدام الـ properties الموجودة فعلياً
     val lastDetectionResult by viewModel.lastDetectionResult.collectAsState(initial = null)
 
     var faceCheckStatus by remember { mutableStateOf<FaceCheckStatus>(FaceCheckStatus.Checking) }
@@ -47,9 +48,8 @@ fun PreExamCameraCheckScreen(
         initState = InitState.Initializing
         try {
             viewModel.initializeCamera()
-            delay(1500) // انتظار للتهيئة
+            delay(1500)
 
-            // فحص توفر الكاميرات
             val availability = viewModel.getCameraMonitor().checkCameraAvailability()
             cameraAvailability = availability
 
@@ -65,16 +65,12 @@ fun PreExamCameraCheckScreen(
         }
     }
 
-    // مراقبة نتائج Face Detection
+    // مراقبة نتائج الكشف
     LaunchedEffect(lastDetectionResult) {
         lastDetectionResult?.let { result ->
-            Log.d("CameraCheck", "Detection Result: $result")
-
             when (result) {
                 is FaceDetectionResult.ValidFace -> {
                     validFaceDetectedCount++
-                    Log.d("CameraCheck", "Valid face count: $validFaceDetectedCount")
-
                     if (validFaceDetectedCount >= 3) {
                         faceCheckStatus = FaceCheckStatus.Passed
                     } else {
@@ -97,28 +93,29 @@ fun PreExamCameraCheckScreen(
                     faceCheckStatus = FaceCheckStatus.Failed("الرجاء النظر مباشرة للكاميرا")
                 }
 
-                is FaceDetectionResult.Error -> {
-                    // لا تغير الحالة عند الخطأ
-                }
+                else -> Unit
             }
         }
     }
 
+    // واجهة المستخدم
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
     ) {
+        // جعل الشاشة قابلة للتمرير
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(24.dp),
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 24.dp, vertical = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             // العنوان
             Text(
                 text = "فحص الكاميرا",
-                style = MaterialTheme.typography.headlineMedium,
+                style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary
             )
@@ -126,17 +123,24 @@ fun PreExamCameraCheckScreen(
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                text = "يرجى التأكد من أن وجهك مرئي بوضوح",
+                text = "يرجى التأكد من أن وجهك مرئي بوضوح أمام الكاميرا",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth(0.9f)
             )
 
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
-            // معاينة الكاميرا
+            // عرض معاينة الكاميرا
             if (showPreview) {
-                CameraPreviewCard(viewModel)
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .aspectRatio(3f / 4f) // يجعل العرض متناسبًا على مختلف الأجهزة
+                ) {
+                    CameraPreviewCard(viewModel)
+                }
             }
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -175,13 +179,12 @@ fun PreExamCameraCheckScreen(
                         color = MaterialTheme.colorScheme.error
                     )
 
-                    // ✅ عرض معلومات الكاميرا إذا كانت متوفرة
-                    cameraAvailability?.let { availability ->
+                    cameraAvailability?.let {
                         Text(
-                            text = "حالة الكاميرا: Front=${availability.hasFrontCamera}, Back=${availability.hasBackCamera}",
+                            text = "Front=${it.hasFrontCamera}, Back=${it.hasBackCamera}",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(top = 8.dp)
+                            modifier = Modifier.padding(top = 4.dp)
                         )
                     }
                 }
@@ -189,19 +192,16 @@ fun PreExamCameraCheckScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // حالة توفر الكاميرات
-            cameraAvailability?.let { availability ->
-                CameraAvailabilityCard(availability)
+            cameraAvailability?.let {
+                CameraAvailabilityCard(it)
             }
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // حالة كشف الوجه
             FaceCheckStatusCard(faceCheckStatus)
 
-            Spacer(modifier = Modifier.weight(1f))
+            Spacer(modifier = Modifier.height(32.dp))
 
-            // أزرار التحكم
             ControlButtons(
                 canProceed = initState is InitState.Success && faceCheckStatus is FaceCheckStatus.Passed,
                 onProceed = onCheckPassed,
