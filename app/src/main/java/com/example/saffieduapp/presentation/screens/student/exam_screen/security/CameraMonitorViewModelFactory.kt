@@ -5,13 +5,15 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 
 /**
- * Factory لإنشاء CameraMonitorViewModel
+ * مصنع ViewModel للكاميرا
+ * ✅ محدّث: دعم تحميل جلسة موجودة
  */
 class CameraMonitorViewModelFactory(
     private val application: Application,
     private val onViolationDetected: (String) -> Unit,
-    private val examId: String? = null,
-    private val studentId: String? = null
+    private val examId: String,
+    private val studentId: String,
+    private val existingSessionId: String? = null // ✅ جديد: معرف جلسة موجودة
 ) : ViewModelProvider.Factory {
 
     @Suppress("UNCHECKED_CAST")
@@ -20,10 +22,11 @@ class CameraMonitorViewModelFactory(
             return CameraMonitorViewModel(
                 application = application,
                 onViolationDetected = onViolationDetected,
-                examId = examId.toString(),
-                studentId = studentId.toString()
+                examId = examId,
+                studentId = studentId,
+                existingSessionId = existingSessionId // ✅ تمرير الجلسة الموجودة
             ) as T
         }
-        throw IllegalArgumentException("Unknown ViewModel class")
+        throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
     }
 }
