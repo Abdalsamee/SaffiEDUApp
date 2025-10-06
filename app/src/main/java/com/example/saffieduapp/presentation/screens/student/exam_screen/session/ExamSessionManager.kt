@@ -12,6 +12,7 @@ import javax.crypto.SecretKey
 
 /**
  * مدير جلسة الاختبار - يدير البيانات والوسائط
+ * ✅ محدّث: يدعم حفظ الصور من ImageData
  */
 class ExamSessionManager(
     private val context: Context,
@@ -167,7 +168,7 @@ class ExamSessionManager(
         val video = mediaStorage.saveVideo(videoFile, session.sessionId)
 
         if (video != null) {
-            // تحديث الجلسة (نحتاج لإنشاء نسخة جديدة لأن backCameraVideo هو val)
+            // تحديث الجلسة
             currentSession = session.copy(backCameraVideo = video)
 
             logSecurityEvent(
@@ -283,13 +284,11 @@ class ExamSessionManager(
      */
     fun deleteSession(sessionId: String) {
         try {
-            // حذف ملف الجلسة
             val sessionFile = getSessionFile(sessionId)
             if (sessionFile.exists()) {
                 sessionFile.delete()
             }
 
-            // حذف جميع الوسائط
             mediaStorage.deleteSessionFiles(sessionId)
 
             Log.d(TAG, "✅ Session deleted: $sessionId")

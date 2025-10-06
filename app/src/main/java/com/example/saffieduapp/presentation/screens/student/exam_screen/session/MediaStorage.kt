@@ -14,6 +14,10 @@ import java.io.FileOutputStream
 import java.util.UUID
 import javax.crypto.SecretKey
 
+/**
+ * مدير حفظ الوسائط - حفظ وضغط وتشفير
+ * ✅ محدّث: يدعم حفظ الصور من ImageData
+ */
 class MediaStorage(
     private val context: Context,
     private val encryptionKey: SecretKey
@@ -140,6 +144,9 @@ class MediaStorage(
         }
     }
 
+    /**
+     * حفظ وتشفير صورة
+     */
     private fun saveAndEncryptImage(
         bitmap: Bitmap,
         sessionId: String,
@@ -186,6 +193,9 @@ class MediaStorage(
         }
     }
 
+    /**
+     * حفظ فيديو من ملف
+     */
     fun saveVideo(
         videoFile: File,
         sessionId: String
@@ -210,6 +220,9 @@ class MediaStorage(
         }
     }
 
+    /**
+     * تشفير ملف فيديو
+     */
     private fun encryptVideoFile(
         videoFile: File,
         sessionId: String,
@@ -237,6 +250,9 @@ class MediaStorage(
         }
     }
 
+    /**
+     * ضغط الصورة
+     */
     private fun compressBitmap(bitmap: Bitmap): Bitmap {
         val width = bitmap.width
         val height = bitmap.height
@@ -256,6 +272,9 @@ class MediaStorage(
         return Bitmap.createScaledBitmap(bitmap, newWidth, newHeight, true)
     }
 
+    /**
+     * تدوير الصورة
+     */
     private fun rotateBitmap(bitmap: Bitmap, degrees: Float): Bitmap {
         val matrix = Matrix().apply {
             postRotate(degrees)
@@ -263,11 +282,27 @@ class MediaStorage(
         return Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
     }
 
+    /**
+     * الحصول على مدة الفيديو
+     */
     private fun getVideoDuration(videoFile: File): Long {
-        // TODO: استخدام MediaMetadataRetriever
-        return 0L
+        return try {
+            val retriever = android.media.MediaMetadataRetriever()
+            retriever.setDataSource(videoFile.absolutePath)
+            val duration = retriever.extractMetadata(
+                android.media.MediaMetadataRetriever.METADATA_KEY_DURATION
+            )?.toLongOrNull() ?: 0L
+            retriever.release()
+            duration
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to get video duration", e)
+            0L
+        }
     }
 
+    /**
+     * فك تشفير صورة
+     */
     fun decryptImage(encryptedFile: File): Bitmap? {
         val tempFile = File(context.cacheDir, "temp_decrypt_${UUID.randomUUID()}.jpg")
 
@@ -293,6 +328,9 @@ class MediaStorage(
         }
     }
 
+    /**
+     * حذف ملفات الجلسة
+     */
     fun deleteSessionFiles(sessionId: String) {
         try {
             val mediaDir = getMediaDir(sessionId)
@@ -311,6 +349,20 @@ class MediaStorage(
         }
     }
 
+    /**
+     * الحصول على حجم ملفات الجلسة
+     */
+    fun getSessionFilesSize(sessionId: String): Long {
+        val mediaDir = getMediaDir(sessionId)
+        return mediaDir.walkTopDown()
+            .filter { it.isFile }
+            .map { it.length() }
+            .sum()
+    }
+
+    /**
+     * الحصول على مجلد الوسائط
+     */
     private fun getMediaDir(sessionId: String): File {
         val dir = File(context.filesDir, "exam_sessions/$sessionId/media")
         if (!dir.exists()) {
@@ -319,19 +371,14 @@ class MediaStorage(
         return dir
     }
 
+    /**
+     * الحصول على مجلد المؤقت
+     */
     private fun getTempDir(sessionId: String): File {
         val dir = File(context.cacheDir, "exam_temp/$sessionId")
         if (!dir.exists()) {
             dir.mkdirs()
         }
         return dir
-    }
-
-    fun getSessionFilesSize(sessionId: String): Long {
-        val mediaDir = getMediaDir(sessionId)
-        return mediaDir.walkTopDown()
-            .filter { it.isFile }
-            .map { it.length() }
-            .sum()
     }
 }

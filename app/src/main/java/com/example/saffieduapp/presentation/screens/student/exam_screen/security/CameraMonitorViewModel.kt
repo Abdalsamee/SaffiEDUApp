@@ -1,103 +1,127 @@
 package com.example.saffieduapp.presentation.screens.student.exam_screen.security
 
 import android.app.Application
+import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.saffieduapp.presentation.screens.student.exam_screen.session.ExamSessionManager
-import kotlinx.coroutines.flow.MutableStateFlow
+import com.example.saffieduapp.presentation.screens.student.exam_screen.session.SessionStats
+import com.example.saffieduapp.presentation.screens.student.exam_screen.session.SnapshotStats
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 /**
- * ViewModel لإدارة مراقبة الكاميرا
- * ✅ متوافق مع الكود الأصلي + دعم اختياري للجلسات
+ * ViewModel لإدارة الكاميرا والمراقبة
+ * ✅ محدّث: دعم تحميل جلسة موجودة من RoomScanActivity
  */
 class CameraMonitorViewModel(
     application: Application,
     private val onViolationDetected: (String) -> Unit,
-    // ✅ Parameters اختيارية للجلسات
-    private val examId: String? = null,
-    private val studentId: String? = null
+    examId: String,
+    studentId: String,
+    existingSessionId: String? = null // ✅ جديد: معرف جلسة موجودة
 ) : AndroidViewModel(application) {
 
-    // ✅ ExamSessionManager اختياري
-    private val sessionManager: ExamSessionManager? = if (!examId.isNullOrEmpty() && !studentId.isNullOrEmpty()) {
-        ExamSessionManager(
-            context = application.applicationContext,
-            examId = examId,
-            studentId = studentId
-        )
-    } else {
-        null
-    }
+    private val TAG = "CameraMonitorVM"
+    private val context = application.applicationContext
 
-    // CameraMonitor مع SessionManager اختياري
-    private val cameraMonitor = CameraMonitor(
-        context = application.applicationContext,
-        onViolationDetected = onViolationDetected,
-        sessionManager = sessionManager!!
+    // ✅ ExamSessionManager
+    private val sessionManager = ExamSessionManager(
+        context = context,
+        examId = examId,
+        studentId = studentId
     )
 
-    private val _initializationState = MutableStateFlow<InitializationState>(InitializationState.Idle)
-    val initializationState: StateFlow<InitializationState> = _initializationState.asStateFlow()
+    // CameraMonitor
+    private val cameraMonitor = CameraMonitor(
+        context = context,
+        onViolationDetected = onViolationDetected,
+        sessionManager = sessionManager
+    )
 
-    private val _cameraAvailability = MutableStateFlow<CameraAvailability?>(null)
-    val cameraAvailability: StateFlow<CameraAvailability?> = _cameraAvailability.asStateFlow()
-
-    // ✅ الخصائص الأساسية من GitHub
-    val isInitialized = cameraMonitor.isInitialized
-    val isFrontCameraActive = cameraMonitor.isFrontCameraActive
-    val isBackCameraActive = cameraMonitor.isBackCameraActive
-    val monitoringState = cameraMonitor.getMonitoringState()
-    val lastDetectionResult = cameraMonitor.getLastDetectionResult() // ✅ هذا المطلوب
+    init {
+        // ✅ إذا كان هناك session موجود، حمّله
+        if (existingSessionId != null) {
+            viewModelScope.launch {
+                val session = sessionManager.loadSession(existingSessionId)
+                if (session != null) {
+                    Log.d(TAG, """
+                        ✅ Loaded existing session:
+                        ID: ${session.sessionId}
+                        Started: ${session.startTime}
+                        Snapshots: ${session.snapshots.size}
+                        Has Video: ${session.backCameraVideo != null}
+                        Status: ${session.status}
+                    """.trimIndent())
+                } else {
+                    Log.e(TAG, "❌ Failed to load session: $existingSessionId")
+                    // إنشاء جلسة جديدة كخطة احتياطية
+                    sessionManager.startSession()
+                }
+            }
+        }
+    }
 
     /**
      * تهيئة نظام الكاميرا
      */
     fun initializeCamera() {
-        if (_initializationState.value is InitializationState.Initializing) {
-            return
-        }
-
         viewModelScope.launch {
-            _initializationState.value = InitializationState.Initializing
-
             val result = cameraMonitor.initialize()
-
-            if (result.isFailure) {
-                _initializationState.value = InitializationState.Error(
-                    result.exceptionOrNull()?.message ?: "فشل في تهيئة الكاميرا"
-                )
-                return@launch
+            if (result.isSuccess) {
+                Log.d(TAG, "✅ Camera system initialized")
+            } else {
+                Log.e(TAG, "❌ Failed to initialize camera: ${result.exceptionOrNull()?.message}")
             }
-
-            val availability = cameraMonitor.checkCameraAvailability()
-            _cameraAvailability.value = availability
-
-            if (!availability.hasFrontCamera) {
-                _initializationState.value = InitializationState.Error("الكاميرا الأمامية غير متوفرة")
-                return@launch
-            }
-
-            _initializationState.value = InitializationState.Success
         }
     }
 
-    // ✅ دوال الجلسة (تعمل فقط إذا كان SessionManager موجوداً)
-    fun startExamSession() = sessionManager?.startSession()
-    fun endExamSession() = sessionManager?.endSession()
+    /**
+     * بدء جلسة اختبار جديدة
+     */
+    fun startExamSession() {
+        // ✅ فقط إذا لم تكن هناك جلسة موجودة
+        if (sessionManager.getCurrentSession() == null) {
+            sessionManager.startSession()
+            Log.d(TAG, "✅ New exam session started")
+        } else {
+            Log.d(TAG, "ℹ️ Session already exists, skipping startSession()")
+        }
+    }
+
+    /**
+     * إيقاف مؤقت للجلسة
+     */
     fun pauseExamSession() {
-        sessionManager?.pauseSession()
+        sessionManager.pauseSession()
         cameraMonitor.pauseMonitoring()
+        Log.d(TAG, "⏸️ Exam session paused")
     }
+
+    /**
+     * استئناف الجلسة
+     */
     fun resumeExamSession() {
-        sessionManager?.resumeSession()
+        sessionManager.resumeSession()
         cameraMonitor.resumeMonitoring()
+        Log.d(TAG, "▶️ Exam session resumed")
     }
-    fun terminateExamSession(reason: String) {
-        sessionManager?.terminateSession(reason)
+
+    /**
+     * إنهاء الجلسة
+     */
+    fun endExamSession() {
+        sessionManager.endSession()
         cameraMonitor.stopMonitoring()
+        Log.d(TAG, "⏹️ Exam session ended")
+    }
+
+    /**
+     * إيقاف المراقبة
+     */
+    fun stopMonitoring() {
+        cameraMonitor.stopMonitoring()
+        Log.d(TAG, "🛑 Monitoring stopped")
     }
 
     /**
@@ -106,58 +130,45 @@ class CameraMonitorViewModel(
     fun getCameraMonitor(): CameraMonitor = cameraMonitor
 
     /**
-     * الحصول على SessionManager (nullable)
+     * الحصول على حالة الجلسة
      */
-    fun getSessionManager(): ExamSessionManager? = sessionManager
+    fun getSessionState() = sessionManager.sessionState
 
     /**
-     * الحصول على حالة الجلسة (nullable)
+     * الحصول على إحصائيات الصور
      */
-    fun getSessionState() = sessionManager?.sessionState
+    fun getSnapshotStats(): StateFlow<SnapshotStats>? {
+        return cameraMonitor.getSnapshotStats()
+    }
 
     /**
-     * الحصول على إحصائيات الجلسة (nullable)
+     * الحصول على إحصائيات الجلسة
      */
-    fun getSessionStats() = sessionManager?.getSessionStats()
+    fun getSessionStats(): SessionStats? {
+        return sessionManager.getSessionStats()
+    }
 
     /**
-     * الحصول على إحصائيات الـ Snapshots (nullable)
+     * الحصول على حالة المراقبة
      */
-    fun getSnapshotStats() = cameraMonitor.getSnapshotStats()
+    fun getMonitoringState() = cameraMonitor.getMonitoringState()
 
     /**
-     * الحصول على إحصائيات المراقبة
+     * الحصول على آخر نتيجة كشف وجه
      */
-    fun getStats() = cameraMonitor.getMonitoringStats()
+    val lastDetectionResult = cameraMonitor.getLastDetectionResult()
 
     /**
-     * إيقاف المراقبة
+     * تنظيف الموارد
      */
-    fun stopMonitoring() = cameraMonitor.stopMonitoring()
-
-    /**
-     * إيقاف مؤقت
-     */
-    fun pauseMonitoring() = cameraMonitor.pauseMonitoring()
-
-    /**
-     * استئناف
-     */
-    fun resumeMonitoring() = cameraMonitor.resumeMonitoring()
+    fun cleanup() {
+        cameraMonitor.cleanup()
+        sessionManager.cleanup()
+        Log.d(TAG, "🧹 Resources cleaned up")
+    }
 
     override fun onCleared() {
         super.onCleared()
-        cameraMonitor.cleanup()
-        sessionManager?.cleanup()
+        cleanup()
     }
-}
-
-/**
- * حالة التهيئة
- */
-sealed class InitializationState {
-    object Idle : InitializationState()
-    object Initializing : InitializationState()
-    object Success : InitializationState()
-    data class Error(val message: String) : InitializationState()
 }

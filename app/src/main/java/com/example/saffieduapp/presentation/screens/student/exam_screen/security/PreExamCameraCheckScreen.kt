@@ -1,5 +1,6 @@
 package com.example.saffieduapp.presentation.screens.student.exam_screen.security
 
+import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -12,6 +13,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -22,6 +25,7 @@ import kotlinx.coroutines.delay
 
 /**
  * شاشة فحص الكاميرا قبل بدء الاختبار
+ * ✅ مصححة بالكامل: تعمل مع ViewModel الموجود
  */
 @Composable
 fun PreExamCameraCheckScreen(
@@ -29,30 +33,48 @@ fun PreExamCameraCheckScreen(
     onCheckPassed: () -> Unit,
     onCheckFailed: (String) -> Unit
 ) {
-    val initializationState by viewModel.initializationState.collectAsState()
-    val cameraAvailability by viewModel.cameraAvailability.collectAsState()
-    val monitoringState by viewModel.monitoringState.collectAsState()
-    val lastDetectionResult by viewModel.lastDetectionResult.collectAsState()
+    // ✅ استخدام الـ properties الموجودة فعلياً
+    val lastDetectionResult by viewModel.lastDetectionResult.collectAsState(initial = null)
 
     var faceCheckStatus by remember { mutableStateOf<FaceCheckStatus>(FaceCheckStatus.Checking) }
     var showPreview by remember { mutableStateOf(false) }
     var validFaceDetectedCount by remember { mutableStateOf(0) }
+    var initState by remember { mutableStateOf<InitState>(InitState.Idle) }
+    var cameraAvailability by remember { mutableStateOf<CameraAvailability?>(null) }
 
+    // تهيئة الكاميرا
     LaunchedEffect(Unit) {
-        viewModel.initializeCamera()
+        initState = InitState.Initializing
+        try {
+            viewModel.initializeCamera()
+            delay(1500) // انتظار للتهيئة
+
+            // فحص توفر الكاميرات
+            val availability = viewModel.getCameraMonitor().checkCameraAvailability()
+            cameraAvailability = availability
+
+            if (availability.hasFrontCamera) {
+                initState = InitState.Success
+                showPreview = true
+            } else {
+                initState = InitState.Error("الكاميرا الأمامية غير متوفرة")
+            }
+        } catch (e: Exception) {
+            initState = InitState.Error(e.message ?: "خطأ في تهيئة الكاميرا")
+            Log.e("CameraCheck", "Initialization failed", e)
+        }
     }
 
     // مراقبة نتائج Face Detection
     LaunchedEffect(lastDetectionResult) {
         lastDetectionResult?.let { result ->
-            android.util.Log.d("CameraCheck", "Detection Result: $result")
+            Log.d("CameraCheck", "Detection Result: $result")
 
             when (result) {
                 is FaceDetectionResult.ValidFace -> {
                     validFaceDetectedCount++
-                    android.util.Log.d("CameraCheck", "Valid face count: $validFaceDetectedCount")
+                    Log.d("CameraCheck", "Valid face count: $validFaceDetectedCount")
 
-                    // بعد 3 فحوصات ناجحة متتالية
                     if (validFaceDetectedCount >= 3) {
                         faceCheckStatus = FaceCheckStatus.Passed
                     } else {
@@ -120,8 +142,8 @@ fun PreExamCameraCheckScreen(
             Spacer(modifier = Modifier.height(24.dp))
 
             // حالة التهيئة
-            when (val state = initializationState) {
-                is InitializationState.Idle -> {
+            when (val state = initState) {
+                is InitState.Idle -> {
                     CheckStatusItem(
                         icon = Icons.Default.Warning,
                         text = "في انتظار التهيئة...",
@@ -129,7 +151,7 @@ fun PreExamCameraCheckScreen(
                     )
                 }
 
-                is InitializationState.Initializing -> {
+                is InitState.Initializing -> {
                     CheckStatusItem(
                         icon = null,
                         text = "جارٍ تهيئة الكاميرا...",
@@ -138,8 +160,7 @@ fun PreExamCameraCheckScreen(
                     )
                 }
 
-                is InitializationState.Success -> {
-                    showPreview = true
+                is InitState.Success -> {
                     CheckStatusItem(
                         icon = Icons.Default.CheckCircle,
                         text = "تم تهيئة الكاميرا بنجاح",
@@ -147,20 +168,22 @@ fun PreExamCameraCheckScreen(
                     )
                 }
 
-                is InitializationState.Error -> {
+                is InitState.Error -> {
                     CheckStatusItem(
                         icon = Icons.Default.Error,
                         text = "خطأ: ${state.message}",
                         color = MaterialTheme.colorScheme.error
                     )
 
-                    // عرض تفاصيل إضافية
-                    Text(
-                        text = "حالة الكاميرا: Front=${cameraAvailability?.hasFrontCamera}, Back=${cameraAvailability?.hasBackCamera}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(top = 8.dp)
-                    )
+                    // ✅ عرض معلومات الكاميرا إذا كانت متوفرة
+                    cameraAvailability?.let { availability ->
+                        Text(
+                            text = "حالة الكاميرا: Front=${availability.hasFrontCamera}, Back=${availability.hasBackCamera}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(top = 8.dp)
+                        )
+                    }
                 }
             }
 
@@ -180,8 +203,7 @@ fun PreExamCameraCheckScreen(
 
             // أزرار التحكم
             ControlButtons(
-                canProceed = initializationState is InitializationState.Success &&
-                        faceCheckStatus is FaceCheckStatus.Passed,
+                canProceed = initState is InitState.Success && faceCheckStatus is FaceCheckStatus.Passed,
                 onProceed = onCheckPassed,
                 onCancel = { onCheckFailed("ألغى المستخدم الفحص") }
             )
@@ -191,25 +213,26 @@ fun PreExamCameraCheckScreen(
 
 @Composable
 private fun CameraPreviewCard(viewModel: CameraMonitorViewModel) {
-    val context = androidx.compose.ui.platform.LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
-    val isInitialized by viewModel.isInitialized.collectAsState()
-
     var previewView by remember { mutableStateOf<PreviewView?>(null) }
+    var isMonitoringStarted by remember { mutableStateOf(false) }
 
-    // بدء المعاينة فقط بعد التهيئة الناجحة
-    LaunchedEffect(previewView, isInitialized) {
-        if (isInitialized && previewView != null) {
-            android.util.Log.d("CameraPreview", "Starting camera monitoring...")
+    // بدء المعاينة
+    LaunchedEffect(previewView) {
+        if (previewView != null && !isMonitoringStarted) {
+            Log.d("CameraPreview", "Starting camera monitoring...")
+            delay(500) // انتظار قصير
+
             previewView?.let { preview ->
                 try {
                     viewModel.getCameraMonitor().startMonitoring(
                         lifecycleOwner = lifecycleOwner,
                         frontPreviewView = preview
                     )
-                    android.util.Log.d("CameraPreview", "✅ Camera monitoring started")
+                    isMonitoringStarted = true
+                    Log.d("CameraPreview", "✅ Camera monitoring started")
                 } catch (e: Exception) {
-                    android.util.Log.e("CameraPreview", "❌ Failed to start monitoring", e)
+                    Log.e("CameraPreview", "❌ Failed to start monitoring", e)
                 }
             }
         }
@@ -217,9 +240,7 @@ private fun CameraPreviewCard(viewModel: CameraMonitorViewModel) {
 
     DisposableEffect(Unit) {
         onDispose {
-            // ✅ لا نوقف المراقبة - فقط نزيل الـ preview
-            // المراقبة ستستمر في الخلفية
-            android.util.Log.d("CameraPreview", "Preview screen disposed - monitoring continues in background")
+            Log.d("CameraPreview", "Preview screen disposed - monitoring continues in background")
         }
     }
 
@@ -244,8 +265,8 @@ private fun CameraPreviewCard(viewModel: CameraMonitorViewModel) {
                 modifier = Modifier.fillMaxSize()
             )
 
-            // مؤشر التحميل إذا لم تبدأ المعاينة بعد
-            if (!isInitialized) {
+            // مؤشر التحميل
+            if (!isMonitoringStarted) {
                 CircularProgressIndicator(
                     modifier = Modifier.align(Alignment.Center),
                     color = Color.White
@@ -257,7 +278,7 @@ private fun CameraPreviewCard(viewModel: CameraMonitorViewModel) {
 
 @Composable
 private fun CheckStatusItem(
-    icon: androidx.compose.ui.graphics.vector.ImageVector?,
+    icon: ImageVector?,
     text: String,
     color: Color,
     showLoading: Boolean = false
@@ -405,6 +426,16 @@ private fun ControlButtons(
             Text("متابعة للاختبار")
         }
     }
+}
+
+/**
+ * حالة التهيئة المحلية
+ */
+sealed class InitState {
+    object Idle : InitState()
+    object Initializing : InitState()
+    object Success : InitState()
+    data class Error(val message: String) : InitState()
 }
 
 /**
