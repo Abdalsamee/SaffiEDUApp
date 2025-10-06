@@ -20,8 +20,7 @@ import java.io.File
 import java.util.concurrent.Executors
 
 /**
- * مسجل فيديو الكاميرا الخلفية - لمسح الغرفة قبل الاختبار
- * ✅ مصحح: إصلاح مشكلة type mismatch
+ * مسجل فيديو الكاميرا الخلفية - لمسح الغرفة
  */
 class BackCameraVideoRecorder(
     private val context: Context,
@@ -36,7 +35,6 @@ class BackCameraVideoRecorder(
     private var activeRecording: Recording? = null
     private var cameraProvider: ProcessCameraProvider? = null
 
-    // ✅ الإصلاح: تحديد النوع بشكل صريح
     private val _recordingState = MutableStateFlow<RecordingState>(RecordingState.IDLE)
     val recordingState: StateFlow<RecordingState> = _recordingState.asStateFlow()
 
@@ -57,10 +55,8 @@ class BackCameraVideoRecorder(
         return try {
             Log.d(TAG, "Starting room scan...")
 
-            // تهيئة الكاميرا
             cameraProvider = ProcessCameraProvider.getInstance(context).get()
 
-            // إعداد Video Capture
             val recorder = Recorder.Builder()
                 .setQualitySelector(
                     QualitySelector.from(
@@ -73,10 +69,8 @@ class BackCameraVideoRecorder(
 
             videoCapture = VideoCapture.withOutput(recorder)
 
-            // اختيار الكاميرا الخلفية
             val backCamera = CameraSelector.DEFAULT_BACK_CAMERA
 
-            // ربط الكاميرا
             cameraProvider?.unbindAll()
             cameraProvider?.bindToLifecycle(
                 lifecycleOwner,
@@ -84,11 +78,8 @@ class BackCameraVideoRecorder(
                 videoCapture
             )
 
-            // بدء التسجيل
             val videoFile = createVideoFile(sessionId)
             startRecording(videoFile)
-
-            // إيقاف تلقائي بعد 30 ثانية
             scheduleAutoStop()
 
             Log.d(TAG, "✅ Room scan started")
@@ -129,7 +120,6 @@ class BackCameraVideoRecorder(
             }
 
             is VideoRecordEvent.Status -> {
-                // تحديث المدة
                 _recordingDuration.value = event.recordingStats.recordedDurationNanos / 1_000_000
             }
 
@@ -143,7 +133,6 @@ class BackCameraVideoRecorder(
                     Log.d(TAG, "✅ Recording completed: ${videoFile.absolutePath}")
                     _recordingState.value = RecordingState.COMPLETED(videoFile)
 
-                    // حفظ الفيديو في الجلسة
                     scope.launch(Dispatchers.IO) {
                         val saved = sessionManager.saveBackCameraVideo(videoFile)
                         if (saved) {
@@ -178,13 +167,12 @@ class BackCameraVideoRecorder(
     }
 
     /**
-     * بدء عداد المدة
+     * عداد المدة
      */
     private fun startDurationCounter() {
         scope.launch {
             while (_recordingState.value == RecordingState.RECORDING) {
                 kotlinx.coroutines.delay(1000)
-                // المدة تأتي من VideoRecordEvent.Status
             }
         }
     }
