@@ -1,22 +1,15 @@
 package com.example.saffieduapp.presentation.screens.student.exam_screen.session
 
 import android.content.Context
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.graphics.ImageFormat
-import android.graphics.Matrix
-import android.graphics.Rect
-import android.graphics.YuvImage
 import android.util.Log
-import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileOutputStream
 import java.util.UUID
 import javax.crypto.SecretKey
 
 /**
- * مدير حفظ الوسائط - حفظ وضغط وتشفير
- * ✅ محدّث: يدعم حفظ الصور من ImageData
+ * مدير تخزين الوسائط - لحفظ الصور والفيديوهات بشكل آمن
  */
 class MediaStorage(
     private val context: Context,
@@ -24,47 +17,53 @@ class MediaStorage(
 ) {
     private val TAG = "MediaStorage"
 
-    companion object {
-        private const val IMAGE_QUALITY = 80
-        private const val MAX_IMAGE_WIDTH = 1280
-        private const val MAX_IMAGE_HEIGHT = 720
-    }
-
     /**
-     * ✅ حفظ snapshot من ImageData
+     * حفظ snapshot من ImageData
      */
     fun saveSnapshot(
         imageData: ImageData,
         sessionId: String,
         reason: SnapshotReason
-    ): MediaSnapshot? {
+    ): SnapshotRecord? {
         return try {
-            val snapshotId = UUID.randomUUID().toString()
+            // تحويل ImageData إلى JPEG
+            val jpegBytes = convertToJpeg(imageData)
 
-            // تحويل ImageData إلى Bitmap
-            val bitmap = imageDataToBitmap(imageData) ?: run {
-                Log.e(TAG, "Failed to convert ImageData to Bitmap")
+            if (jpegBytes == null) {
+                Log.e(TAG, "Failed to convert image to JPEG")
                 return null
             }
 
-            // ضغط وحفظ
-            val encryptedFile = saveAndEncryptImage(bitmap, sessionId, snapshotId)
-                ?: run {
-                    bitmap.recycle()
-                    return null
-                }
+            // إنشاء مجلد للصور
+            val snapshotsDir = File(context.filesDir, "exam_snapshots/$sessionId")
+            if (!snapshotsDir.exists()) {
+                snapshotsDir.mkdirs()
+            }
 
-            // تنظيف الذاكرة
-            bitmap.recycle()
+            // اسم الملف
+            val snapshotId = UUID.randomUUID().toString()
+            val filename = "${reason.name}_${System.currentTimeMillis()}.jpg"
+            val snapshotFile = File(snapshotsDir, filename)
 
-            MediaSnapshot(
+            // تشفير الصورة (اختياري)
+            val encryptedBytes = EncryptionHelper.encryptBytes(jpegBytes, encryptionKey)
+            val bytesToSave = encryptedBytes ?: jpegBytes
+
+            // حفظ الملف
+            FileOutputStream(snapshotFile).use { outputStream ->
+                outputStream.write(bytesToSave)
+            }
+
+            Log.d(TAG, "✅ Snapshot saved: ${snapshotFile.absolutePath}")
+
+            // إنشاء السجل
+            SnapshotRecord(
                 id = snapshotId,
                 timestamp = System.currentTimeMillis(),
-                encryptedFilePath = encryptedFile.absolutePath,
-                reason = reason
-            ).also {
-                Log.d(TAG, "✅ Snapshot saved successfully: $snapshotId")
-            }
+                reason = reason,
+                filePath = snapshotFile.absolutePath,
+                fileSize = snapshotFile.length()
+            )
 
         } catch (e: Exception) {
             Log.e(TAG, "Failed to save snapshot", e)
@@ -73,146 +72,27 @@ class MediaStorage(
     }
 
     /**
-     * ✅ تحويل ImageData إلى Bitmap
+     * حفظ فيديو الكاميرا الخلفية
      */
-    private fun imageDataToBitmap(imageData: ImageData): Bitmap? {
+    fun saveBackCameraVideo(videoFile: File, sessionId: String): String? {
         return try {
-            // التحقق من صيغة الصورة
-            if (imageData.format != ImageFormat.YUV_420_888) {
-                Log.e(TAG, "Unsupported image format: ${imageData.format}")
+            if (!videoFile.exists()) {
+                Log.e(TAG, "Video file not found: ${videoFile.absolutePath}")
                 return null
             }
 
-            // حساب الحجم الكامل للبيانات
-            val ySize = imageData.yData.size
-            val uSize = imageData.uData.size
-            val vSize = imageData.vData.size
-
-            val nv21 = ByteArray(ySize + uSize + vSize)
-
-            // نسخ Y
-            System.arraycopy(imageData.yData, 0, nv21, 0, ySize)
-
-            // تحويل U و V إلى NV21 format
-            if (imageData.vPixelStride == 1) {
-                // حالة simple: U و V متتاليين
-                System.arraycopy(imageData.vData, 0, nv21, ySize, vSize)
-                System.arraycopy(imageData.uData, 0, nv21, ySize + vSize, uSize)
-            } else {
-                // حالة معقدة: interleaved
-                var pos = ySize
-                val pixelStride = imageData.vPixelStride
-                for (i in 0 until vSize step pixelStride) {
-                    if (i < imageData.vData.size) {
-                        nv21[pos++] = imageData.vData[i]
-                    }
-                    if (i < imageData.uData.size) {
-                        nv21[pos++] = imageData.uData[i]
-                    }
-                }
+            // إنشاء مجلد للفيديوهات
+            val videoDir = File(context.filesDir, "exam_videos/$sessionId")
+            if (!videoDir.exists()) {
+                videoDir.mkdirs()
             }
 
-            // تحويل NV21 إلى JPEG ثم Bitmap
-            val yuvImage = YuvImage(
-                nv21,
-                ImageFormat.NV21,
-                imageData.width,
-                imageData.height,
-                null
-            )
+            // نسخ الفيديو
+            val destinationFile = File(videoDir, "room_scan_${System.currentTimeMillis()}.mp4")
+            videoFile.copyTo(destinationFile, overwrite = true)
 
-            val out = ByteArrayOutputStream()
-            yuvImage.compressToJpeg(
-                Rect(0, 0, imageData.width, imageData.height),
-                100,
-                out
-            )
-
-            val imageBytes = out.toByteArray()
-            val bitmap = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
-
-            // تصحيح الدوران
-            if (imageData.rotationDegrees != 0) {
-                rotateBitmap(bitmap, imageData.rotationDegrees.toFloat())
-            } else {
-                bitmap
-            }
-
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to convert ImageData to Bitmap", e)
-            null
-        }
-    }
-
-    /**
-     * حفظ وتشفير صورة
-     */
-    private fun saveAndEncryptImage(
-        bitmap: Bitmap,
-        sessionId: String,
-        snapshotId: String
-    ): File? {
-        val tempFile = File(getTempDir(sessionId), "temp_$snapshotId.jpg")
-        val encryptedFile = File(getMediaDir(sessionId), "$snapshotId.enc")
-
-        return try {
-            // ضغط الصورة
-            val compressedBitmap = compressBitmap(bitmap)
-
-            // حفظ مؤقت
-            FileOutputStream(tempFile).use { output ->
-                compressedBitmap.compress(Bitmap.CompressFormat.JPEG, IMAGE_QUALITY, output)
-            }
-
-            // تنظيف إذا كانت صورة مضغوطة جديدة
-            if (compressedBitmap != bitmap) {
-                compressedBitmap.recycle()
-            }
-
-            // تشفير
-            val success = EncryptionHelper.encryptFile(
-                inputFile = tempFile,
-                outputFile = encryptedFile,
-                key = encryptionKey
-            )
-
-            // حذف الملف المؤقت
-            tempFile.delete()
-
-            if (success) {
-                Log.d(TAG, "✅ Image saved and encrypted: $snapshotId")
-                encryptedFile
-            } else {
-                null
-            }
-
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to save and encrypt image", e)
-            tempFile.delete()
-            null
-        }
-    }
-
-    /**
-     * حفظ فيديو من ملف
-     */
-    fun saveVideo(
-        videoFile: File,
-        sessionId: String
-    ): MediaVideo? {
-        return try {
-            val videoId = UUID.randomUUID().toString()
-            val encryptedFile = encryptVideoFile(videoFile, sessionId, videoId)
-                ?: return null
-
-            val duration = getVideoDuration(videoFile)
-
-            MediaVideo(
-                id = videoId,
-                timestamp = System.currentTimeMillis(),
-                encryptedFilePath = encryptedFile.absolutePath,
-                duration = duration
-            )
+            Log.d(TAG, "✅ Video saved: ${destinationFile.absolutePath}")
+            destinationFile.absolutePath
 
         } catch (e: Exception) {
             Log.e(TAG, "Failed to save video", e)
@@ -221,109 +101,73 @@ class MediaStorage(
     }
 
     /**
-     * تشفير ملف فيديو
+     * تحويل ImageData إلى JPEG
      */
-    private fun encryptVideoFile(
-        videoFile: File,
-        sessionId: String,
-        videoId: String
-    ): File? {
-        val encryptedFile = File(getMediaDir(sessionId), "$videoId.enc")
-
+    private fun convertToJpeg(imageData: ImageData): ByteArray? {
         return try {
-            val success = EncryptionHelper.encryptFile(
-                inputFile = videoFile,
-                outputFile = encryptedFile,
-                key = encryptionKey
+            val yuvImage = android.graphics.YuvImage(
+                combineYuvPlanes(imageData),
+                ImageFormat.NV21,
+                imageData.width,
+                imageData.height,
+                null
             )
 
-            if (success) {
-                Log.d(TAG, "✅ Video encrypted: $videoId")
-                encryptedFile
-            } else {
-                null
-            }
+            val outputStream = java.io.ByteArrayOutputStream()
+            yuvImage.compressToJpeg(
+                android.graphics.Rect(0, 0, imageData.width, imageData.height),
+                85, // جودة 85%
+                outputStream
+            )
 
+            outputStream.toByteArray()
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to encrypt video", e)
+            Log.e(TAG, "Error converting to JPEG", e)
             null
         }
     }
 
     /**
-     * ضغط الصورة
+     * دمج YUV planes إلى NV21 format
      */
-    private fun compressBitmap(bitmap: Bitmap): Bitmap {
-        val width = bitmap.width
-        val height = bitmap.height
+    private fun combineYuvPlanes(imageData: ImageData): ByteArray {
+        val ySize = imageData.yData.size
+        val uvSize = imageData.uData.size + imageData.vData.size
 
-        if (width <= MAX_IMAGE_WIDTH && height <= MAX_IMAGE_HEIGHT) {
-            return bitmap
+        return ByteArray(ySize + uvSize).apply {
+            // نسخ Y plane
+            System.arraycopy(imageData.yData, 0, this, 0, ySize)
+
+            // Interleave U and V planes (NV21 format: YYYYYYYY VUVUVU)
+            var index = ySize
+            for (i in imageData.uData.indices) {
+                this[index++] = imageData.vData[i]  // V أولاً
+                this[index++] = imageData.uData[i]  // ثم U
+            }
         }
-
-        val ratio = minOf(
-            MAX_IMAGE_WIDTH.toFloat() / width,
-            MAX_IMAGE_HEIGHT.toFloat() / height
-        )
-
-        val newWidth = (width * ratio).toInt()
-        val newHeight = (height * ratio).toInt()
-
-        return Bitmap.createScaledBitmap(bitmap, newWidth, newHeight, true)
     }
 
     /**
-     * تدوير الصورة
+     * قراءة snapshot
      */
-    private fun rotateBitmap(bitmap: Bitmap, degrees: Float): Bitmap {
-        val matrix = Matrix().apply {
-            postRotate(degrees)
-        }
-        return Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
-    }
-
-    /**
-     * الحصول على مدة الفيديو
-     */
-    private fun getVideoDuration(videoFile: File): Long {
+    fun loadSnapshot(snapshotRecord: SnapshotRecord): ByteArray? {
         return try {
-            val retriever = android.media.MediaMetadataRetriever()
-            retriever.setDataSource(videoFile.absolutePath)
-            val duration = retriever.extractMetadata(
-                android.media.MediaMetadataRetriever.METADATA_KEY_DURATION
-            )?.toLongOrNull() ?: 0L
-            retriever.release()
-            duration
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to get video duration", e)
-            0L
-        }
-    }
+            val file = File(snapshotRecord.filePath)
 
-    /**
-     * فك تشفير صورة
-     */
-    fun decryptImage(encryptedFile: File): Bitmap? {
-        val tempFile = File(context.cacheDir, "temp_decrypt_${UUID.randomUUID()}.jpg")
-
-        return try {
-            val success = EncryptionHelper.decryptFile(
-                encryptedFile = encryptedFile,
-                outputFile = tempFile,
-                key = encryptionKey
-            )
-
-            if (success) {
-                val bitmap = BitmapFactory.decodeFile(tempFile.absolutePath)
-                tempFile.delete()
-                bitmap
-            } else {
-                null
+            if (!file.exists()) {
+                Log.e(TAG, "Snapshot file not found: ${snapshotRecord.filePath}")
+                return null
             }
 
+            val encryptedBytes = file.readBytes()
+
+            // فك التشفير
+            val decryptedBytes = EncryptionHelper.decryptBytes(encryptedBytes, encryptionKey)
+
+            decryptedBytes ?: encryptedBytes
+
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to decrypt image", e)
-            tempFile.delete()
+            Log.e(TAG, "Failed to load snapshot", e)
             null
         }
     }
@@ -333,15 +177,18 @@ class MediaStorage(
      */
     fun deleteSessionFiles(sessionId: String) {
         try {
-            val mediaDir = getMediaDir(sessionId)
-            if (mediaDir.exists()) {
-                mediaDir.deleteRecursively()
-                Log.d(TAG, "✅ Session files deleted: $sessionId")
+            // حذف الصور
+            val snapshotsDir = File(context.filesDir, "exam_snapshots/$sessionId")
+            if (snapshotsDir.exists()) {
+                snapshotsDir.deleteRecursively()
+                Log.d(TAG, "✅ Snapshots deleted for session: $sessionId")
             }
 
-            val tempDir = getTempDir(sessionId)
-            if (tempDir.exists()) {
-                tempDir.deleteRecursively()
+            // حذف الفيديوهات
+            val videoDir = File(context.filesDir, "exam_videos/$sessionId")
+            if (videoDir.exists()) {
+                videoDir.deleteRecursively()
+                Log.d(TAG, "✅ Videos deleted for session: $sessionId")
             }
 
         } catch (e: Exception) {
@@ -350,35 +197,36 @@ class MediaStorage(
     }
 
     /**
-     * الحصول على حجم ملفات الجلسة
+     * حساب حجم ملفات الجلسة
      */
-    fun getSessionFilesSize(sessionId: String): Long {
-        val mediaDir = getMediaDir(sessionId)
-        return mediaDir.walkTopDown()
-            .filter { it.isFile }
-            .map { it.length() }
-            .sum()
-    }
+    fun getSessionStorageSize(sessionId: String): Long {
+        var totalSize = 0L
 
-    /**
-     * الحصول على مجلد الوسائط
-     */
-    private fun getMediaDir(sessionId: String): File {
-        val dir = File(context.filesDir, "exam_sessions/$sessionId/media")
-        if (!dir.exists()) {
-            dir.mkdirs()
-        }
-        return dir
-    }
+        try {
+            // حجم الصور
+            val snapshotsDir = File(context.filesDir, "exam_snapshots/$sessionId")
+            if (snapshotsDir.exists()) {
+                snapshotsDir.walkTopDown().forEach { file ->
+                    if (file.isFile) {
+                        totalSize += file.length()
+                    }
+                }
+            }
 
-    /**
-     * الحصول على مجلد المؤقت
-     */
-    private fun getTempDir(sessionId: String): File {
-        val dir = File(context.cacheDir, "exam_temp/$sessionId")
-        if (!dir.exists()) {
-            dir.mkdirs()
+            // حجم الفيديوهات
+            val videoDir = File(context.filesDir, "exam_videos/$sessionId")
+            if (videoDir.exists()) {
+                videoDir.walkTopDown().forEach { file ->
+                    if (file.isFile) {
+                        totalSize += file.length()
+                    }
+                }
+            }
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to calculate storage size", e)
         }
-        return dir
+
+        return totalSize
     }
 }

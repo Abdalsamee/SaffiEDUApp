@@ -2,18 +2,24 @@ package com.example.saffieduapp.presentation.screens.student.exam_screen.securit
 
 import android.util.Log
 import androidx.camera.core.ImageProxy
+import com.google.android.gms.tasks.Task
 import com.google.mlkit.vision.common.InputImage
+import com.google.mlkit.vision.face.Face
 import com.google.mlkit.vision.face.FaceDetection
 import com.google.mlkit.vision.face.FaceDetectorOptions
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.tasks.await
 import kotlin.math.abs
 
+/**
+ * مراقب كشف الوجوه
+ */
 class FaceDetectionMonitor(
     private val onViolationDetected: (String) -> Unit,
-    private val onSnapshotNeeded: (ImageProxy, FaceDetectionResult) -> Unit // ✅ الكالباك
+    private val onSnapshotNeeded: (ImageProxy, FaceDetectionResult) -> Unit
 ) {
     private val TAG = "FaceDetectionMonitor"
 
@@ -54,12 +60,12 @@ class FaceDetectionMonitor(
     }
 
     /**
-     * معالجة الصورة - ✅ لا تغلق ImageProxy هنا
+     * معالجة الصورة
      */
     @androidx.camera.core.ExperimentalGetImage
     fun processImage(imageProxy: ImageProxy) {
         if (!isMonitoring) {
-            imageProxy.close() // أغلقها فقط إذا لم نكن نراقب
+            imageProxy.close()
             return
         }
 
@@ -76,7 +82,7 @@ class FaceDetectionMonitor(
 
         scope.launch {
             try {
-                val faces = faceDetector.process(inputImage).await()
+                val faces: List<Face> = faceDetector.process(inputImage).await()
 
                 val result = when {
                     faces.isEmpty() -> {
@@ -84,7 +90,9 @@ class FaceDetectionMonitor(
                         consecutiveLookingAwayCount = 0
 
                         if (consecutiveNoFaceCount >= MAX_NO_FACE_THRESHOLD) {
-                            onViolationDetected("لم يتم اكتشاف وجه")
+                            withContext(Dispatchers.Main) {
+                                onViolationDetected("لم يتم اكتشاف وجه")
+                            }
                         }
 
                         FaceDetectionResult.NoFace(consecutiveNoFaceCount)
@@ -93,21 +101,26 @@ class FaceDetectionMonitor(
                     faces.size > 1 -> {
                         consecutiveNoFaceCount = 0
                         consecutiveLookingAwayCount = 0
-                        onViolationDetected("تم اكتشاف أكثر من وجه")
+
+                        withContext(Dispatchers.Main) {
+                            onViolationDetected("تم اكتشاف أكثر من وجه")
+                        }
+
                         FaceDetectionResult.MultipleFaces(faces.size)
                     }
 
                     else -> {
                         val face = faces[0]
                         val rotY = face.headEulerAngleY
-                        val rotZ = face.headEulerAngleZ
 
                         if (abs(rotY) > HEAD_ROTATION_THRESHOLD) {
                             consecutiveLookingAwayCount++
                             consecutiveNoFaceCount = 0
 
                             if (consecutiveLookingAwayCount >= MAX_LOOKING_AWAY_THRESHOLD) {
-                                onViolationDetected("الطالب ينظر بعيداً")
+                                withContext(Dispatchers.Main) {
+                                    onViolationDetected("الطالب ينظر بعيداً")
+                                }
                             }
 
                             FaceDetectionResult.LookingAway(rotY, consecutiveLookingAwayCount)
@@ -120,31 +133,27 @@ class FaceDetectionMonitor(
                 }
 
                 _lastDetectionResult.value = result
-
-                // ✅ مرر الصورة إلى SnapshotManager بدون إغلاقها
                 handleDetectionResult(result, imageProxy)
 
             } catch (e: Exception) {
                 Log.e(TAG, "Error processing image", e)
                 _lastDetectionResult.value = FaceDetectionResult.Error(e.message ?: "Unknown error")
-                imageProxy.close() // أغلقها فقط عند الخطأ
+                imageProxy.close()
             }
         }
     }
 
     /**
-     * معالجة النتيجة - ✅ لا تغلق ImageProxy هنا أيضاً
+     * معالجة النتيجة
      */
     private fun handleDetectionResult(result: FaceDetectionResult, imageProxy: ImageProxy) {
         when (result) {
             is FaceDetectionResult.NoFace,
             is FaceDetectionResult.MultipleFaces,
             is FaceDetectionResult.LookingAway -> {
-                // ✅ مرر الصورة للـ SnapshotManager - هو المسؤول عن إغلاقها
                 onSnapshotNeeded(imageProxy, result)
             }
             else -> {
-                // إذا كانت النتيجة عادية، أغلق الصورة
                 imageProxy.close()
             }
         }
@@ -158,6 +167,9 @@ class FaceDetectionMonitor(
     }
 }
 
+/**
+ * نتائج كشف الوجه
+ */
 sealed class FaceDetectionResult {
     object ValidFace : FaceDetectionResult()
     data class NoFace(val count: Int) : FaceDetectionResult()
