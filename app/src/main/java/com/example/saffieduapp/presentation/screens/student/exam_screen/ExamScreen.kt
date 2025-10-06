@@ -11,14 +11,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.saffieduapp.presentation.screens.student.exam_screen.components.*
-import com.example.saffieduapp.presentation.screens.teacher.add_question.Choice
-import com.example.saffieduapp.presentation.screens.teacher.add_question.QuestionType
 import com.example.saffieduapp.ui.theme.AppPrimary
-import com.example.saffieduapp.ui.theme.SaffiEDUAppTheme
 import kotlinx.coroutines.flow.collectLatest
 
 @Composable
@@ -30,6 +26,7 @@ fun ExamScreen(
     val state by viewModel.state.collectAsState()
     val context = LocalContext.current
     var showSubmitDialog by remember { mutableStateOf(false) }
+
     // معالجة الأحداث
     LaunchedEffect(Unit) {
         viewModel.eventFlow.collectLatest { event ->
@@ -47,7 +44,7 @@ fun ExamScreen(
             }
         }
     }
-// ✅ إضافة هذا الكود
+
     if (showSubmitDialog) {
         ExamSubmitDialog(
             remainingTimeInSeconds = state.remainingTimeInSeconds,
@@ -58,10 +55,10 @@ fun ExamScreen(
             }
         )
     }
+
     ExamScreenContent(
         state = state,
         onEvent = { event ->
-            // ✅ اعتراض حدث التسليم
             if (event is ExamEvent.SubmitExam) {
                 showSubmitDialog = true
             } else {
@@ -70,8 +67,6 @@ fun ExamScreen(
         },
         onNavigateUp = onNavigateUp
     )
-
-
 }
 
 @Composable
@@ -132,44 +127,5 @@ private fun ExamScreenContent(
                 }
             }
         }
-    }
-}
-
-@Preview(showBackground = true, locale = "ar")
-@Composable
-private fun ExamScreenPreview() {
-    SaffiEDUAppTheme {
-        val previewState = ExamState(
-            examId = "e1",
-            examTitle = "اختبار الوحدة الثانية",
-            totalQuestions = 10,
-            currentQuestionIndex = 6,
-            questions = listOf(
-                ExamQuestion(
-                    id = "q1",
-                    text = "هو طلب للمعلومة أو المعرفة أو البيانات، وهو أسلوب يستخدم لجمع المعلومات، أو طلب شيء، أو طلب تركيع أو طلب شيء؟",
-                    type = QuestionType.MULTIPLE_CHOICE_SINGLE,
-                    points = 1,
-                    choices = listOf(
-                        Choice(id = "c1", text = "الخيار الأول", isCorrect = true),
-                        Choice(id = "c2", text = "الخيار الثاني", isCorrect = false),
-                        Choice(id = "c3", text = "الخيار الثالث", isCorrect = false),
-                        Choice(id = "c4", text = "الخيار الرابع", isCorrect = false)
-                    )
-                )
-            ),
-            userAnswers = mapOf(
-                "q1" to ExamAnswer.SingleChoice("c1")
-            ),
-            remainingTimeInSeconds = 600,
-            isLoading = false,
-            showTimeWarning = false
-        )
-
-        ExamScreenContent(
-            state = previewState,
-            onEvent = {},
-            onNavigateUp = {}
-        )
     }
 }
