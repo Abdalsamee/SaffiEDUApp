@@ -96,9 +96,8 @@ fun QuizSummaryScreen(
                 onClick = onPublish,
                 modifier = Modifier.fillMaxWidth()
                     .padding(bottom = 32.dp),
-                enabled = false
+                enabled = uiQuestions.isNotEmpty() // الزر مفعل فقط إذا كانت هناك أسئلة
             )
-
         }
     }
 }
