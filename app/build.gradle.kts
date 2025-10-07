@@ -6,6 +6,7 @@ plugins {
     alias(libs.plugins.hilt)
 
     id("com.google.gms.google-services")
+    id ("kotlin-parcelize")
 
 }
 

@@ -143,8 +143,10 @@ private fun AddQuestionScreenContent(
                     }
                     Button(
                         onClick = {
-                            onEvent(AddQuestionEvent.AddNewQuestionClicked)
-                            onNavigateToSummary(state.createdQuestions)
+                            navController.currentBackStackEntry
+                                ?.savedStateHandle
+                                ?.set("questions", state.createdQuestions)
+                            navController.navigate(Routes.QUIZ_SUMMARY_SCREEN)
                         },
                         modifier = Modifier.fillMaxWidth(0.7f),
                         shape = RoundedCornerShape(12.dp)
