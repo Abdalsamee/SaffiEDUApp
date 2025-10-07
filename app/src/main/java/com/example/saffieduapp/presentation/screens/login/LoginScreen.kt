@@ -36,8 +36,9 @@ import kotlinx.coroutines.flow.collectLatest
 @Composable
 fun LoginScreen(
     onStudentLogin: () -> Unit,
-    onTeacherLogin: () -> Unit, // ← تم إضافة التوجيه لشاشة المعلم
+    onTeacherLogin: () -> Unit,
     onNavigateToSignUp: () -> Unit,
+    onNavigateToForgotPassword: () -> Unit,
     viewModel: LoginViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
@@ -46,9 +47,9 @@ fun LoginScreen(
     // 🔹 متابعة الأحداث
     LaunchedEffect(key1 = true) {
         viewModel.eventFlow.collectLatest { event ->
-            when(event){
+            when (event) {
                 is LoginViewModel.UiEvent.LoginSuccess -> {
-                    when(event.role){
+                    when (event.role) {
                         "student" -> onStudentLogin()
                         "teacher" -> onTeacherLogin() // <- هنا
                         else -> {
@@ -60,6 +61,7 @@ fun LoginScreen(
                         }
                     }
                 }
+
                 is LoginViewModel.UiEvent.ShowError -> {
                     Toast.makeText(context, event.message, Toast.LENGTH_SHORT).show()
                 }
@@ -170,13 +172,15 @@ fun LoginScreen(
                                 textAlign = TextAlign.Start
                             )
                         }
-
-                        Text(
-                            text = "هل نسيت كلمة المرور؟",
-                            color = AppTextPrimary,
-                            style = MaterialTheme.typography.bodyMedium,
-                            textAlign = TextAlign.End
-                        )
+                        // ✅ هنا نضيف الحدث للنص
+                        TextButton(onClick = { onNavigateToForgotPassword() }) {
+                            Text(
+                                text = "هل نسيت كلمة المرور؟",
+                                color = AppTextPrimary,
+                                style = MaterialTheme.typography.bodyMedium,
+                                textAlign = TextAlign.End
+                            )
+                        }
                     }
 
                     Spacer(modifier = Modifier.height(screenHeight * 0.03f))
