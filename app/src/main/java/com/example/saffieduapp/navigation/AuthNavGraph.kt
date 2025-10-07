@@ -1,5 +1,6 @@
 package com.example.saffieduapp.navigation
 
+import android.annotation.SuppressLint
 import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
@@ -13,6 +14,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.navArgument
+import com.example.saffieduapp.presentation.screens.resetpassword.PasswordRecoveryScreen
 import com.example.saffieduapp.presentation.screens.student.video_player.VideoPlayerScreen
 import com.example.saffieduapp.presentation.screens.teacher.TeacherMainScreen
 import com.example.saffieduapp.presentation.screens.teacher.add_alert.AddAlertScreen
@@ -20,6 +22,7 @@ import com.example.saffieduapp.presentation.screens.teacher.add_assignment.AddAs
 import com.example.saffieduapp.presentation.screens.teacher.add_exam.AddExamScreen
 import com.example.saffieduapp.presentation.screens.teacher.add_lesson.AddLessonScreen
 
+@SuppressLint("ComposableDestinationInComposeScope")
 fun NavGraphBuilder.authNavGraph(navController: NavController) {
     navigation(
         startDestination = Routes.SPLASH_SCREEN,
@@ -65,10 +68,17 @@ fun NavGraphBuilder.authNavGraph(navController: NavController) {
                 },
                 onNavigateToSignUp = {
                     navController.navigate(Routes.SIGNUP_SCREEN)
-                }
+                },
+                onNavigateToForgotPassword = { navController.navigate(Routes.RESET_PASSWORD_SCREEN) } // ✅ هنا التنقل إلى شاشة البريد
             )
         }
 
+        // 🔹 ForgetPassword Screen
+        composable(Routes.RESET_PASSWORD_SCREEN) {
+            PasswordRecoveryScreen(
+                onBackClicked = { navController.popBackStack() } // 🔙 للرجوع
+            )
+        }
         // 🔹 SignUp Screen
         composable(Routes.SIGNUP_SCREEN) {
             SignUpScreen(
@@ -84,7 +94,6 @@ fun NavGraphBuilder.authNavGraph(navController: NavController) {
         }
 
 
-     
     }
 
 }

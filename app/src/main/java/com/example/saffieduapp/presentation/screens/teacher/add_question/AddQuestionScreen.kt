@@ -42,7 +42,8 @@ fun AddQuestionScreen(
         state = state,
         onNavigateUp = onNavigateUp,
         onEvent = viewModel::onEvent,
-        onNavigateToSummary = onNavigateToSummary
+        onNavigateToSummary = onNavigateToSummary,
+        viewModel = viewModel
     )
 }
 
@@ -53,7 +54,8 @@ private fun AddQuestionScreenContent(
     onNavigateUp: () -> Unit,
     onEvent: (AddQuestionEvent) -> Unit,
     onNavigateToSummary: (List<QuestionData>) -> Unit,
-    navController: NavController
+    navController: NavController,
+    viewModel: AddQuestionViewModel // <- جديد
 ) {
     Scaffold(
         topBar = {
@@ -143,11 +145,21 @@ private fun AddQuestionScreenContent(
                     }
                     Button(
                         onClick = {
+                            // احفظ السؤال الحالي فورًا بشكل مُزامن في الـ ViewModel
+                            viewModel.saveCurrentQuestionAndResetSync()
+
+                            // احصل على القائمة المحدثة
+                            val questionsList = viewModel.getCreatedQuestions()
+
+                            // خزّنها في savedStateHandle بشكل ArrayList (لضمان Parcelable compatibility)
                             navController.currentBackStackEntry
                                 ?.savedStateHandle
-                                ?.set("questions", state.createdQuestions)
+                                ?.set("questions", ArrayList(questionsList))
+
+                            // ثم نفّذ التنقل
                             navController.navigate(Routes.QUIZ_SUMMARY_SCREEN)
-                        },                        modifier = Modifier.fillMaxWidth(0.7f),
+                        },
+                        modifier = Modifier.fillMaxWidth(0.7f),
                         shape = RoundedCornerShape(12.dp)
                     ) {
                         Text("حفظ ونشر", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
