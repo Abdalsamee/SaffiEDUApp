@@ -139,7 +139,8 @@ class BackCameraViewModel(
      * تهيئة الكاميرا للتسجيل
      */
     fun prepareCamera(
-        lifecycleOwner: LifecycleOwner
+        lifecycleOwner: LifecycleOwner,
+        previewView: androidx.camera.view.PreviewView
     ) {
         viewModelScope.launch {
             try {
@@ -158,8 +159,8 @@ class BackCameraViewModel(
 
                 Log.d(TAG, "✅ Recorder created")
 
-                // تهيئة الكاميرا
-                val result = recorder!!.initialize(lifecycleOwner)
+                // تهيئة الكاميرا مع PreviewView
+                val result = recorder!!.initialize(lifecycleOwner, previewView)
 
                 if (result.isSuccess) {
                     _systemState.value = BackCameraSystemState.CameraReady
