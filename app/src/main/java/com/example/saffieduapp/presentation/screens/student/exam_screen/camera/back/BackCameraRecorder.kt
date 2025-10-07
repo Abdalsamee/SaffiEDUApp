@@ -49,6 +49,7 @@ class BackCameraRecorder(
 
     // مكونات CameraX
     private var videoCapture: VideoCapture<Recorder>? = null
+    private var preview: androidx.camera.core.Preview? = null  // إضافة Preview
     private var activeRecording: Recording? = null
     private var cameraProvider: ProcessCameraProvider? = null
 
@@ -81,7 +82,7 @@ class BackCameraRecorder(
     /**
      * تهيئة الكاميرا
      */
-    suspend fun initialize(lifecycleOwner: LifecycleOwner): Result<Unit> {
+    suspend fun initialize(lifecycleOwner: LifecycleOwner, previewView: androidx.camera.view.PreviewView): Result<Unit> {
         return withContext(Dispatchers.Main) {
             try {
                 _state.value = RecordingState.Initializing
@@ -96,6 +97,9 @@ class BackCameraRecorder(
 
                 // إعداد VideoCapture
                 setupVideoCapture()
+
+                // إعداد Preview
+                setupPreview(previewView)
 
                 // ربط الكاميرا
                 bindCamera(lifecycleOwner)
@@ -141,6 +145,21 @@ class BackCameraRecorder(
     }
 
     /**
+     * إعداد Preview
+     */
+    private fun setupPreview(previewView: androidx.camera.view.PreviewView) {
+        preview = androidx.camera.core.Preview.Builder()
+            .build()
+            .also {
+                it.setSurfaceProvider(previewView.surfaceProvider)
+            }
+
+        if (CameraMonitoringConfig.Debug.DETAILED_LOGGING) {
+            Log.d(TAG, "📺 Preview configured")
+        }
+    }
+
+    /**
      * ربط الكاميرا الخلفية
      */
     private fun bindCamera(lifecycleOwner: LifecycleOwner) {
@@ -152,15 +171,16 @@ class BackCameraRecorder(
         // اختيار الكاميرا الخلفية
         val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
 
-        // ربط VideoCapture
+        // ربط Preview + VideoCapture
         provider.bindToLifecycle(
             lifecycleOwner,
             cameraSelector,
+            preview,  // إضافة Preview
             videoCapture
         )
 
         if (CameraMonitoringConfig.Debug.DETAILED_LOGGING) {
-            Log.d(TAG, "📷 Back camera bound to lifecycle")
+            Log.d(TAG, "📷 Back camera bound to lifecycle (with preview)")
         }
     }
 
