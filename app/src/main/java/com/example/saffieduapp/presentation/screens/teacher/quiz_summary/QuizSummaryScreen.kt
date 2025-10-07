@@ -21,7 +21,7 @@ import com.example.saffieduapp.ui.theme.SaffiEDUAppTheme
 @Composable
 fun QuizSummaryScreen(
     onNavigateUp: () -> Unit,
-    onPublish:() ->Unit,
+    onPublish: () -> Unit,
     questions: List<QuestionData>,
     viewModel: QuizSummaryViewModel = hiltViewModel()
 ) {
@@ -48,8 +48,7 @@ fun QuizSummaryScreen(
                         questionToDelete?.let { viewModel.deleteQuestion(it.id) }
                         showDeleteConfirmationDialog = false
                         questionToDelete = null
-                    }
-                ) {
+                    }) {
                     Text("نعم، احذف")
                 }
             },
@@ -57,18 +56,15 @@ fun QuizSummaryScreen(
                 TextButton(onClick = { showDeleteConfirmationDialog = false }) {
                     Text("إلغاء")
                 }
-            }
-        )
+            })
     }
 
     Scaffold(
         topBar = {
             CommonTopAppBar(
-                title = "عنوان الاختبار",
-                onNavigateUp = onNavigateUp
+                title = "عنوان الاختبار", onNavigateUp = onNavigateUp
             )
-        }
-    ) { innerPadding ->
+        }) { innerPadding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -76,8 +72,7 @@ fun QuizSummaryScreen(
                 .padding(16.dp)
         ) {
             LazyColumn(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 items(uiQuestions) { question -> // ← استبدال القائمة الوهمية
                     QuestionSummaryItem(
@@ -85,18 +80,29 @@ fun QuizSummaryScreen(
                         onEditClick = { /* TODO: Navigate to edit question */ },
                         onDeleteClick = {
                             questionToDelete = question
-                            showDeleteConfirmationDialog = true }
-                    )
+                            showDeleteConfirmationDialog = true
+                        })
                 }
             }
 
 
             AppButton(
                 text = "نشر الاختبار",
-                onClick = onPublish,
-                modifier = Modifier.fillMaxWidth()
+                onClick = {
+                    viewModel.saveExam(
+                        examTitle = "عنوان الاختبار", // يمكن جعله ديناميكي من TextField
+                        onSuccess = {
+                            // يمكن العودة للشاشة الرئيسية بعد النشر
+                            onPublish()
+                        }, onError = { message ->
+                            // عرض رسالة خطأ إذا حدث
+                            println("خطأ: $message")
+                        })
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
                     .padding(bottom = 32.dp),
-                enabled = uiQuestions.isNotEmpty() // الزر مفعل فقط إذا كانت هناك أسئلة
+                enabled = uiQuestions.isNotEmpty()
             )
         }
     }
