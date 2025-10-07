@@ -21,9 +21,9 @@ import com.example.saffieduapp.ui.theme.SaffiEDUAppTheme
 @Composable
 fun QuizSummaryScreen(
     onNavigateUp: () -> Unit,
-    onPublish: () -> Unit,
-    questions: List<QuestionData>,
-    viewModel: QuizSummaryViewModel = hiltViewModel()
+    onPublish:() ->Unit,
+    questions: List<QuestionData>, // استقبال الأسئلة
+    // TODO: Add ViewModel
 ) {
     var showDeleteConfirmationDialog by remember { mutableStateOf(false) }
     var questionToDelete by remember { mutableStateOf<QuestionData?>(null) }
@@ -74,7 +74,7 @@ fun QuizSummaryScreen(
             LazyColumn(
                 modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                items(uiQuestions) { question -> // ← استبدال القائمة الوهمية
+                items(questions) { question -> // ← استبدال القائمة الوهمية
                     QuestionSummaryItem(
                         questionText = question.text,
                         onEditClick = { /* TODO: Navigate to edit question */ },

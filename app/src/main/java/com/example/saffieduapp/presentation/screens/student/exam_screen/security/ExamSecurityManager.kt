@@ -11,7 +11,6 @@ import kotlinx.coroutines.flow.asStateFlow
 /**
  * مدير الأمان المركزي للاختبار
  * ✅ مع نظام Whitelist للـ Dialogs الداخلية
- * ✅ إصلاح: Overlay Detection يعمل دائماً في الخلفية
  */
 class ExamSecurityManager(
     private val context: Context,
@@ -62,15 +61,14 @@ class ExamSecurityManager(
     // ✅ نظام Whitelist للـ Dialogs الداخلية
     @Volatile
     private var internalDialogActive = false
+    @Volatile
+    private var overlayDetectionPaused = false
 
     // ✅ تتبع الـ Dialogs النشطة
     private val activeInternalDialogs = mutableSetOf<String>()
 
-    // ✅ Handler للفحص الدوري
-    private val periodicCheckHandler = android.os.Handler(android.os.Looper.getMainLooper())
-    private var periodicCheckRunnable: Runnable? = null
-
     companion object {
+        // ✅ أسماء الـ Dialogs المسموح بها
         const val DIALOG_EXIT_WARNING = "EXIT_WARNING"
         const val DIALOG_NO_FACE_WARNING = "NO_FACE_WARNING"
         const val DIALOG_MULTIPLE_FACES = "MULTIPLE_FACES"
@@ -99,11 +97,10 @@ class ExamSecurityManager(
         overlayDetector = OverlayDetector(activity) {
             // ✅ فحص إذا كان في dialog داخلي نشط
             if (!isInternalDialogActive()) {
-                Log.e(TAG, "🚨 Real overlay detected!")
                 logViolation("OVERLAY_DETECTED")
                 handleCriticalViolation()
             } else {
-                Log.d(TAG, "🟢 Overlay detected but internal dialog is active - IGNORED")
+                Log.d(TAG, "Overlay detected but internal dialog is active - IGNORED")
             }
         }
 
@@ -118,8 +115,8 @@ class ExamSecurityManager(
     private fun startOverlayPeriodicCheck() {
         periodicCheckRunnable = object : Runnable {
             override fun run() {
-                if (examStarted && overlayDetector != null) {
-                    // ✅ الفحص دائماً، لكن التسجيل مشروط
+                if (examStarted && overlayDetector != null && !isInternalDialogActive()) {
+                    // فحص Focus
                     if (!activity.hasWindowFocus()) {
                         if (!isInternalDialogActive()) {
                             // ✅ overlay حقيقي!
@@ -198,6 +195,78 @@ class ExamSecurityManager(
         return synchronized(activeInternalDialogs) {
             internalDialogActive || activeInternalDialogs.isNotEmpty()
         }
+    }
+
+    /**
+     * ✅ تسجيل dialog داخلي قبل إظهاره
+     */
+    fun registerInternalDialog(dialogName: String) {
+        synchronized(activeInternalDialogs) {
+            activeInternalDialogs.add(dialogName)
+            internalDialogActive = true
+
+            // ✅ إيقاف overlay detection فوراً
+            pauseOverlayDetection()
+
+            Log.d(TAG, "🟢 Internal Dialog Registered: $dialogName")
+            Log.d(TAG, "Active dialogs: ${activeInternalDialogs.joinToString()}")
+        }
+    }
+
+    /**
+     * ✅ إلغاء تسجيل dialog داخلي عند إغلاقه
+     */
+    fun unregisterInternalDialog(dialogName: String) {
+        synchronized(activeInternalDialogs) {
+            activeInternalDialogs.remove(dialogName)
+
+            // ✅ إذا لم يعد هناك dialogs نشطة، نستأنف Detection
+            if (activeInternalDialogs.isEmpty()) {
+                internalDialogActive = false
+                resumeOverlayDetection()
+                Log.d(TAG, "🔴 All Internal Dialogs Closed - Detection Resumed")
+            } else {
+                Log.d(TAG, "🟡 Dialog Closed: $dialogName")
+                Log.d(TAG, "Remaining dialogs: ${activeInternalDialogs.joinToString()}")
+            }
+        }
+    }
+
+    /**
+     * ✅ فحص إذا كان هناك dialog داخلي نشط
+     */
+    fun isInternalDialogActive(): Boolean {
+        return synchronized(activeInternalDialogs) {
+            internalDialogActive || activeInternalDialogs.isNotEmpty()
+        }
+    }
+
+    /**
+     * ✅ إيقاف overlay detection (متزامن وفوري)
+     */
+    fun pauseOverlayDetection() {
+        if (overlayDetectionPaused) return
+
+        overlayDetectionPaused = true
+        overlayDetector?.stopMonitoring()
+
+        Log.e(TAG, "🛑 OVERLAY DETECTION PAUSED")
+    }
+
+    /**
+     * ✅ استئناف overlay detection
+     */
+    fun resumeOverlayDetection() {
+        if (!overlayDetectionPaused) return
+
+        // ✅ تأخير بسيط قبل استئناف Detection لتجنب false positives
+        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+            if (!isInternalDialogActive()) {
+                overlayDetectionPaused = false
+                overlayDetector?.startMonitoring()
+                Log.e(TAG, "✅ OVERLAY DETECTION RESUMED")
+            }
+        }, 500)
     }
 
     /**
@@ -310,6 +379,7 @@ class ExamSecurityManager(
         stopMonitoring()
         activeInternalDialogs.clear()
         internalDialogActive = false
+        overlayDetectionPaused = false
         Log.d(TAG, "Cleanup completed")
     }
 
@@ -365,8 +435,12 @@ class ExamSecurityManager(
      * معالجة فقدان التركيز على النافذة
      */
     fun onWindowFocusChanged(hasFocus: Boolean) {
-        // ✅ تمرير للـ OverlayDetector بدون شروط
-        // الـ OverlayDetector نفسه يتحقق من isMonitoring
+        // ✅ تجاهل focus changes إذا كان dialog داخلي نشط
+        if (isInternalDialogActive()) {
+            Log.d(TAG, "Window focus changed but internal dialog active - IGNORED")
+            return
+        }
+
         overlayDetector?.onWindowFocusChanged(hasFocus)
 
         if (!hasFocus && examStarted && !isInternalDialogActive()) {

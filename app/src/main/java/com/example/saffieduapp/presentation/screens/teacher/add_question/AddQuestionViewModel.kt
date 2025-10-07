@@ -127,7 +127,9 @@ class AddQuestionViewModel @Inject constructor() : ViewModel() {
             }
         }
     }
-    fun getCreatedQuestions(): List<QuestionData> = _state.value.createdQuestions
+    fun getCreatedQuestions(): List<QuestionData> {
+        return _state.value.createdQuestions
+    }
 
     fun saveCurrentQuestionAndResetSync(): QuestionData {
         val currentState = state.value
