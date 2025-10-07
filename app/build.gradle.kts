@@ -6,6 +6,7 @@ plugins {
     alias(libs.plugins.hilt)
 
     id("com.google.gms.google-services")
+    id ("kotlin-parcelize")
 
 }
 
@@ -94,10 +95,19 @@ dependencies {
     implementation("androidx.media3:media3-exoplayer:1.3.1")
     implementation("androidx.media3:media3-ui:1.3.1")
 
-    // CameraX
-    implementation("androidx.camera:camera-camera2:1.3.1")
-    implementation("androidx.camera:camera-lifecycle:1.3.1")
-    implementation("androidx.camera:camera-view:1.3.1")
+    // 📹 CameraX - للكاميرا الخلفية والأمامية
+    val cameraxVersion = "1.3.0"
+
+    implementation("androidx.camera:camera-camera2:$cameraxVersion")
+    implementation("androidx.camera:camera-lifecycle:$cameraxVersion")
+    implementation("androidx.camera:camera-video:$cameraxVersion")
+    implementation("androidx.camera:camera-view:$cameraxVersion")
+    implementation("androidx.camera:camera-extensions:$cameraxVersion")
+    // 🔐 Security Crypto - للتشفير
+    implementation("androidx.security:security-crypto:1.1.0-alpha06")
+
+    // 📤 WorkManager - للرفع الخلفي
+    implementation("androidx.work:work-runtime-ktx:2.9.0")
 
     // ML Kit Face Detection
     implementation("com.google.mlkit:face-detection:16.1.5")

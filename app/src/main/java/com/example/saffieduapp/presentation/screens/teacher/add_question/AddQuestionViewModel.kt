@@ -131,4 +131,30 @@ class AddQuestionViewModel @Inject constructor() : ViewModel() {
         return _state.value.createdQuestions
     }
 
+    fun saveCurrentQuestionAndResetSync(): QuestionData {
+        val currentState = state.value
+        val questionData = QuestionData(
+            text = currentState.currentQuestionText,
+            type = currentState.currentQuestionType,
+            points = currentState.currentQuestionPoints,
+            choices = currentState.currentChoices.toList(),
+            essayAnswer = currentState.currentEssayAnswer
+        )
+
+        _state.update {
+            it.copy(
+                currentQuestionText = "",
+                currentQuestionPoints = "",
+                currentChoices = when (currentState.currentQuestionType) {
+                    QuestionType.TRUE_FALSE -> mutableStateListOf(Choice(text = "صح"), Choice(text = "خطأ"))
+                    QuestionType.MULTIPLE_CHOICE_SINGLE,
+                    QuestionType.MULTIPLE_CHOICE_MULTIPLE -> mutableStateListOf(Choice(), Choice())
+                    QuestionType.ESSAY -> mutableStateListOf()
+                },
+                currentEssayAnswer = "",
+                createdQuestions = it.createdQuestions + questionData
+            )
+        }
+        return questionData
+    }
 }

@@ -109,25 +109,92 @@ class ExamSecurityManager(
     }
 
     /**
-     * فحص دوري للكشف عن Overlays
+     * ✅ فحص دوري للكشف عن Overlays (مُصلح)
+     * الفحص يعمل دائماً، لكن التسجيل يحدث فقط عندما لا يوجد dialog داخلي
      */
     private fun startOverlayPeriodicCheck() {
-        android.os.Handler(android.os.Looper.getMainLooper()).post(object : Runnable {
+        periodicCheckRunnable = object : Runnable {
             override fun run() {
                 if (examStarted && overlayDetector != null && !isInternalDialogActive()) {
                     // فحص Focus
                     if (!activity.hasWindowFocus()) {
-                        Log.w(TAG, "Lost window focus - possible overlay")
-                        logViolation("OVERLAY_FOCUS_LOST")
-                        handleCriticalViolation()
-                        return
+                        if (!isInternalDialogActive()) {
+                            // ✅ overlay حقيقي!
+                            Log.w(TAG, "⚠️ Periodic check: Lost window focus - possible overlay")
+                            logViolation("OVERLAY_FOCUS_LOST")
+                            handleCriticalViolation()
+                            return // لا نعيد الجدولة بعد اكتشاف overlay
+                        } else {
+                            // ✅ dialog داخلي نشط، تجاهل
+                            Log.d(TAG, "🟢 Periodic check: Focus lost but internal dialog active")
+                        }
                     }
 
-                    // إعادة الفحص كل 3 ثواني
-                    android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(this, 3000)
+                    // ✅ إعادة الجدولة دائماً (خارج الـ if)
+                    periodicCheckHandler.postDelayed(this, 3000)
                 }
             }
-        })
+        }
+
+        // بدء الفحص الدوري
+        periodicCheckHandler.postDelayed(periodicCheckRunnable!!, 3000)
+        Log.d(TAG, "✅ Periodic overlay check started")
+    }
+
+    /**
+     * ✅ إيقاف الفحص الدوري
+     */
+    private fun stopOverlayPeriodicCheck() {
+        periodicCheckRunnable?.let {
+            periodicCheckHandler.removeCallbacks(it)
+            periodicCheckRunnable = null
+            Log.d(TAG, "❌ Periodic overlay check stopped")
+        }
+    }
+
+    /**
+     * ✅ تسجيل dialog داخلي قبل إظهاره
+     */
+    fun registerInternalDialog(dialogName: String) {
+        synchronized(activeInternalDialogs) {
+            activeInternalDialogs.add(dialogName)
+            internalDialogActive = true
+
+            Log.d(TAG, "🟢 Internal Dialog Registered: $dialogName")
+            Log.d(TAG, "📋 Active dialogs: ${activeInternalDialogs.joinToString()}")
+        }
+    }
+
+    /**
+     * ✅ إلغاء تسجيل dialog داخلي عند إغلاقه
+     */
+    fun unregisterInternalDialog(dialogName: String) {
+        synchronized(activeInternalDialogs) {
+            val wasRemoved = activeInternalDialogs.remove(dialogName)
+
+            if (!wasRemoved) {
+                Log.w(TAG, "⚠️ Tried to unregister dialog that wasn't registered: $dialogName")
+                return
+            }
+
+            // ✅ إذا لم يعد هناك dialogs نشطة
+            if (activeInternalDialogs.isEmpty()) {
+                internalDialogActive = false
+                Log.d(TAG, "🔴 All Internal Dialogs Closed - Detection Active")
+            } else {
+                Log.d(TAG, "🟡 Dialog Closed: $dialogName")
+                Log.d(TAG, "📋 Remaining dialogs: ${activeInternalDialogs.joinToString()}")
+            }
+        }
+    }
+
+    /**
+     * ✅ فحص إذا كان هناك dialog داخلي نشط
+     */
+    fun isInternalDialogActive(): Boolean {
+        return synchronized(activeInternalDialogs) {
+            internalDialogActive || activeInternalDialogs.isNotEmpty()
+        }
     }
 
     /**
@@ -259,7 +326,7 @@ class ExamSecurityManager(
     fun startMonitoring() {
         try {
             overlayDetector?.startMonitoring()
-            Log.d(TAG, "Monitoring started")
+            Log.d(TAG, "✅ Monitoring started")
         } catch (e: Exception) {
             Log.e(TAG, "Error starting monitoring", e)
         }
@@ -270,7 +337,7 @@ class ExamSecurityManager(
      */
     fun startExam() {
         examStarted = true
-        Log.d(TAG, "Exam officially started - exit tracking enabled")
+        Log.d(TAG, "✅ Exam officially started - exit tracking enabled")
     }
 
     /**
@@ -278,9 +345,9 @@ class ExamSecurityManager(
      */
     fun pauseMonitoring() {
         _isPaused.value = true
-        overlayDetector?.stopMonitoring()
+        // ✅ لا نوقف overlayDetector - فقط الكاميرا
         cameraMonitor?.pauseMonitoring()
-        Log.d(TAG, "Monitoring paused")
+        Log.d(TAG, "Monitoring paused (camera only)")
     }
 
     /**
@@ -288,7 +355,7 @@ class ExamSecurityManager(
      */
     fun resumeMonitoring() {
         _isPaused.value = false
-        overlayDetector?.startMonitoring()
+        // ✅ لا نحتاج إعادة تشغيل overlayDetector - هو يعمل دائماً
         cameraMonitor?.resumeMonitoring()
         Log.d(TAG, "Monitoring resumed")
     }
@@ -297,6 +364,7 @@ class ExamSecurityManager(
      * إيقاف كامل للمراقبة
      */
     fun stopMonitoring() {
+        stopOverlayPeriodicCheck()
         overlayDetector?.stopMonitoring()
         overlayDetector = null
         cameraMonitor?.cleanup()
@@ -353,6 +421,7 @@ class ExamSecurityManager(
                     Log.e(TAG, "Auto-submit - max exit attempts")
                 }
                 else -> {
+                    registerInternalDialog(DIALOG_EXIT_RETURN)
                     _showExitWarning.value = true
                     resumeMonitoring()
                 }
@@ -374,8 +443,8 @@ class ExamSecurityManager(
 
         overlayDetector?.onWindowFocusChanged(hasFocus)
 
-        if (!hasFocus && examStarted) {
-            Log.w(TAG, "Window focus lost during exam")
+        if (!hasFocus && examStarted && !isInternalDialogActive()) {
+            Log.w(TAG, "⚠️ Window focus lost during exam (no internal dialog)")
         }
     }
 
@@ -413,7 +482,7 @@ class ExamSecurityManager(
         )
 
         _violations.value = _violations.value + violation
-        Log.w(TAG, "Violation logged: $type (${violation.severity})")
+        Log.w(TAG, "⚠️ Violation logged: $type (${violation.severity})")
 
         when {
             type == "NO_FACE_DETECTED_LONG" -> handleNoFaceDetected()
