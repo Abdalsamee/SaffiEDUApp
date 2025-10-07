@@ -18,7 +18,7 @@ object CameraMonitoringConfig {
     object BackCamera {
         // ⏰ التوقيت والتكرار
         const val RECORDING_ENABLED = true
-        const val MIN_EXAM_DURATION_FOR_RECORDING = 15 * 60 * 1000L // 15 دقيقة
+        const val MIN_EXAM_DURATION_FOR_RECORDING = 20 * 1000L // 15 دقيقة
         const val RECORDING_DURATION = 10_000L // 10 ثواني
         const val EARLIEST_RECORDING_PERCENT = 0.15f // 15%
         const val LATEST_RECORDING_PERCENT = 0.85f // 85%
