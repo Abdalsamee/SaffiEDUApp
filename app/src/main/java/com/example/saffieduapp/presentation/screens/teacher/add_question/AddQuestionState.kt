@@ -28,6 +28,7 @@ data class AddQuestionState(
 )
 // لتمثيل السؤال الذي سيتم حفظه مؤقتًا
 data class QuestionData(
+    val id: String = UUID.randomUUID().toString(),
     val text: String,
     val type: QuestionType,
     val points: String,

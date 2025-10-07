@@ -8,6 +8,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.saffieduapp.presentation.screens.student.components.CommonTopAppBar
 import com.example.saffieduapp.presentation.screens.teacher.add_question.QuestionData
 import com.example.saffieduapp.presentation.screens.teacher.components.AppButton
@@ -20,10 +22,19 @@ import com.example.saffieduapp.ui.theme.SaffiEDUAppTheme
 fun QuizSummaryScreen(
     onNavigateUp: () -> Unit,
     onPublish:() ->Unit,
-    questions: List<QuestionData>, // استقبال الأسئلة
-    // TODO: Add ViewModel
+    questions: List<QuestionData>,
+    viewModel: QuizSummaryViewModel = hiltViewModel()
 ) {
     var showDeleteConfirmationDialog by remember { mutableStateOf(false) }
+    var questionToDelete by remember { mutableStateOf<QuestionData?>(null) }
+
+    // مرّر القائمة الأولية إلى ViewModel عند تغيّرها
+    LaunchedEffect(questions) {
+        viewModel.setQuestions(questions)
+    }
+
+    // القائمة الحيّة من الـ ViewModel (تتحدّث تلقائيًا بعد الحذف)
+    val uiQuestions by viewModel.questions.collectAsState()
 
     // ديالوج تأكيد الحذف
     if (showDeleteConfirmationDialog) {
@@ -34,8 +45,9 @@ fun QuizSummaryScreen(
             confirmButton = {
                 TextButton(
                     onClick = {
-                        // TODO: Handle delete confirmation
+                        questionToDelete?.let { viewModel.deleteQuestion(it.id) }
                         showDeleteConfirmationDialog = false
+                        questionToDelete = null
                     }
                 ) {
                     Text("نعم، احذف")
@@ -67,11 +79,13 @@ fun QuizSummaryScreen(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                items(questions) { question -> // ← استبدال القائمة الوهمية
+                items(uiQuestions) { question -> // ← استبدال القائمة الوهمية
                     QuestionSummaryItem(
                         questionText = question.text,
                         onEditClick = { /* TODO: Navigate to edit question */ },
-                        onDeleteClick = { showDeleteConfirmationDialog = true }
+                        onDeleteClick = {
+                            questionToDelete = question
+                            showDeleteConfirmationDialog = true }
                     )
                 }
             }

@@ -17,8 +17,10 @@ class QuizSummaryViewModel @Inject constructor() : ViewModel() {
         _questions.value = list
     }
 
-    fun deleteQuestion(question: QuestionData) {
-        _questions.update { it.filterNot { q -> q == question } }
+    // في ViewModel
+    fun deleteQuestion(id: String) {
+        _questions.update { it.filterNot { q -> q.id == id } }
     }
+
 
 }
