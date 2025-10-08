@@ -6,15 +6,14 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.saffieduapp.data.FireBase.Exam
 import com.example.saffieduapp.presentation.screens.student.components.CommonTopAppBar
+import com.example.saffieduapp.presentation.screens.teacher.add_exam.AddExamState
 import com.example.saffieduapp.presentation.screens.teacher.add_question.QuestionData
 import com.example.saffieduapp.presentation.screens.teacher.components.AppButton
 import com.example.saffieduapp.presentation.screens.teacher.quiz_summary.components.QuestionSummaryItem
-import com.example.saffieduapp.ui.theme.SaffiEDUAppTheme
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -22,6 +21,7 @@ import com.example.saffieduapp.ui.theme.SaffiEDUAppTheme
 fun QuizSummaryScreen(
     onNavigateUp: () -> Unit,
     onPublish: () -> Unit,
+    examState: AddExamState,
     questions: List<QuestionData>,
     viewModel: QuizSummaryViewModel = hiltViewModel()
 ) {
@@ -89,15 +89,25 @@ fun QuizSummaryScreen(
             AppButton(
                 text = "نشر الاختبار",
                 onClick = {
-                    viewModel.saveExam(
-                        examTitle = "عنوان الاختبار", // يمكن جعله ديناميكي من TextField
-                        onSuccess = {
-                            // يمكن العودة للشاشة الرئيسية بعد النشر
-                            onPublish()
-                        }, onError = { message ->
-                            // عرض رسالة خطأ إذا حدث
-                            println("خطأ: $message")
-                        })
+                    val exam = Exam(
+                        className = examState.selectedClass,
+                        examTitle = examState.examTitle,
+                        examType = examState.examType,
+                        examDate = examState.examDate,
+                        examStartTime = examState.examStartTime,
+                        examTime = examState.examTime,
+                        randomQuestions = examState.randomQuestions,
+                        showResultsImmediately = examState.showResultsImmediately,
+                        teacherId = examState.teacherId,
+                        teacherName = examState.teacherName,
+                        createdAt = examState.createdAt,
+                        questions = uiQuestions
+                    )
+                    viewModel.publishExam(
+                        examData = exam,
+                        onSuccess = { onPublish() },
+                        onError = { message -> println("خطأ: $message") }
+                    )
                 },
                 modifier = Modifier
                     .fillMaxWidth()

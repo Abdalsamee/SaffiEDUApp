@@ -82,8 +82,9 @@ class AddExamViewModel @Inject constructor(
             is AddExamEvent.ShowResultsToggled -> _state.update {
                 it.copy(showResultsImmediately = event.isEnabled, isDraftSaved = false)
             }
-            is AddExamEvent.NextClicked -> saveExam()
-            is AddExamEvent.SaveDraftClicked -> saveDraft()
+            // ✅ التغيير هنا: لن يتم الحفظ عند الضغط على "التالي"
+            is AddExamEvent.NextClicked -> {} // فقط التنقل للشاشة التالية
+            is AddExamEvent.SaveDraftClicked -> saveDraft() // يمكن الاحتفاظ بالمسودة
         }
     }
 
@@ -149,7 +150,7 @@ class AddExamViewModel @Inject constructor(
                 )
 
                 // 🔹 حفظ الامتحان في المستودع
-                repository.addExam(exam)
+                repository.addExamWithQuestions(exam)
 
                 _state.update { it.copy(isSaving = false, success = true) }
 
