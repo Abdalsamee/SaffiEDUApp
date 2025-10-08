@@ -12,11 +12,11 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import javax.inject.Inject
-import kotlinx.coroutines.tasks.await
 
 
 @HiltViewModel
@@ -29,6 +29,7 @@ class AddExamViewModel @Inject constructor(
 
     private val _state = MutableStateFlow(AddExamState())
     val state = _state.asStateFlow()
+
     init {
         loadExamFromDataStore()
     }
@@ -61,29 +62,37 @@ class AddExamViewModel @Inject constructor(
             is AddExamEvent.ClassSelected -> _state.update {
                 it.copy(selectedClass = event.className, isDraftSaved = false)
             }
+
             is AddExamEvent.TitleChanged -> _state.update {
                 it.copy(examTitle = event.title, isDraftSaved = false)
             }
+
             is AddExamEvent.TypeChanged -> _state.update {
                 it.copy(examType = event.type, isDraftSaved = false)
             }
+
             is AddExamEvent.DateChanged -> _state.update {
                 it.copy(examDate = event.date, isDraftSaved = false)
             }
+
             is AddExamEvent.StartTimeChanged -> _state.update {
                 it.copy(examStartTime = event.time, isDraftSaved = false)
             }
+
             is AddExamEvent.TimeChanged -> _state.update {
                 it.copy(examTime = event.time, isDraftSaved = false)
             }
+
             is AddExamEvent.RandomQuestionsToggled -> _state.update {
                 it.copy(randomQuestions = event.isEnabled, isDraftSaved = false)
             }
+
             is AddExamEvent.ShowResultsToggled -> _state.update {
                 it.copy(showResultsImmediately = event.isEnabled, isDraftSaved = false)
             }
-            is AddExamEvent.NextClicked -> saveExam()
-            is AddExamEvent.SaveDraftClicked -> saveDraft()
+            // ✅ التغيير هنا: لن يتم الحفظ عند الضغط على "التالي"
+            is AddExamEvent.NextClicked -> {} // فقط التنقل للشاشة التالية
+            is AddExamEvent.SaveDraftClicked -> saveDraft() // يمكن الاحتفاظ بالمسودة
         }
     }
 
@@ -108,54 +117,32 @@ class AddExamViewModel @Inject constructor(
         }
     }
 
-    private fun saveExam() {
-        val current = _state.value
-        if (current.examTitle.isBlank() || current.selectedClass.isBlank()) return
-
-        _state.update { it.copy(isSaving = true) }
-
+    fun fetchTeacherInfo(onResult: (teacherId: String, teacherName: String) -> Unit) {
         viewModelScope.launch {
             try {
-                val email = auth.currentUser?.email ?: return@launch
+                val email = auth.currentUser?.email ?: ""
+                if (email.isBlank()) {
+                    onResult("", "")
+                    return@launch
+                }
 
-                // 🔹 جلب بيانات المعلم بناءً على البريد الإلكتروني
                 val teacherSnapshot = firestore.collection("teachers")
                     .whereEqualTo("email", email)
                     .get()
                     .await()
 
                 if (teacherSnapshot.isEmpty) {
-                    _state.update { it.copy(isSaving = false, success = false) }
+                    onResult("", "")
                     return@launch
                 }
 
                 val teacherDoc = teacherSnapshot.documents.first()
                 val teacherId = teacherDoc.id
-                val teacherName = teacherDoc.getString("fullName") ?: "غير معروف"
-
-                // 🔹 إنشاء كائن الامتحان
-                val exam = Exam(
-                    className = current.selectedClass,
-                    examTitle = current.examTitle,
-                    examType = current.examType,
-                    examDate = current.examDate,
-                    examStartTime = current.examStartTime,
-                    examTime = current.examTime,
-                    randomQuestions = current.randomQuestions,
-                    showResultsImmediately = current.showResultsImmediately,
-                    teacherId = teacherId,
-                    teacherName = teacherName,
-                    createdAt = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.ENGLISH).format(Date())
-                )
-
-                // 🔹 حفظ الامتحان في المستودع
-                repository.addExam(exam)
-
-                _state.update { it.copy(isSaving = false, success = true) }
-
+                val teacherName = teacherDoc.getString("fullName") ?: ""
+                onResult(teacherId, teacherName)
             } catch (e: Exception) {
                 e.printStackTrace()
-                _state.update { it.copy(isSaving = false, success = false) }
+                onResult("", "")
             }
         }
     }

@@ -1,5 +1,6 @@
 package com.example.saffieduapp.data.FireBase
 
+import com.example.saffieduapp.presentation.screens.teacher.add_question.QuestionData
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.tasks.await
@@ -7,6 +8,20 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import javax.inject.Inject
+
+data class Choice(
+    val text: String = "",
+    val isCorrect: Boolean = false
+)
+
+data class Question(
+    val text: String = "",
+    val type: String = "", // مثال: "MULTIPLE_CHOICE" أو "ESSAY"
+    val points: Int = 0,
+    val choices: List<Choice> = emptyList(),
+    val essayAnswer: String? = null
+)
+
 
 data class Exam(
     val className: String = "",
@@ -19,7 +34,8 @@ data class Exam(
     val showResultsImmediately: Boolean = false,
     val teacherId: String = "",
     val teacherName: String = "",
-    val createdAt: String = ""
+    val createdAt: String = "",
+    val questions: List<QuestionData> = emptyList()
 )
 
 class ExamRepository @Inject constructor(
@@ -27,26 +43,37 @@ class ExamRepository @Inject constructor(
     private val auth: FirebaseAuth
 ) {
 
-    suspend fun addExam(exam: Exam): Boolean {
+    suspend fun addExamWithQuestions(exam: Exam): Boolean {
         return try {
             val email = auth.currentUser?.email ?: return false
 
-            // ابحث عن المعلم في مجموعة teachers بناءً على الإيميل
             val teacherQuery = firestore.collection("teachers")
                 .whereEqualTo("email", email)
                 .get()
                 .await()
 
-            if (teacherQuery.isEmpty) {
-                // لم يتم العثور على المعلم
-                return false
-            }
+            if (teacherQuery.isEmpty) return false
 
             val teacherDoc = teacherQuery.documents.first()
             val teacherId = teacherDoc.id
             val teacherName = teacherDoc.getString("fullName") ?: "Unknown"
 
-            // بيانات الامتحان للحفظ في مجموعة exams
+            // تحويل الأسئلة لقائمة Maps
+            val questionsData = exam.questions.map { question ->
+                hashMapOf(
+                    "text" to question.text,
+                    "type" to question.type,
+                    "points" to question.points,
+                    "choices" to question.choices.map { choice ->
+                        hashMapOf(
+                            "text" to choice.text,
+                            "isCorrect" to choice.isCorrect
+                        )
+                    },
+                    "essayAnswer" to question.essayAnswer
+                )
+            }
+
             val examData = hashMapOf(
                 "className" to exam.className,
                 "examTitle" to exam.examTitle,
@@ -58,12 +85,12 @@ class ExamRepository @Inject constructor(
                 "showResultsImmediately" to exam.showResultsImmediately,
                 "teacherId" to teacherId,
                 "teacherName" to teacherName,
-                "createdAt" to SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.ENGLISH).format(Date())
+                "createdAt" to SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.ENGLISH).format(Date()),
+                "questions" to questionsData
             )
 
             firestore.collection("exams").add(examData).await()
             true
-
         } catch (e: Exception) {
             e.printStackTrace()
             false

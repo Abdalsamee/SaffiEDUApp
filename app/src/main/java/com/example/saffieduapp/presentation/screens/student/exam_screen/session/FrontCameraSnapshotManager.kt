@@ -1,5 +1,6 @@
 package com.example.saffieduapp.presentation.screens.student.exam_screen.session
 
+import android.content.ContentValues.TAG
 import android.graphics.ImageFormat
 import android.util.Log
 import androidx.camera.core.ImageProxy
@@ -11,6 +12,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * مدير التقاط الصور من الكاميرا الأمامية
@@ -19,7 +21,7 @@ class FrontCameraSnapshotManager(
     private val sessionManager: ExamSessionManager
 ) {
     private val TAG = "FrontSnapshotManager"
-
+    private val randomCaptureRequested = AtomicBoolean(false)
     private val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
 
     private val _snapshotStats = MutableStateFlow(SnapshotStats())
@@ -28,6 +30,12 @@ class FrontCameraSnapshotManager(
     private val lastSnapshotTime = mutableMapOf<SnapshotReason, Long>()
     private val MIN_SNAPSHOT_INTERVAL = 30_000L // 30 ثانية
 
+    fun requestRandomCapture() {
+        randomCaptureRequested.set(true)
+    }
+
+
+
     /**
      * معالجة نتيجة Face Detection
      */
@@ -35,6 +43,14 @@ class FrontCameraSnapshotManager(
         result: FaceDetectionResult,
         imageProxy: ImageProxy
     ) {
+        // ← أضف هذا في أول الدالة processFaceDetectionResult
+        if (randomCaptureRequested.compareAndSet(true, false)) {
+            // التقاط لقطة عشوائية من نفس الفريم
+            captureSnapshotSafely(imageProxy, SnapshotReason.PERIODIC_CHECK)
+            return
+        }
+
+
         if (!sessionManager.canCaptureMoreSnapshots()) {
             Log.w(TAG, "⚠️ Max snapshots reached")
             imageProxy.close()
@@ -209,6 +225,29 @@ class FrontCameraSnapshotManager(
             )
         }
     }
+    /**
+     * التقاط Snapshot عشوائي (خارج نظام FaceDetection)
+     */
+    fun captureRandomSnapshot(reason: String = "RANDOM_SNAPSHOT") {
+        try {
+            Log.d(TAG, "📸 Triggering random snapshot for reason: $reason")
+
+            // هذه الدالة لا تملك ImageProxy مباشر،
+            // لذا سنقوم فقط بتسجيل حدث أو إحصائية مبدئيًا.
+            // لاحقًا يمكن ربطها بـ ImageCapture عند تفعيل الكاميرا الأمامية.
+            sessionManager.logSecurityEvent(
+                type = SecurityEventType.SNAPSHOT_CAPTURED,
+                details = "Random snapshot trigger invoked: $reason"
+            )
+
+            updateStats(SnapshotReason.PERIODIC_CHECK, success = true)
+
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Failed to capture random snapshot", e)
+            updateStats(SnapshotReason.PERIODIC_CHECK, success = false)
+        }
+    }
+
 
     fun getRemainingSnapshotsCount(): Int {
         return sessionManager.getRemainingSnapshotsCount()
@@ -291,3 +330,4 @@ data class SnapshotStats(
             0f
         }
 }
+

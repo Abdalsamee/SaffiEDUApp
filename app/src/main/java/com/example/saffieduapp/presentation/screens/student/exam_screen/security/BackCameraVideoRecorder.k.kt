@@ -9,15 +9,13 @@ import androidx.camera.video.*
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
 import com.example.saffieduapp.presentation.screens.student.exam_screen.session.ExamSessionManager
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.launch
 import java.io.File
 import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * مسجل فيديو الكاميرا الخلفية - لمسح الغرفة
@@ -41,8 +39,12 @@ class BackCameraVideoRecorder(
     private val _recordingDuration = MutableStateFlow(0L)
     val recordingDuration: StateFlow<Long> = _recordingDuration.asStateFlow()
 
+    private var autoStopJob: Job? = null
+    private val isRecording = AtomicBoolean(false)
+
     companion object {
-        private const val ROOM_SCAN_DURATION = 30_000L // 30 ثانية
+        // غيّرها حسب رغبتك (10 ثواني)
+        private const val ROOM_SCAN_DURATION = 10_000L
     }
 
     /**
@@ -57,13 +59,14 @@ class BackCameraVideoRecorder(
 
             cameraProvider = ProcessCameraProvider.getInstance(context).get()
 
+            // اضبط الجودة على SD لتقليل الحجم
+            val qualitySelector = QualitySelector.from(
+                Quality.SD,
+                FallbackStrategy.lowerQualityOrHigherThan(Quality.SD)
+            )
+
             val recorder = Recorder.Builder()
-                .setQualitySelector(
-                    QualitySelector.from(
-                        Quality.HD,
-                        FallbackStrategy.lowerQualityOrHigherThan(Quality.SD)
-                    )
-                )
+                .setQualitySelector(qualitySelector)
                 .setExecutor(executor)
                 .build()
 
@@ -104,10 +107,10 @@ class BackCameraVideoRecorder(
                 handleRecordingEvent(event, videoFile)
             }
 
+        isRecording.set(true)
         _recordingState.value = RecordingState.RECORDING
-        startDurationCounter()
-
         Log.d(TAG, "Recording started: ${videoFile.name}")
+        startDurationTicker()
     }
 
     /**
@@ -124,6 +127,12 @@ class BackCameraVideoRecorder(
             }
 
             is VideoRecordEvent.Finalize -> {
+                // تجنّب أي إيقافات إضافية
+                autoStopJob?.cancel()
+                autoStopJob = null
+                isRecording.set(false)
+                activeRecording = null
+
                 if (event.hasError()) {
                     Log.e(TAG, "Recording error: ${event.error}")
                     _recordingState.value = RecordingState.ERROR(
@@ -147,9 +156,13 @@ class BackCameraVideoRecorder(
     }
 
     /**
-     * إيقاف التسجيل
+     * إيقاف التسجيل (لن ينفّذ إن كان منتهي/غير شغّال)
      */
     fun stopRecording() {
+        if (!isRecording.compareAndSet(true, false)) {
+            Log.d(TAG, "stopRecording ignored (not recording)")
+            return
+        }
         activeRecording?.stop()
         activeRecording = null
         _recordingState.value = RecordingState.STOPPED
@@ -160,19 +173,21 @@ class BackCameraVideoRecorder(
      * جدولة الإيقاف التلقائي
      */
     private fun scheduleAutoStop() {
-        scope.launch {
-            kotlinx.coroutines.delay(ROOM_SCAN_DURATION)
+        autoStopJob?.cancel()
+        autoStopJob = scope.launch {
+            delay(ROOM_SCAN_DURATION)
             stopRecording()
         }
     }
 
     /**
-     * عداد المدة
+     * عداد المدة (تحديث بسيط كل ثانية)
      */
-    private fun startDurationCounter() {
+    private fun startDurationTicker() {
         scope.launch {
-            while (_recordingState.value == RecordingState.RECORDING) {
-                kotlinx.coroutines.delay(1000)
+            while (isRecording.get()) {
+                delay(1000)
+                // التحديث الفعلي للمدة يحصل من VideoRecordEvent.Status
             }
         }
     }
@@ -200,7 +215,9 @@ class BackCameraVideoRecorder(
      * تنظيف الموارد
      */
     fun cleanup() {
-        stopRecording()
+        autoStopJob?.cancel()
+        autoStopJob = null
+        stopRecording() // سيُتجاهل لو لم يكن هناك تسجيل
         cameraProvider?.unbindAll()
         cameraProvider = null
         executor.shutdown()
@@ -220,7 +237,7 @@ sealed class RecordingState {
 }
 
 /**
- * معلومات التسجيل
+ * معلومات التسجيل (احتياطي للاستخدام المستقبلي)
  */
 data class RecordingInfo(
     val duration: Long = 0L,

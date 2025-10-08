@@ -146,6 +146,7 @@ class CameraMonitorViewModel(
     /**
      * تنظيف الموارد
      */
+    fun getSessionManager(): ExamSessionManager = sessionManager
     fun cleanup() {
         cameraMonitor.cleanup()
         sessionManager.cleanup()
