@@ -4,7 +4,6 @@ import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Bundle
-import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -26,24 +25,20 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import com.example.saffieduapp.presentation.screens.student.exam_screen.security.BackCameraVideoRecorder
 import com.example.saffieduapp.presentation.screens.student.exam_screen.security.RecordingState
+import com.example.saffieduapp.presentation.screens.student.exam_screen.security.RoomScanCoverageTracker
 import com.example.saffieduapp.presentation.screens.student.exam_screen.session.ExamSessionManager
 import com.example.saffieduapp.ui.theme.SaffiEDUAppTheme
 import kotlinx.coroutines.launch
 
-/**
- * شاشة مسح الغرفة قبل بدء الاختبار
- */
 class RoomScanActivity : ComponentActivity() {
-
-    private val TAG = "RoomScanActivity"
 
     private lateinit var sessionManager: ExamSessionManager
     private lateinit var videoRecorder: BackCameraVideoRecorder
+    private lateinit var coverageTracker: RoomScanCoverageTracker
 
     private var examId: String = ""
     private var sessionId: String = ""
 
-    // طلب صلاحيات الكاميرا والمايكروفون
     private val permissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
@@ -53,11 +48,7 @@ class RoomScanActivity : ComponentActivity() {
         if (cameraGranted && audioGranted) {
             startRoomScan()
         } else {
-            Toast.makeText(
-                this,
-                "يجب منح صلاحيات الكاميرا والمايكروفون",
-                Toast.LENGTH_LONG
-            ).show()
+            Toast.makeText(this, "يجب منح صلاحيات الكاميرا والمايكروفون", Toast.LENGTH_LONG).show()
             finish()
         }
     }
@@ -65,21 +56,18 @@ class RoomScanActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // الحصول على البيانات
         examId = intent.getStringExtra("EXAM_ID") ?: ""
         val studentId = intent.getStringExtra("STUDENT_ID") ?: ""
 
         if (examId.isEmpty() || studentId.isEmpty()) {
             Toast.makeText(this, "خطأ في البيانات", Toast.LENGTH_SHORT).show()
-            finish()
-            return
+            finish(); return
         }
 
-        // تهيئة المديرين
         sessionManager = ExamSessionManager(this, examId, studentId)
         videoRecorder = BackCameraVideoRecorder(this, sessionManager)
+        coverageTracker = RoomScanCoverageTracker(this)
 
-        // بدء الجلسة
         val session = sessionManager.startSession()
         sessionId = session.sessionId
 
@@ -87,61 +75,43 @@ class RoomScanActivity : ComponentActivity() {
             SaffiEDUAppTheme {
                 RoomScanScreen(
                     videoRecorder = videoRecorder,
-                    onScanComplete = { videoFile ->
-                        proceedToExam()
-                    },
-                    onSkip = {
-                        // السماح بالتخطي (اختياري)
-                        proceedToExam()
-                    }
+                    coverage = coverageTracker.state.collectAsState().value,
+                    onScanComplete = { proceedToExam() },
+                    onSkip = { proceedToExam() }
                 )
             }
         }
 
-        // فحص الصلاحيات
         checkAndRequestPermissions()
     }
 
     private fun checkAndRequestPermissions() {
-        val cameraPermission = ContextCompat.checkSelfPermission(
-            this,
-            Manifest.permission.CAMERA
-        )
-        val audioPermission = ContextCompat.checkSelfPermission(
-            this,
-            Manifest.permission.RECORD_AUDIO
-        )
+        val camOk = ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
+        val audOk = ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
 
-        if (cameraPermission == PackageManager.PERMISSION_GRANTED &&
-            audioPermission == PackageManager.PERMISSION_GRANTED
-        ) {
-            // الصلاحيات ممنوحة
+        if (camOk && audOk) {
+            // جاهزين
         } else {
-            permissionLauncher.launch(
-                arrayOf(
-                    Manifest.permission.CAMERA,
-                    Manifest.permission.RECORD_AUDIO
-                )
-            )
+            permissionLauncher.launch(arrayOf(Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO))
         }
     }
 
     private fun startRoomScan() {
         lifecycleScope.launch {
-            val result = videoRecorder.startRoomScan(this@RoomScanActivity, sessionId)
-
+            val result = videoRecorder.startRoomScan(
+                lifecycleOwner = this@RoomScanActivity,
+                sessionId = sessionId,
+                coverageTracker = coverageTracker,
+                softDurationMs = 10_000L, // 10 ثواني "هدف"
+                hardCapMs = 30_000L       // حد أقصى 30 ثانية
+            )
             if (result.isFailure) {
-                Toast.makeText(
-                    this@RoomScanActivity,
-                    "فشل بدء التسجيل: ${result.exceptionOrNull()?.message}",
-                    Toast.LENGTH_LONG
-                ).show()
+                Toast.makeText(this@RoomScanActivity, "فشل بدء التسجيل", Toast.LENGTH_LONG).show()
             }
         }
     }
 
     private fun proceedToExam() {
-        // الانتقال إلى شاشة الاختبار
         val intent = Intent(this, ExamActivity::class.java)
         intent.putExtra("EXAM_ID", examId)
         intent.putExtra("SESSION_ID", sessionId)
@@ -151,16 +121,15 @@ class RoomScanActivity : ComponentActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        coverageTracker.stop()
         videoRecorder.cleanup()
     }
 }
 
-/**
- * شاشة Compose لمسح الغرفة
- */
 @Composable
 fun RoomScanScreen(
     videoRecorder: BackCameraVideoRecorder,
+    coverage: com.example.saffieduapp.presentation.screens.student.exam_screen.security.CoverageState,
     onScanComplete: (java.io.File) -> Unit,
     onSkip: () -> Unit
 ) {
@@ -168,174 +137,88 @@ fun RoomScanScreen(
     val duration by videoRecorder.recordingDuration.collectAsState()
 
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color(0xFF1A1A2E))
+        modifier = Modifier.fillMaxSize().background(Color(0xFF1A1A2E))
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(24.dp),
+            modifier = Modifier.fillMaxSize().padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            // الأيقونة
-            Icon(
-                imageVector = Icons.Default.Videocam,
-                contentDescription = "Camera",
-                modifier = Modifier.size(80.dp),
-                tint = Color(0xFF6C63FF)
-            )
+            Icon(Icons.Default.Videocam, contentDescription = null, tint = Color(0xFF6C63FF), modifier = Modifier.size(80.dp))
+            Spacer(Modifier.height(24.dp))
+            Text("مسح الغرفة", fontSize = 28.sp, fontWeight = FontWeight.Bold, color = Color.White)
+            Spacer(Modifier.height(12.dp))
 
-            Spacer(modifier = Modifier.height(32.dp))
+            val desc = when (recordingState) {
+                RecordingState.IDLE -> "استعد لمسح الغرفة بالكاميرا الخلفية"
+                RecordingState.RECORDING -> "جارٍ التسجيل... لف الهاتف ببطء لمسح كامل الغرفة"
+                RecordingState.STOPPED -> "تم إيقاف التسجيل"
+                is RecordingState.COMPLETED -> "تم المسح بنجاح!"
+                is RecordingState.ERROR -> "حدث خطأ أثناء التسجيل"
+            }
+            Text(desc, color = Color.White.copy(alpha = 0.75f), textAlign = TextAlign.Center)
 
-            // العنوان
-            Text(
-                text = "مسح الغرفة",
-                fontSize = 28.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color.White
-            )
+            Spacer(Modifier.height(24.dp))
 
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // الوصف
-            Text(
-                text = when (recordingState) {
-                    RecordingState.IDLE -> "استخدم الكاميرا الخلفية لمسح الغرفة من جميع الجوانب"
-                    RecordingState.RECORDING -> "جارٍ التسجيل... قم بتحريك الهاتف لمسح الغرفة"
-                    RecordingState.STOPPED -> "تم إيقاف التسجيل"
-                    is RecordingState.COMPLETED -> "تم المسح بنجاح!"
-                    is RecordingState.ERROR -> "حدث خطأ في التسجيل"
-                },
-                fontSize = 16.sp,
-                color = Color.White.copy(alpha = 0.7f),
-                textAlign = TextAlign.Center,
-                modifier = Modifier.padding(horizontal = 32.dp)
-            )
-
-            Spacer(modifier = Modifier.height(32.dp))
-
-            // المدة
             if (recordingState == RecordingState.RECORDING) {
                 Text(
-                    text = formatDuration(duration),
-                    fontSize = 48.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFF6C63FF)
+                    text = "التغطية: ${(coverage.totalPercent * 100f).toInt()}%",
+                    color = Color(0xFF6C63FF),
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold
                 )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Text(
-                    text = "من 30 ثانية",
-                    fontSize = 14.sp,
-                    color = Color.White.copy(alpha = 0.5f)
-                )
-
-                Spacer(modifier = Modifier.height(32.dp))
-
-                // مؤشر التقدم
+                Spacer(Modifier.height(8.dp))
                 LinearProgressIndicator(
-                    progress = (duration / 30000f).coerceIn(0f, 1f),
-                    modifier = Modifier
-                        .fillMaxWidth(0.8f)
-                        .height(8.dp),
+                    progress = coverage.totalPercent.coerceIn(0f, 1f),
+                    modifier = Modifier.fillMaxWidth(0.9f).height(8.dp),
                     color = Color(0xFF6C63FF),
                     trackColor = Color.White.copy(alpha = 0.2f)
                 )
-            }
-
-            Spacer(modifier = Modifier.height(48.dp))
-
-            // التعليمات
-            if (recordingState == RecordingState.RECORDING) {
-                InstructionCard(
-                    instructions = listOf(
-                        "احمل الهاتف بثبات",
-                        "قم بتحريكه ببطء لمسح الغرفة",
-                        "تأكد من إظهار جميع الزوايا",
-                        "سيتوقف التسجيل تلقائياً بعد 30 ثانية"
-                    )
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text = "الأفقي: ${(coverage.yawCoveragePercent * 100f).toInt()}% • الرأسي: ${(coverage.pitchCoveragePercent * 100f).toInt()}%",
+                    color = Color.White.copy(alpha = 0.7f),
+                    fontSize = 14.sp
+                )
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text = if (coverage.pitchComplete) "تمت حركة لأعلى/أسفل ✅" else "ارفع الهاتف ثم اخفضه لتغطية الأعلى/الأسفل ⬆️⬇️",
+                    color = Color.White.copy(alpha = 0.8f),
+                    fontSize = 14.sp
                 )
             }
 
-            Spacer(modifier = Modifier.weight(1f))
+            Spacer(Modifier.height(16.dp))
+            if (recordingState == RecordingState.RECORDING) {
+                Text(
+                    text = formatDuration(duration),
+                    fontSize = 40.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF6C63FF)
+                )
+                Text("سيتوقف تلقائيًا عند اكتمال التغطية أو بعد 30 ثانية كحد أقصى", color = Color.White.copy(alpha = 0.6f), fontSize = 12.sp, textAlign = TextAlign.Center)
+            }
 
-            // معالجة حالة الاكتمال
+            Spacer(Modifier.weight(1f))
+
             when (val state = recordingState) {
                 is RecordingState.COMPLETED -> {
                     LaunchedEffect(Unit) {
-                        kotlinx.coroutines.delay(1000)
+                        kotlinx.coroutines.delay(700)
                         onScanComplete(state.videoFile)
                     }
                 }
                 is RecordingState.ERROR -> {
-                    Text(
-                        text = state.message,
-                        color = Color.Red,
-                        fontSize = 14.sp
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Button(
-                        onClick = onSkip,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF6C63FF)
-                        )
-                    ) {
-                        Text("المتابعة بدون مسح")
+                    Text(state.message, color = Color.Red, fontSize = 14.sp)
+                    Spacer(Modifier.height(8.dp))
+                    Button(onClick = onSkip, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6C63FF))) {
+                        Text("المتابعة")
                     }
                 }
                 else -> {
-                    // زر التخطي (اختياري)
                     TextButton(onClick = onSkip) {
-                        Text(
-                            "تخطي مسح الغرفة",
-                            color = Color.White.copy(alpha = 0.6f)
-                        )
+                        Text("تخطي (غير مُفضّل)", color = Color.White.copy(alpha = 0.6f))
                     }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun InstructionCard(instructions: List<String>) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth(0.9f)
-            .padding(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = Color.White.copy(alpha = 0.1f)
-        )
-    ) {
-        Column(
-            modifier = Modifier.padding(20.dp)
-        ) {
-            Text(
-                text = "التعليمات",
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color.White,
-                modifier = Modifier.padding(bottom = 12.dp)
-            )
-
-            instructions.forEach { instruction ->
-                Row(
-                    modifier = Modifier.padding(vertical = 4.dp)
-                ) {
-                    Text(
-                        text = "•",
-                        color = Color(0xFF6C63FF),
-                        fontSize = 20.sp,
-                        modifier = Modifier.padding(end = 8.dp)
-                    )
-                    Text(
-                        text = instruction,
-                        color = Color.White.copy(alpha = 0.8f),
-                        fontSize = 14.sp
-                    )
                 }
             }
         }
