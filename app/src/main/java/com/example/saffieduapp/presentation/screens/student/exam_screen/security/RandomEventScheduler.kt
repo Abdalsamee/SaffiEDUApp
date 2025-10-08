@@ -4,113 +4,132 @@ import android.util.Log
 import androidx.lifecycle.LifecycleOwner
 import com.example.saffieduapp.presentation.screens.student.exam_screen.session.ExamSessionManager
 import com.example.saffieduapp.presentation.screens.student.exam_screen.session.FrontCameraSnapshotManager
-import com.example.saffieduapp.presentation.screens.student.exam_screen.session.SecurityEventType
 import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.collectLatest
+import kotlin.random.Random
 
 /**
- * RandomEventScheduler
- * =====================
- * مسؤول عن تشغيل الأحداث العشوائية أثناء الامتحان:
- * ✅ التقاط صور عشوائية بالكاميرا الأمامية
- * ✅ تسجيل فيديو قصير بالكاميرا الخلفية مرة واحدة فقط
- * ✅ يعمل بشكل مستقل ولا يؤثر على المراقبة الأمنية المباشرة
+ * جدولة الأحداث العشوائية أثناء الاختبار:
+ *  - لقطة أمامية عشوائية (تستخدم requestRandomCapture)
+ *  - تسجيل فيديو خلفي مرة واحدة عشوائيًا (مع إيقاف كشف الوجه مؤقتًا واستئنافه لاحقًا)
  */
 class RandomEventScheduler(
     private val frontSnapshotManager: FrontCameraSnapshotManager,
     private val backCameraRecorder: BackCameraVideoRecorder,
     private val sessionManager: ExamSessionManager,
-    private val lifecycleOwner: LifecycleOwner
+    private val lifecycleOwner: LifecycleOwner,
+    // تم تمرير دوال الإيقاف/الاستئناف من ExamActivity عبر CameraMonitor
+    private val pauseFrontDetection: () -> Unit,
+    private val resumeFrontDetection: () -> Unit,
 ) {
     private val TAG = "RandomEventScheduler"
+    private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    // اضبط هذه القيم مؤقتًا صغيرة أثناء الاختبار، ثم أعدها لقيم الإنتاج
+    private val SNAPSHOT_MIN_DELAY_MS = 15_000L   // 15 ثانية
+    private val SNAPSHOT_JITTER_MS    = 10_000L   // ±10 ثواني
 
-    private var hasRecordedRandomVideo = false
-    private var isRunning = false
+    private val VIDEO_MIN_DELAY_MS    = 30_000L   // 30 ثانية
+    private val VIDEO_JITTER_MS       = 20_000L   // ±20 ثانية
+    private val VIDEO_MAX_DURATION_MS = 10_000L   // نسجل 10 ثوانٍ فقط (BackCameraVideoRecorder يوقف تلقائيًا إن ضبطته)
 
-    companion object {
-        private const val MAX_RANDOM_SNAPSHOTS = 10
-        private const val MIN_SNAPSHOT_DELAY = 45_000L   // 45 ثانية
-        private const val MAX_SNAPSHOT_DELAY = 150_000L  // 2.5 دقيقة
-        private const val MIN_VIDEO_DELAY = 90_000L      // 1.5 دقيقة
-        private const val MAX_VIDEO_DELAY = 240_000L     // 4 دقائق
-    }
+    @Volatile private var running = false
+    @Volatile private var videoScheduled = false
 
-    /** بدء نظام المراقبة العشوائية **/
     fun startRandomEvents() {
-        if (isRunning) return
-        isRunning = true
+        if (running) return
+        running = true
 
-        Log.d(TAG, "🎯 Random event scheduler started")
-        scheduleRandomSnapshots()
-        scheduleRandomBackCameraRecording()
-    }
-
-    /** 🔹 جدولة التقاط صور أمامية عشوائية **/
-    private fun scheduleRandomSnapshots() {
-        repeat(MAX_RANDOM_SNAPSHOTS) { index ->
-            val delayMs = (MIN_SNAPSHOT_DELAY..MAX_SNAPSHOT_DELAY).random()
-            scope.launch {
-                delay(delayMs * (index + 1)) // فاصل زمني متغير
-                try {
-                    if (sessionManager.canCaptureMoreSnapshots()) {
-                        frontSnapshotManager.captureRandomSnapshot("RANDOM_SNAPSHOT_${index + 1}")
-                        Log.d(TAG, "📸 Random snapshot captured #${index + 1}")
-                    } else {
-                        Log.w(TAG, "⚠️ Max snapshots reached before #${index + 1}")
-                        cancel()
-                    }
-                } catch (e: Exception) {
-                    Log.e(TAG, "❌ Failed to capture random snapshot #${index + 1}", e)
-                }
-            }
-        }
-    }
-
-    /** 🔹 جدولة تسجيل فيديو خلفي عشوائي واحد **/
-    private fun scheduleRandomBackCameraRecording() {
-        val randomDelay = (MIN_VIDEO_DELAY..MAX_VIDEO_DELAY).random()
-
+        // حلقة اللقطات الأمامية العشوائية
         scope.launch {
-            delay(randomDelay)
-            if (!hasRecordedRandomVideo) {
-                hasRecordedRandomVideo = true
-                try {
-                    val sessionId = sessionManager.getCurrentSession()?.sessionId ?: ""
-                    if (sessionId.isEmpty()) {
-                        Log.e(TAG, "❌ No active session ID for random video")
-                        return@launch
-                    }
+            while (running) {
+                val delayMs = randomDelay(SNAPSHOT_MIN_DELAY_MS, SNAPSHOT_JITTER_MS)
+                Log.d(TAG, "🎲 Next random snapshot in ${delayMs}ms")
+                delay(delayMs)
 
-                    Log.d(TAG, "🎥 Starting random back camera video...")
-                    val result = backCameraRecorder.startRoomScan(lifecycleOwner, sessionId)
-
-                    if (result.isSuccess) {
-                        Log.d(TAG, "✅ Random back camera video recorded successfully")
-                        sessionManager.logSecurityEvent(
-                            type = SecurityEventType.ROOM_SCAN_COMPLETED,
-                            details = "Random back camera scan triggered automatically"
-                        )
-                    } else {
-                        Log.e(TAG, "❌ Failed to record random back camera video: ${result.exceptionOrNull()?.message}")
-                    }
-                } catch (e: Exception) {
-                    Log.e(TAG, "❌ Exception during random back video", e)
+                if (!running) break
+                if (!sessionManager.canCaptureMoreSnapshots()) {
+                    Log.w(TAG, "📸 Max snapshots reached — skipping random capture")
+                    continue
                 }
+
+                // اطلب لقطة عشوائية من أول فريم يمر على الـ analyzer
+                frontSnapshotManager.requestRandomCapture()
+            }
+        }
+
+        // جدولة فيديو خلفي مرة واحدة فقط
+        scope.launch {
+            if (videoScheduled) return@launch
+            videoScheduled = true
+
+            val delayMs = randomDelay(VIDEO_MIN_DELAY_MS, VIDEO_JITTER_MS)
+            Log.d(TAG, "🎲 Back video will start in ${delayMs}ms (one-time)")
+            delay(delayMs)
+
+            if (!running) return@launch
+
+            val sessionId = sessionManager.getCurrentSession()?.sessionId
+            if (sessionId.isNullOrBlank()) {
+                Log.w(TAG, "No active session; skipping back video")
+                return@launch
+            }
+
+            // 1) أوقف كشف الوجه أثناء التسجيل الخلفي (لتقليل تعارض الكاميرات)
+            Log.d(TAG, "⏸️ Pausing front face detection before back recording")
+            pauseFrontDetection()
+
+            try {
+                // 2) ابدأ التسجيل الخلفي
+                Log.d(TAG, "🎥 Starting back room scan (random)")
+                val startResult = backCameraRecorder.startRoomScan(lifecycleOwner, sessionId)
+
+                // 3) راقب حالة التسجيل لاستئناف كشف الوجه عند الانتهاء
+                launch {
+                    backCameraRecorder.recordingState.collectLatest { state ->
+                        when (state) {
+                            is RecordingState.COMPLETED,
+                            RecordingState.STOPPED -> {
+                                Log.d(TAG, "✅ Back recording finished — resuming front detection")
+                                resumeFrontDetection()
+                                this.cancel() // نُنهي المُراقبة لهذا التسجيل
+                            }
+                            is RecordingState.ERROR -> {
+                                Log.e(TAG, "❌ Back recording error: ${state.message} — resuming front detection")
+                                resumeFrontDetection()
+                                this.cancel()
+                            }
+                            else -> Unit
+                        }
+                    }
+                }
+
+                // حماية: في حال لم يغلق تلقائيًا لأي سبب، أوقفه يدويًا بعد VIDEO_MAX_DURATION_MS
+                launch {
+                    delay(VIDEO_MAX_DURATION_MS + 2_000)
+                    Log.d(TAG, "⏱️ Safety stop for back recording (if still running)")
+                    backCameraRecorder.stopRecording()
+                }
+
+                if (startResult.isFailure) {
+                    // فشل البدء — استأنف فورًا
+                    Log.e(TAG, "Failed to start back recording: ${startResult.exceptionOrNull()?.message}")
+                    resumeFrontDetection()
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Exception while starting back recording", e)
+                resumeFrontDetection()
             }
         }
     }
 
-    /** إيقاف النظام **/
     fun stop() {
+        running = false
         scope.cancel()
-        isRunning = false
-        Log.d(TAG, "🛑 Random event scheduler stopped")
     }
 
-    /** تنظيف الموارد **/
-    fun cleanup() {
-        stop()
-        Log.d(TAG, "🧹 Random event scheduler cleaned up")
+    private fun randomDelay(min: Long, jitter: Long): Long {
+        val delta = Random.nextLong(-jitter, jitter)
+        return (min + delta).coerceAtLeast(1_000L)
     }
 }

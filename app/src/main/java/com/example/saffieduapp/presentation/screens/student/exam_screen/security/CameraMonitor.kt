@@ -184,6 +184,8 @@ class CameraMonitor(
     /**
      * تنظيف الموارد
      */
+    fun getFrontSnapshotManager(): FrontCameraSnapshotManager = snapshotManager
+    fun getSessionManager(): ExamSessionManager = sessionManager
     fun cleanup() {
         stopMonitoring()
         scope.cancel()

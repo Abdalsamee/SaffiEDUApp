@@ -17,8 +17,6 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModelProvider
 import com.example.saffieduapp.presentation.screens.student.exam_screen.components.*
 import com.example.saffieduapp.presentation.screens.student.exam_screen.security.*
-import com.example.saffieduapp.presentation.screens.student.exam_screen.session.ExamSessionManager
-import com.example.saffieduapp.presentation.screens.student.exam_screen.session.FrontCameraSnapshotManager
 import com.example.saffieduapp.ui.theme.SaffiEDUAppTheme
 import com.google.firebase.auth.FirebaseAuth
 import dagger.hilt.android.AndroidEntryPoint
@@ -26,13 +24,11 @@ import dagger.hilt.android.AndroidEntryPoint
 @AndroidEntryPoint
 class ExamActivity : ComponentActivity() {
 
-    // === NEW: مكوّنات الجلسة/المراقبة العشوائية ===
-    private lateinit var sessionManager: ExamSessionManager
-    private lateinit var frontSnapshotManager: FrontCameraSnapshotManager
+    // == المكوّنات العشوائية ==
     private lateinit var backCameraRecorder: BackCameraVideoRecorder
     private var randomScheduler: RandomEventScheduler? = null
 
-    // === الأمن والكاميرا ===
+    // == الأمن والكاميرا ==
     private lateinit var securityManager: ExamSecurityManager
     private lateinit var cameraViewModel: CameraMonitorViewModel
     private var examId: String = ""
@@ -70,14 +66,13 @@ class ExamActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         try {
-            // === مهم: قراءة المعرفات أولاً ===
+            // قراءة المعرفات
             examId = intent.getStringExtra("EXAM_ID") ?: ""
             sessionId = intent.getStringExtra("SESSION_ID")
 
             if (examId.isEmpty()) {
                 Toast.makeText(this, "خطأ: معرف الاختبار مفقود", Toast.LENGTH_SHORT).show()
-                finish()
-                return
+                finish(); return
             }
 
             if (isInMultiWindowMode) {
@@ -93,16 +88,10 @@ class ExamActivity : ComponentActivity() {
             val studentId = FirebaseAuth.getInstance().currentUser?.uid ?: ""
             if (studentId.isEmpty()) {
                 Toast.makeText(this, "لم يتم العثور على معرف الطالب", Toast.LENGTH_LONG).show()
-                finish()
-                return
+                finish(); return
             }
 
-            // === NEW: تهيئة مدراء الجلسة/اللقطات/الفيديو بعد توفر examId/studentId ===
-            sessionManager = ExamSessionManager(this, examId, studentId)
-            frontSnapshotManager = FrontCameraSnapshotManager(sessionManager)
-            backCameraRecorder = BackCameraVideoRecorder(this, sessionManager)
-
-            // === ViewModel الكاميرا ===
+            // ViewModel الكاميرا
             val factory = CameraMonitorViewModelFactory(
                 application = application,
                 onViolationDetected = { violationType ->
@@ -121,7 +110,13 @@ class ExamActivity : ComponentActivity() {
                 securityManager.setCameraMonitor(monitor)
             }
 
-            // طلب الصلاحيات → ثم initializeCamera()
+            // مُسجل الكاميرا الخلفية — استخدم نفس SessionManager الخاص بالـ ViewModel
+            backCameraRecorder = BackCameraVideoRecorder(
+                this,
+                cameraViewModel.getSessionManager()
+            )
+
+            // طلب الصلاحيات ثم initializeCamera()
             checkAndRequestCameraPermissions()
 
         } catch (e: Exception) {
@@ -205,7 +200,6 @@ class ExamActivity : ComponentActivity() {
 
         if (::cameraViewModel.isInitialized) {
             val detectionResult by cameraViewModel.lastDetectionResult.collectAsState(initial = null)
-
             LaunchedEffect(detectionResult) {
                 if (detectionResult is FaceDetectionResult.ValidFace) {
                     securityManager.resetMultipleFacesCount()
@@ -227,14 +221,14 @@ class ExamActivity : ComponentActivity() {
             securityManager.startMonitoring()
             securityManager.startExam()
 
-            // ✅ استخدام الكائنات الحقيقية بدلاً من دوال غير موجودة
             randomScheduler = RandomEventScheduler(
-                frontSnapshotManager = frontSnapshotManager,
-                backCameraRecorder = backCameraRecorder,
-                sessionManager = sessionManager,
-                lifecycleOwner = this@ExamActivity
-            )
-            randomScheduler?.startRandomEvents()
+                frontSnapshotManager = cameraViewModel.getCameraMonitor().getFrontSnapshotManager(),
+                backCameraRecorder = backCameraRecorder, // نفس الكائن
+                sessionManager = cameraViewModel.getSessionManager(),
+                lifecycleOwner = this@ExamActivity,
+                pauseFrontDetection = { cameraViewModel.getCameraMonitor().pauseMonitoring() },
+                resumeFrontDetection = { cameraViewModel.getCameraMonitor().resumeMonitoring() }
+            ).also { it.startRandomEvents() }
         }
 
         // شاشة الاختبار
@@ -248,6 +242,9 @@ class ExamActivity : ComponentActivity() {
             },
             onExamComplete = { finishExam() }
         )
+
+        // Overlay التوجيه أثناء التسجيل الخلفي (يظهر فقط عند RECORDING)
+        BackScanOverlay(recorder = backCameraRecorder)
 
         // الحوارات
         if (showExitDialog) {
@@ -279,9 +276,7 @@ class ExamActivity : ComponentActivity() {
                 violationCount = securityManager.getNoFaceViolationCount(),
                 remainingWarnings = securityManager.getRemainingNoFaceWarnings(),
                 isPaused = isPaused,
-                onDismiss = {
-                    securityManager.dismissNoFaceWarning()
-                }
+                onDismiss = { securityManager.dismissNoFaceWarning() }
             )
         }
 
@@ -291,11 +286,7 @@ class ExamActivity : ComponentActivity() {
                     securityManager.unregisterInternalDialog(ExamSecurityManager.DIALOG_MULTIPLE_FACES)
                 }
             }
-            MultipleFacesWarningDialog(
-                onDismiss = {
-                    securityManager.dismissMultipleFacesWarning()
-                }
-            )
+            MultipleFacesWarningDialog(onDismiss = { securityManager.dismissMultipleFacesWarning() })
         }
 
         if (showExitWarning) {
@@ -445,7 +436,7 @@ class ExamActivity : ComponentActivity() {
     private fun finishExam() {
         try {
             // أوقف الجدولة العشوائية
-            randomScheduler?.cleanup()
+            randomScheduler?.stop()
             randomScheduler = null
 
             if (::cameraViewModel.isInitialized) {
@@ -473,6 +464,10 @@ class ExamActivity : ComponentActivity() {
                 securityManager.cleanup()
             }
 
+            if (::backCameraRecorder.isInitialized) {
+                backCameraRecorder.cleanup()
+            }
+
         } catch (e: Exception) {
             Log.e("ExamActivity", "Error in finishExam", e)
         } finally {
@@ -483,7 +478,7 @@ class ExamActivity : ComponentActivity() {
     override fun onDestroy() {
         super.onDestroy()
         try {
-            randomScheduler?.cleanup()
+            randomScheduler?.stop()
             randomScheduler = null
 
             if (::securityManager.isInitialized) {
@@ -492,6 +487,9 @@ class ExamActivity : ComponentActivity() {
             }
             if (::cameraViewModel.isInitialized) {
                 cameraViewModel.cleanup()
+            }
+            if (::backCameraRecorder.isInitialized) {
+                backCameraRecorder.cleanup()
             }
         } catch (e: Exception) {
             Log.e("ExamActivity", "Error in onDestroy", e)

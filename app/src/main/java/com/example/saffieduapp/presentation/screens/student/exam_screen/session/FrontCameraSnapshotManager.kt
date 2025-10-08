@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * مدير التقاط الصور من الكاميرا الأمامية
@@ -20,7 +21,7 @@ class FrontCameraSnapshotManager(
     private val sessionManager: ExamSessionManager
 ) {
     private val TAG = "FrontSnapshotManager"
-
+    private val randomCaptureRequested = AtomicBoolean(false)
     private val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
 
     private val _snapshotStats = MutableStateFlow(SnapshotStats())
@@ -29,6 +30,12 @@ class FrontCameraSnapshotManager(
     private val lastSnapshotTime = mutableMapOf<SnapshotReason, Long>()
     private val MIN_SNAPSHOT_INTERVAL = 30_000L // 30 ثانية
 
+    fun requestRandomCapture() {
+        randomCaptureRequested.set(true)
+    }
+
+
+
     /**
      * معالجة نتيجة Face Detection
      */
@@ -36,6 +43,14 @@ class FrontCameraSnapshotManager(
         result: FaceDetectionResult,
         imageProxy: ImageProxy
     ) {
+        // ← أضف هذا في أول الدالة processFaceDetectionResult
+        if (randomCaptureRequested.compareAndSet(true, false)) {
+            // التقاط لقطة عشوائية من نفس الفريم
+            captureSnapshotSafely(imageProxy, SnapshotReason.PERIODIC_CHECK)
+            return
+        }
+
+
         if (!sessionManager.canCaptureMoreSnapshots()) {
             Log.w(TAG, "⚠️ Max snapshots reached")
             imageProxy.close()
