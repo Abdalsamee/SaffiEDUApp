@@ -2,11 +2,7 @@ package com.example.saffieduapp.presentation.screens.student.exam_screen.compone
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.Text
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -19,7 +15,8 @@ import com.example.saffieduapp.presentation.screens.student.exam_screen.security
 
 @Composable
 fun InExamRoomScanOverlay(state: InExamScanUiState) {
-    // Fullscreen scrim
+    val progress = (state.elapsedMs.toFloat() / state.targetMs).coerceIn(0f, 1f)
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -27,131 +24,70 @@ fun InExamRoomScanOverlay(state: InExamScanUiState) {
         contentAlignment = Alignment.Center
     ) {
         Card(
-            colors = CardDefaults.cardColors(containerColor = Color(0xFF111827)),
             modifier = Modifier
-                .fillMaxWidth(0.92f)
-                .wrapContentHeight()
-                .padding(8.dp)
+                .fillMaxWidth(0.9f)
+                .wrapContentHeight(),
+            colors = CardDefaults.cardColors(containerColor = Color.White)
         ) {
             Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(20.dp),
+                modifier = Modifier.padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
-                    text = "جارٍ مسح المحيط بالكاميرا الخلفية",
-                    color = Color.White,
+                    "مسح محيطك بالكاميرا الخلفية",
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold
                 )
 
-                Spacer(Modifier.height(8.dp))
                 Text(
-                    text = "من فضلك حرّك الهاتف ببطء لليمين واليسار، وارفعه لأعلى ثم لأسفل لمسح كامل الغرفة.",
-                    color = Color.White.copy(alpha = 0.8f),
+                    "من فضلك حرّك الهاتف ببطء لليمين واليسار، ثم ارفع الهاتف قليلاً وأنزله لمسح كامل الغرفة.",
                     fontSize = 14.sp,
-                    textAlign = TextAlign.Center
+                    textAlign = TextAlign.Center,
+                    color = Color.Black.copy(alpha = 0.75f)
                 )
 
-                Spacer(Modifier.height(16.dp))
-
-                // الوقت
-                Text(
-                    text = "المدة: ${formatDuration(state.durationMs)}",
-                    color = Color(0xFF60A5FA),
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold
-                )
-
-                Spacer(Modifier.height(16.dp))
-
-                // إجمالي التغطية
-                Text(
-                    text = "نسبة التغطية الإجمالية",
-                    color = Color.White.copy(alpha = 0.85f),
-                    style = MaterialTheme.typography.bodyMedium
-                )
-                Spacer(Modifier.height(4.dp))
+                // مؤشّر عام للمدة
                 LinearProgressIndicator(
-                    progress = state.coverage.totalPercent.coerceIn(0f, 1f),
-                    modifier = Modifier.fillMaxWidth().height(10.dp),
-                    color = Color(0xFF60A5FA),
-                    trackColor = Color.White.copy(alpha = 0.15f)
-                )
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    text = "${(state.coverage.totalPercent * 100f).toInt()}%",
-                    color = Color.White.copy(alpha = 0.85f),
-                    fontSize = 13.sp
+                    progress = progress,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(8.dp)
                 )
 
-                Spacer(Modifier.height(12.dp))
-
-                // أفقي/رأسي
-                Row(
+                // مؤشرات توجيهية بسيطة
+                Column(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Column(Modifier.weight(1f)) {
-                        Text(
-                            "الأفقي",
-                            color = Color.White.copy(alpha = 0.85f),
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                        Spacer(Modifier.height(4.dp))
-                        LinearProgressIndicator(
-                            progress = state.coverage.yawCoveragePercent.coerceIn(0f, 1f),
-                            modifier = Modifier.fillMaxWidth().height(8.dp),
-                            color = Color(0xFF34D399),
-                            trackColor = Color.White.copy(alpha = 0.15f)
-                        )
-                        Spacer(Modifier.height(4.dp))
-                        Text(
-                            "${(state.coverage.yawCoveragePercent * 100f).toInt()}%",
-                            color = Color.White.copy(alpha = 0.85f),
-                            fontSize = 12.sp
-                        )
-                    }
-                    Column(Modifier.weight(1f)) {
-                        Text(
-                            "الرأسي",
-                            color = Color.White.copy(alpha = 0.85f),
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                        Spacer(Modifier.height(4.dp))
-                        LinearProgressIndicator(
-                            progress = state.coverage.pitchCoveragePercent.coerceIn(0f, 1f),
-                            modifier = Modifier.fillMaxWidth().height(8.dp),
-                            color = Color(0xFFF59E0B),
-                            trackColor = Color.White.copy(alpha = 0.15f)
-                        )
-                        Spacer(Modifier.height(4.dp))
-                        Text(
-                            "${(state.coverage.pitchCoveragePercent * 100f).toInt()}%",
-                            color = Color.White.copy(alpha = 0.85f),
-                            fontSize = 12.sp
-                        )
-                    }
+                    LabeledProgress("الدوران الأفقي", state.yawProgress)
+                    LabeledProgress("الإمالة للأعلى/الأسفل", state.pinchProgressCompat())
+                    LabeledProgress("التدوير", state.rollProgress)
                 }
 
-                Spacer(Modifier.height(16.dp))
-
                 Text(
-                    text = if (state.coverage.pitchComplete)
-                        "تم إظهار الأعلى/الأسفل ✅ استمر حتى يكتمل الشريط"
-                    else
-                        "⬆️ ارفع الهاتف قليلًا للأعلى ثم ⬇️ أخفضه لأسفل لإكمال المسح الرأسي",
-                    color = Color.White.copy(alpha = 0.9f),
-                    fontSize = 14.sp,
-                    textAlign = TextAlign.Center
+                    text = if (state.allDirectionsCovered) "تمت تغطية كل الاتجاهات تقريباً" else "تابع حتى يكتمل الشريط",
+                    fontSize = 13.sp,
+                    color = if (state.allDirectionsCovered) Color(0xFF2E7D32) else Color(0xFFB71C1C),
+                    fontWeight = FontWeight.Medium
                 )
             }
         }
     }
 }
 
-private fun formatDuration(ms: Long): String {
-    val s = (ms / 1000).toInt()
-    return String.format("%02d:%02d", s / 60, s % 60)
+/** اسم دالة مساعد فقط لأن الاسم الصحيح pitchProgress لكن نعرضها كما هي */
+@Composable
+private fun LabeledProgress(label: String, value: Float) {
+    Column {
+        Text(label, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+        LinearProgressIndicator(
+            progress = value.coerceIn(0f, 1f),
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(6.dp)
+        )
+    }
 }
+
+private fun InExamScanUiState.pinchProgressCompat(): Float = this.pitchProgress

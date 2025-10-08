@@ -1,114 +1,126 @@
 package com.example.saffieduapp.presentation.screens.student.exam_screen.security
 
+import android.os.SystemClock
+import android.util.Log
 import androidx.lifecycle.LifecycleOwner
 import com.example.saffieduapp.presentation.screens.student.exam_screen.session.ExamSessionManager
 import com.example.saffieduapp.presentation.screens.student.exam_screen.session.FrontCameraSnapshotManager
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.launch
 import kotlin.random.Random
+import kotlinx.coroutines.isActive  // مهم لاستخدام isActive داخل launch
 
 /**
- * يُطلق أحداث عشوائية أثناء الاختبار:
- * 1) Snapshots من الكاميرا الأمامية (حتى 10 كحد أقصى تديرها الجلسة)
- * 2) تسجيل مفاجئ واحد للكاميرا الخلفية (Room Scan) لمدة قصيرة
+ * يشغّل:
+ *  - لقطات أمامية عشوائية (requestRandomCapture)
+ *  - مسح مفاجئ مرة واحدة بالكاميرا الخلفية (10 ثوانٍ)
  */
 class RandomEventScheduler(
     private val frontSnapshotManager: FrontCameraSnapshotManager,
     private val backCameraRecorder: BackCameraVideoRecorder,
     private val sessionManager: ExamSessionManager,
     private val lifecycleOwner: LifecycleOwner,
-    private val pauseFrontDetection: (() -> Unit)? = null,
-    private val resumeFrontDetection: (() -> Unit)? = null
+    private val coverageTracker: CoverageTracker,
+    // UI hooks:
+    private val onShowRoomScanOverlay: (targetMs: Long) -> Unit,
+    private val onUpdateUi: (elapsedMs: Long, targetMs: Long) -> Unit,
+    private val onHideRoomScanOverlay: () -> Unit,
+    // تحكم في كشف الوجوه الأمامي أثناء المسح:
+    private val pauseFrontDetection: () -> Unit,
+    private val resumeFrontDetection: () -> Unit
 ) {
-    private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
-    @Volatile private var started = false
-    @Volatile private var backScanTriggered = false
+    private val TAG = "RandomEventScheduler"
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    private var roomScanTriggered = false
 
     fun startRandomEvents() {
-        if (started) return
-        started = true
-
-        // جدولة اللقطات العشوائية للكاميرا الأمامية
-        scope.launch {
-            scheduleRandomSnapshots()
-        }
-
-        // جدولة مسح الغرفة لمرة واحدة بالكاميرا الخلفية
-        scope.launch {
-            scheduleOneTimeBackScan()
-        }
+        scheduleRandomSnapshots()
+        scheduleOneRandomRoomScan()
     }
 
     fun stop() {
-        started = false
         scope.cancel()
     }
 
-    // ---------------------------------------------
-    // لقطات أمامية عشوائية
-    // ---------------------------------------------
-    private suspend fun scheduleRandomSnapshots() {
-        // نافذة زمنية عشوائية بين 20 - 50 ثانية بين كل محاولة
-        val minDelayMs = 20_000L
-        val maxDelayMs = 50_000L
-
-        while (started) {
-            // لو وصلنا للحد الأقصى للجلسة؛ نتوقف
-            if (!sessionManager.canCaptureMoreSnapshots()) break
-
-            val wait = Random.nextLong(minDelayMs, maxDelayMs)
-            delay(wait)
-
-            if (!started) break
-            // اطلب لقطة من الإطار التالي المتاح
-            frontSnapshotManager.requestRandomCapture()
+    // ——— لقطات أمامية عشوائية ———
+    private fun scheduleRandomSnapshots() = scope.launch {
+        val rnd = Random.Default
+        while (isActive) {
+            val delayMs = rnd.nextLong(45_000L, 75_000L) // بين 45–75 ثانية
+            delay(delayMs)
+            try {
+                frontSnapshotManager.requestRandomCapture()
+                Log.d(TAG, "📸 Random snapshot requested")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error requesting random snapshot", e)
+            }
         }
     }
 
-    // ---------------------------------------------
-    // مسح الغرفة الخلفي مرة واحدة
-    // ---------------------------------------------
-    private suspend fun scheduleOneTimeBackScan() {
-        if (backScanTriggered) return
-        backScanTriggered = true
+    // ——— مسح مفاجئ مرة واحدة ———
+    private fun scheduleOneRandomRoomScan() = scope.launch {
+        if (roomScanTriggered) return@launch
+        roomScanTriggered = true
 
-        // انتظر وقتًا عشوائيًا قبل بدء المسح (بين 40-90 ثانية مثلاً)
-        val delayBeforeStart = Random.nextLong(40_000L, 90_000L)
-        delay(delayBeforeStart)
-        if (!started) return
+        val rndDelay = Random.nextLong(60_000L, 120_000L) // بين دقيقة ودقيقتين
+        delay(rndDelay)
 
-        // أوقف كشف الوجوه الأمامي أثناء المسح إن رغبت
-        pauseFrontDetection?.invoke()
+        val sessionId = sessionManager.getCurrentSession()?.sessionId ?: run {
+            Log.w(TAG, "No sessionId available for room scan")
+            return@launch
+        }
 
-        // ابدأ التسجيل
-        val sessionId = sessionManager.getCurrentSession()?.sessionId
-        if (sessionId != null) {
-            // نستخدم 10 ثوانٍ كحد أقصى (تأكد أن BackCameraVideoRecorder مضبوط على ذلك)
-            try {
-                backCameraRecorder.startRoomScan(lifecycleOwner, sessionId)
-            } catch (_: Exception) {
-                // لو فشل البدء، نُعيد تشغيل المراقبة الأمامية ونخرج
-                resumeFrontDetection?.invoke()
-                return
+        val targetMs = 10_000L
+
+        try {
+            pauseFrontDetection()
+            onShowRoomScanOverlay(targetMs)
+
+            // نبدأ تحديث واجهة الـ Overlay
+            val uiJob = launch {
+                val start = SystemClock.elapsedRealtime()
+                while (isActive) {
+                    val elapsed = SystemClock.elapsedRealtime() - start
+                    onUpdateUi(elapsed, targetMs)
+                    if (elapsed >= targetMs) break
+                    delay(200)
+                }
             }
 
-            // ✅ بدل while(isActive): انتظر أول حالة نهائية عبر الـ StateFlow
-            val terminalState = backCameraRecorder.recordingState.first { state ->
-                state is RecordingState.COMPLETED ||
-                        state is RecordingState.ERROR ||
-                        state is RecordingState.STOPPED
+            // ابدأ التسجيل الخلفي
+            val startRes = backCameraRecorder.startRoomScan(lifecycleOwner, sessionId)
+            if (startRes.isFailure) {
+                Log.e(TAG, "Failed to start back camera scan: ${startRes.exceptionOrNull()?.message}")
+                uiJob.cancel()
+                onHideRoomScanOverlay()
+                resumeFrontDetection()
+                return@launch
             }
 
-            // بعد الانتهاء، أعد تشغيل كشف الوجوه الأمامي
-            resumeFrontDetection?.invoke()
-        } else {
-            // لا توجد جلسة نشطة
-            resumeFrontDetection?.invoke()
+            // نضمن التوقف بعد 10 ثواني
+            delay(targetMs)
+            backCameraRecorder.stopRecording()
+
+            // انتظر حتى يصبح التسجيل Finalized
+            waitForFinalize()
+
+            uiJob.cancel()
+        } catch (e: Exception) {
+            Log.e(TAG, "Error during random room scan", e)
+        } finally {
+            onHideRoomScanOverlay()
+            resumeFrontDetection()
+        }
+    }
+
+    private suspend fun waitForFinalize() {
+        // ننتظر حالة COMPLETE/ERROR/STOPPED
+        while (scope.isActive) {
+            val st = backCameraRecorder.recordingState.value
+            if (st is RecordingState.COMPLETED || st is RecordingState.ERROR || st is RecordingState.STOPPED) {
+                break
+            }
+            delay(300)
         }
     }
 }
