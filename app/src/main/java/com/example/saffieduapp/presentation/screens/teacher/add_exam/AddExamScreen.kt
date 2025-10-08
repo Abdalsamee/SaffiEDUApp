@@ -33,7 +33,7 @@ import java.util.Locale
 @Composable
 fun AddExamScreen(
     onNavigateUp: () -> Unit,
-    onNavigateToNext: () -> Unit,
+    onNavigateToNext: (AddExamState) -> Unit,
     viewModel: AddExamViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
@@ -103,7 +103,7 @@ fun AddExamScreen(
                 ) {
                     Column(
                         verticalArrangement = Arrangement.spacedBy(4.dp)
-                    ){
+                    ) {
 
                         Text(
                             text = "وقت بدء الاختبار",
@@ -111,12 +111,13 @@ fun AddExamScreen(
                             fontSize = 18.sp,
                             color = Color.Black,
 
-                        )
+                            )
 
                         TimePickerField(
                             selectedTime = state.examStartTime,
                             onTimeSelected = { hour, minute ->
-                                val formattedTime = String.format("%02d:%02d", hour, minute) // مثال: "09:30"
+                                val formattedTime =
+                                    String.format("%02d:%02d", hour, minute) // مثال: "09:30"
                                 viewModel.onEvent(AddExamEvent.StartTimeChanged(formattedTime))
                             },
                             modifier = Modifier.fillMaxWidth(0.4f)
@@ -137,7 +138,10 @@ fun AddExamScreen(
                         LessonDatePicker(
                             selectedDate = state.examDate,
                             onDateSelected = { millis ->
-                                val formatted = SimpleDateFormat("yyyy-MM-dd", Locale.ENGLISH).format(Date(millis))
+                                val formatted =
+                                    SimpleDateFormat("yyyy-MM-dd", Locale.ENGLISH).format(
+                                        Date(millis)
+                                    )
                                 viewModel.onEvent(AddExamEvent.DateChanged(formatted))
                             }
                         )
@@ -145,9 +149,10 @@ fun AddExamScreen(
                 }
 
                 Column() {
-                    Text(text = "إضافة مدة زمنية",
-                        fontWeight = FontWeight.Normal
-                        , fontSize = 18.sp)
+                    Text(
+                        text = "إضافة مدة زمنية",
+                        fontWeight = FontWeight.Normal, fontSize = 18.sp
+                    )
                     TimeDurationPicker(
                         value = state.examTime,
                         onValueChange = {
@@ -171,14 +176,18 @@ fun AddExamScreen(
                 )
                 Spacer(modifier = Modifier.weight(1f))
                 AppButton(
-                    text = if (state.isSaving) "جاري الحفظ..." else "التالي",
+                    text = "التالي",
                     onClick = {
-                        viewModel.onEvent(AddExamEvent.NextClicked)
-                        onNavigateToNext()
+                        viewModel.fetchTeacherInfo { id, name ->
+                            val updatedState = state.copy(
+                                teacherId = id,
+                                teacherName = name
+                            )
+                            onNavigateToNext(updatedState)
+                        }
                     },
                     modifier = Modifier.fillMaxWidth(),
-                    enabled = !state.isSaving &&
-                            state.examTitle.isNotBlank() &&
+                    enabled = state.examTitle.isNotBlank() &&
                             state.selectedClass.isNotBlank()
                 )
                 Spacer(modifier = Modifier.height(20.dp))
@@ -196,7 +205,10 @@ fun AddExamScreen(
                     .padding(top = 90.dp, end = 20.dp),
                 enabled = !state.isDraftSaved
             ) {
-                Text(text = if (state.isDraftSaved) "تم الحفظ" else "حفظ كمسودة", color = Color.White)
+                Text(
+                    text = if (state.isDraftSaved) "تم الحفظ" else "حفظ كمسودة",
+                    color = Color.White
+                )
             }
 
         }
