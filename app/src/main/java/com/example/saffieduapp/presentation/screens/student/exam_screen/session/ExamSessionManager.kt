@@ -12,7 +12,6 @@ import javax.crypto.SecretKey
 
 /**
  * مدير جلسة الاختبار - يدير البيانات والوسائط
- * ✅ محدّث: يدعم حفظ الصور من ImageData
  */
 class ExamSessionManager(
     private val context: Context,
@@ -52,10 +51,7 @@ class ExamSessionManager(
         currentSession = session
         _sessionState.value = session
 
-        // حفظ الجلسة
         saveSession()
-
-        // تسجيل حدث البدء
         logSecurityEvent(SecurityEventType.EXAM_STARTED, "Exam session started")
 
         Log.d(TAG, "✅ Session started: ${session.sessionId}")
@@ -71,7 +67,6 @@ class ExamSessionManager(
             session.status = SessionStatus.COMPLETED
 
             logSecurityEvent(SecurityEventType.EXAM_SUBMITTED, "Exam submitted")
-
             saveSession()
 
             Log.d(TAG, "✅ Session ended: ${session.sessionId}, Duration: ${session.getDuration()}ms")
@@ -109,7 +104,6 @@ class ExamSessionManager(
             session.status = SessionStatus.TERMINATED
 
             logSecurityEvent(SecurityEventType.EXAM_TERMINATED, "Exam terminated: $reason")
-
             saveSession()
 
             Log.w(TAG, "⚠️ Session terminated: $reason")
@@ -117,73 +111,92 @@ class ExamSessionManager(
     }
 
     /**
-     * ✅ حفظ snapshot من الكاميرا الأمامية - معدل ليقبل ImageData
+     * حفظ snapshot من الكاميرا الأمامية
      */
     fun saveSnapshot(
         imageData: ImageData,
         reason: SnapshotReason
     ): Boolean {
-        val session = currentSession ?: return false
+        val session = currentSession ?: run {
+            Log.e(TAG, "No active session")
+            return false
+        }
 
-        // فحص الحد الأقصى
         if (session.snapshots.size >= ExamSession.MAX_SNAPSHOTS) {
             Log.w(TAG, "⚠️ Max snapshots reached (${ExamSession.MAX_SNAPSHOTS})")
             return false
         }
 
-        // حفظ الصورة
-        val snapshot = mediaStorage.saveSnapshot(imageData, session.sessionId, reason)
+        return try {
+            val snapshot = mediaStorage.saveSnapshot(imageData, session.sessionId, reason)
 
-        if (snapshot != null) {
-            session.addSnapshot(snapshot)
+            if (snapshot != null) {
+                session.addSnapshot(snapshot)
 
-            logSecurityEvent(
-                SecurityEventType.SNAPSHOT_CAPTURED,
-                "Snapshot captured: ${reason.name}, Total: ${session.snapshots.size}"
-            )
+                logSecurityEvent(
+                    SecurityEventType.SNAPSHOT_CAPTURED,
+                    "Snapshot captured: ${reason.name}, Total: ${session.snapshots.size}"
+                )
 
-            saveSession()
-            _sessionState.value = session
+                saveSession()
+                _sessionState.value = session
 
-            Log.d(TAG, "✅ Snapshot saved: ${snapshot.id}, Reason: ${reason.name}")
-            return true
+                Log.d(TAG, "✅ Snapshot saved: ${snapshot.id}, Reason: ${reason.name}")
+                return true
+            }
+
+            false
+
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Error saving snapshot", e)
+            false
         }
-
-        return false
     }
 
     /**
      * حفظ فيديو الكاميرا الخلفية
      */
     fun saveBackCameraVideo(videoFile: File): Boolean {
-        val session = currentSession ?: return false
-
-        // التأكد من عدم وجود فيديو مسبقاً
-        if (session.backCameraVideo != null) {
-            Log.w(TAG, "⚠️ Back camera video already exists")
+        val session = currentSession ?: run {
+            Log.e(TAG, "No active session")
             return false
         }
 
-        // حفظ الفيديو
-        val video = mediaStorage.saveVideo(videoFile, session.sessionId)
+        return try {
+            if (!videoFile.exists()) {
+                Log.e(TAG, "Video file does not exist: ${videoFile.absolutePath}")
+                return false
+            }
 
-        if (video != null) {
-            // تحديث الجلسة
-            currentSession = session.copy(backCameraVideo = video)
+            val savedVideoPath = mediaStorage.saveBackCameraVideo(videoFile, session.sessionId)
 
-            logSecurityEvent(
-                SecurityEventType.VIDEO_RECORDED,
-                "Back camera video recorded, Duration: ${video.duration}ms"
-            )
+            if (savedVideoPath != null) {
+                session.backCameraVideo = BackCameraVideo(
+                    path = savedVideoPath,
+                    timestamp = System.currentTimeMillis(),
+                    duration = 30_000L,
+                    fileSize = videoFile.length()
+                )
 
-            saveSession()
-            _sessionState.value = currentSession
+                logSecurityEvent(
+                    SecurityEventType.ROOM_SCAN_COMPLETED,
+                    "Back camera video recorded: ${videoFile.name}"
+                )
 
-            Log.d(TAG, "✅ Back camera video saved: ${video.id}")
-            return true
+                saveSession()
+                _sessionState.value = session
+
+                Log.d(TAG, "✅ Back camera video saved: $savedVideoPath")
+                return true
+            }
+
+            Log.e(TAG, "Failed to save video")
+            false
+
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Error saving back camera video", e)
+            false
         }
-
-        return false
     }
 
     /**
@@ -227,15 +240,13 @@ class ExamSessionManager(
     }
 
     /**
-     * حفظ الجلسة في ملف JSON
+     * حفظ الجلسة
      */
     private fun saveSession() {
         currentSession?.let { session ->
             try {
                 val sessionFile = getSessionFile(session.sessionId)
                 val json = gson.toJson(session)
-
-                // تشفير JSON
                 val encryptedJson = EncryptionHelper.encryptString(json, encryptionKey)
 
                 if (encryptedJson != null) {
@@ -249,7 +260,7 @@ class ExamSessionManager(
     }
 
     /**
-     * تحميل جلسة من ملف
+     * تحميل جلسة
      */
     fun loadSession(sessionId: String): ExamSession? {
         return try {
@@ -280,7 +291,7 @@ class ExamSessionManager(
     }
 
     /**
-     * حذف جلسة بعد الرفع الناجح
+     * حذف جلسة
      */
     fun deleteSession(sessionId: String) {
         try {
@@ -321,44 +332,26 @@ class ExamSessionManager(
         }
     }
 
-    /**
-     * الحصول على الجلسة الحالية
-     */
     fun getCurrentSession(): ExamSession? = currentSession
 
-    /**
-     * فحص إمكانية التقاط snapshot جديد
-     */
     fun canCaptureMoreSnapshots(): Boolean {
         val session = currentSession ?: return false
         return session.snapshots.size < ExamSession.MAX_SNAPSHOTS
     }
 
-    /**
-     * الحصول على عدد الـ snapshots المتبقية
-     */
     fun getRemainingSnapshotsCount(): Int {
         val session = currentSession ?: return 0
         return ExamSession.MAX_SNAPSHOTS - session.snapshots.size
     }
 
-    /**
-     * حفظ مفتاح التشفير للاستخدام لاحقاً
-     */
     fun getEncryptionKeyString(): String {
         return EncryptionHelper.keyToString(encryptionKey)
     }
 
-    /**
-     * الحصول على ملف الجلسة
-     */
     private fun getSessionFile(sessionId: String): File {
         return File(getSessionsDir(), "$sessionId.json")
     }
 
-    /**
-     * الحصول على مجلد الجلسات
-     */
     private fun getSessionsDir(): File {
         val dir = File(context.filesDir, "exam_sessions")
         if (!dir.exists()) {
@@ -367,9 +360,6 @@ class ExamSessionManager(
         return dir
     }
 
-    /**
-     * الحصول على إحصائيات الجلسة
-     */
     fun getSessionStats(): SessionStats? {
         val session = currentSession ?: return null
 
@@ -384,9 +374,6 @@ class ExamSessionManager(
         )
     }
 
-    /**
-     * تنظيف الموارد
-     */
     fun cleanup() {
         currentSession = null
         _sessionState.value = null

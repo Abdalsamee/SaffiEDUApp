@@ -14,8 +14,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 /**
- * مراقب الكاميرا الشامل - يدمج الكاميرا مع Face Detection و Snapshots
- * ✅ محدّث: يتضمن ExamSessionManager و SnapshotManager
+ * مراقب الكاميرا الشامل
  */
 class CameraMonitor(
     private val context: Context,
@@ -25,15 +24,11 @@ class CameraMonitor(
     private val TAG = "CameraMonitor"
 
     private val cameraManager = CameraManager(context)
-
-    // ✅ SnapshotManager
     private val snapshotManager = FrontCameraSnapshotManager(sessionManager)
 
-    // ✅ FaceDetectionMonitor مع callback للـ snapshots
     private val faceDetectionMonitor = FaceDetectionMonitor(
         onViolationDetected = onViolationDetected,
         onSnapshotNeeded = { imageProxy, result ->
-            // معالجة الصورة للـ snapshot
             snapshotManager.processFaceDetectionResult(result, imageProxy)
         }
     )
@@ -69,36 +64,33 @@ class CameraMonitor(
     }
 
     /**
-     * بدء المراقبة الكاملة
+     * بدء المراقبة
      */
     @OptIn(ExperimentalGetImage::class)
     fun startMonitoring(
         lifecycleOwner: LifecycleOwner,
         frontPreviewView: PreviewView? = null
     ) {
-        Log.d(TAG, "🔹 startMonitoring called - Preview: ${frontPreviewView != null}")
+        Log.d(TAG, "Starting monitoring - Preview: ${frontPreviewView != null}")
 
         if (!_isInitialized.value) {
-            Log.e(TAG, "❌ Cannot start monitoring - camera not initialized")
+            Log.e(TAG, "Cannot start monitoring - camera not initialized")
             return
         }
 
         if (isMonitoring) {
-            Log.w(TAG, "⚠️ Monitoring already active")
+            Log.w(TAG, "Monitoring already active")
             return
         }
 
         isMonitoring = true
-        Log.d(TAG, "✅ isMonitoring = true")
 
         try {
-            // بدء الكاميرا الأمامية مع Face Detection
             startFrontCameraWithDetection(lifecycleOwner, frontPreviewView)
-
-            Log.d(TAG, "✅ Camera monitoring started successfully")
+            Log.d(TAG, "Camera monitoring started successfully")
 
         } catch (e: Exception) {
-            Log.e(TAG, "❌ Failed to start monitoring", e)
+            Log.e(TAG, "Failed to start monitoring", e)
             isMonitoring = false
         }
     }
@@ -115,13 +107,10 @@ class CameraMonitor(
             lifecycleOwner = lifecycleOwner,
             previewView = previewView,
             onImageAnalysis = { imageProxy ->
-                // تمرير الصورة لـ Face Detection
-                // الـ FaceDetectionMonitor سيستدعي callback الـ snapshot تلقائياً
                 faceDetectionMonitor.processImage(imageProxy)
             }
         )
 
-        // بدء مراقبة Face Detection
         faceDetectionMonitor.startMonitoring()
         _isFrontCameraActive.value = true
 
@@ -146,7 +135,7 @@ class CameraMonitor(
     }
 
     /**
-     * إيقاف مؤقت للمراقبة
+     * إيقاف مؤقت
      */
     fun pauseMonitoring() {
         faceDetectionMonitor.stopMonitoring()
@@ -154,7 +143,7 @@ class CameraMonitor(
     }
 
     /**
-     * استئناف المراقبة
+     * استئناف
      */
     fun resumeMonitoring() {
         if (isMonitoring && _isFrontCameraActive.value) {
@@ -164,19 +153,9 @@ class CameraMonitor(
     }
 
     /**
-     * الحصول على حالة المراقبة
-     */
-    fun getMonitoringState() = faceDetectionMonitor.monitoringState
-
-    /**
      * الحصول على آخر نتيجة كشف وجه
      */
     fun getLastDetectionResult() = faceDetectionMonitor.lastDetectionResult
-
-    /**
-     * الحصول على إحصائيات المراقبة
-     */
-    fun getMonitoringStats() = faceDetectionMonitor.getStats()
 
     /**
      * الحصول على إحصائيات الـ Snapshots

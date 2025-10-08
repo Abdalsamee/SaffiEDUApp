@@ -1,7 +1,6 @@
 package com.example.saffieduapp.presentation.screens.student.exam_screen
 
 import android.Manifest
-import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -16,30 +15,23 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.*
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModelProvider
-import androidx.lifecycle.lifecycleScope
 import com.example.saffieduapp.presentation.screens.student.exam_screen.components.*
 import com.example.saffieduapp.presentation.screens.student.exam_screen.security.*
 import com.example.saffieduapp.ui.theme.SaffiEDUAppTheme
 import com.google.firebase.auth.FirebaseAuth
 import dagger.hilt.android.AndroidEntryPoint
-import kotlinx.coroutines.launch
 
-/**
- * ExamActivity - نشاط الاختبار الرئيسي
- * ✅ محدّث: دعم نظام مسح الغرفة والجلسات المحسّن
- */
 @AndroidEntryPoint
 class ExamActivity : ComponentActivity() {
 
     private lateinit var securityManager: ExamSecurityManager
     private lateinit var cameraViewModel: CameraMonitorViewModel
     private var examId: String = ""
-    private var sessionId: String? = null // من RoomScanActivity
+    private var sessionId: String? = null
 
     private var showCameraCheck = mutableStateOf(true)
     private var cameraCheckPassed = mutableStateOf(false)
 
-    // ✅ صلاحيات الكاميرا والصوت (للتسجيل)
     private val cameraPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
@@ -54,9 +46,7 @@ class ExamActivity : ComponentActivity() {
             ).show()
             finish()
         } else {
-            // إذا كانت هذه أول مرة ولم يتم مسح الغرفة
             if (sessionId == null && !audioGranted) {
-                // اطلب الصوت أيضاً لمسح الغرفة
                 Toast.makeText(
                     this,
                     "صلاحية التسجيل مطلوبة لمسح الغرفة",
@@ -72,7 +62,7 @@ class ExamActivity : ComponentActivity() {
 
         try {
             examId = intent.getStringExtra("EXAM_ID") ?: ""
-            sessionId = intent.getStringExtra("SESSION_ID") // من RoomScanActivity
+            sessionId = intent.getStringExtra("SESSION_ID")
 
             if (examId.isEmpty()) {
                 Toast.makeText(this, "خطأ: معرف الاختبار مفقود", Toast.LENGTH_SHORT).show()
@@ -80,20 +70,17 @@ class ExamActivity : ComponentActivity() {
                 return
             }
 
-            // فحص Multi-window
             if (isInMultiWindowMode) {
                 Log.w("ExamActivity", "Multi-window detected at onCreate")
                 showMultiWindowBlockedDialog()
                 return
             }
 
-            // تهيئة Security Manager
             securityManager = ExamSecurityManager(this, this)
             securityManager.enableSecurityFeatures()
 
             setupSecureScreen()
 
-            // تهيئة ViewModel
             val studentId = FirebaseAuth.getInstance().currentUser?.uid ?: ""
 
             val factory = CameraMonitorViewModelFactory(
@@ -105,54 +92,14 @@ class ExamActivity : ComponentActivity() {
                 },
                 examId = examId,
                 studentId = studentId,
-                existingSessionId = sessionId // ✅ تمرير الجلسة الموجودة
+                existingSessionId = sessionId
             )
             cameraViewModel = ViewModelProvider(this, factory)[CameraMonitorViewModel::class.java]
 
-            // ربط CameraMonitor مع SecurityManager
             cameraViewModel.getCameraMonitor().let { monitor ->
                 securityManager.setCameraMonitor(monitor)
             }
 
-            // ✅ مراقبة حالة الجلسة
-            cameraViewModel.getSessionState()?.let { sessionStateFlow ->
-                lifecycleScope.launch {
-                    sessionStateFlow.collect { session ->
-                        session?.let {
-                            Log.d("ExamActivity", """
-                                📊 Session Update:
-                                ID: ${it.sessionId}
-                                Snapshots: ${it.snapshots.size}/${com.example.saffieduapp.presentation.screens.student.exam_screen.session.ExamSession.MAX_SNAPSHOTS}
-                                Violations: ${it.violations.size}
-                                Events: ${it.securityEvents.size}
-                                Status: ${it.status}
-                                Has Video: ${it.backCameraVideo != null}
-                            """.trimIndent())
-                        }
-                    }
-                }
-            }
-
-            // ✅ مراقبة إحصائيات الصور
-            cameraViewModel.getSnapshotStats()?.let { snapshotStatsFlow ->
-                lifecycleScope.launch {
-                    snapshotStatsFlow.collect { stats ->
-                        Log.d("ExamActivity", """
-                            📸 Snapshots Stats:
-                            NoFace: ${stats.noFaceSnapshots}
-                            Multiple: ${stats.multipleFacesSnapshots}
-                            LookingAway: ${stats.lookingAwaySnapshots}
-                            Manual: ${stats.manualSnapshots}
-                            Periodic: ${stats.periodicSnapshots}
-                            Total: ${stats.totalSuccessful}
-                            Success Rate: ${String.format("%.1f", stats.successRate)}%
-                            Failed: ${stats.failedAttempts}
-                        """.trimIndent())
-                    }
-                }
-            }
-
-            // فحص وطلب الصلاحيات
             checkAndRequestCameraPermissions()
 
         } catch (e: Exception) {
@@ -162,13 +109,9 @@ class ExamActivity : ComponentActivity() {
         }
     }
 
-    /**
-     * ✅ فحص وطلب الصلاحيات المطلوبة
-     */
     private fun checkAndRequestCameraPermissions() {
         val permissions = mutableListOf(Manifest.permission.CAMERA)
 
-        // إذا لم يتم مسح الغرفة بعد، نحتاج صلاحية التسجيل
         if (sessionId == null) {
             permissions.add(Manifest.permission.RECORD_AUDIO)
         }
@@ -184,19 +127,13 @@ class ExamActivity : ComponentActivity() {
         }
     }
 
-    /**
-     * ✅ تهيئة الكاميرا وبدء الجلسة
-     */
     private fun initializeCamera() {
         if (::cameraViewModel.isInitialized) {
             cameraViewModel.initializeCamera()
 
-            // ✅ إذا كانت جلسة موجودة، حمّلها، وإلا ابدأ جديدة
             if (sessionId != null) {
-                // الجلسة محمّلة بالفعل من ViewModel
                 Log.d("ExamActivity", "✅ Using existing session: $sessionId")
             } else {
-                // بدء جلسة جديدة
                 cameraViewModel.startExamSession()
                 Log.d("ExamActivity", "✅ Started new session")
             }
@@ -204,9 +141,6 @@ class ExamActivity : ComponentActivity() {
         setupUI()
     }
 
-    /**
-     * إعداد واجهة المستخدم
-     */
     private fun setupUI() {
         setContent {
             SaffiEDUAppTheme {
@@ -236,9 +170,6 @@ class ExamActivity : ComponentActivity() {
         }
     }
 
-    /**
-     * محتوى الاختبار الرئيسي
-     */
     @Composable
     private fun ExamActivityContent() {
         var showExitDialog by remember { mutableStateOf(false) }
@@ -252,7 +183,6 @@ class ExamActivity : ComponentActivity() {
         val isPaused by securityManager.isPaused.collectAsState()
         val violations by securityManager.violations.collectAsState()
 
-        // مراقبة Face Detection
         if (::cameraViewModel.isInitialized) {
             val detectionResult by cameraViewModel.lastDetectionResult.collectAsState(initial = null)
 
@@ -263,22 +193,25 @@ class ExamActivity : ComponentActivity() {
             }
         }
 
-        // منع زر الرجوع
+        // ✅ BackHandler - مُصلح
         BackHandler {
-            securityManager.logViolation("BACK_BUTTON_PRESSED")
-            showExitDialog = true
+            if (!showExitDialog) {  // تحقق قبل التسجيل
+                securityManager.logViolation("BACK_BUTTON_PRESSED")
+                securityManager.registerInternalDialog(ExamSecurityManager.DIALOG_EXIT_WARNING)
+                showExitDialog = true
+            }
         }
 
-        // معالجة الإرسال التلقائي
         LaunchedEffect(shouldAutoSubmit) {
             if (shouldAutoSubmit) {
                 val lastViolation = violations.lastOrNull()
 
-                Log.d("ExamActivity", "Auto-submit triggered. Last violation: ${lastViolation?.type}, Severity: ${lastViolation?.severity}")
+                Log.d("ExamActivity", "Auto-submit triggered. Last violation: ${lastViolation?.type}")
 
                 when {
                     lastViolation?.severity == Severity.CRITICAL -> {
                         overlayViolationType = lastViolation.type
+                        securityManager.registerInternalDialog(ExamSecurityManager.DIALOG_OVERLAY_DETECTED)
                         showOverlayDialog = true
                     }
                     else -> {
@@ -297,33 +230,54 @@ class ExamActivity : ComponentActivity() {
             }
         }
 
-        // بدء المراقبة عند تحميل الشاشة
         LaunchedEffect(Unit) {
             securityManager.startMonitoring()
             securityManager.startExam()
         }
 
-        // شاشة الاختبار
+        // ✅ ExamScreen - مُصلح
         ExamScreen(
             onNavigateUp = {
-                securityManager.logViolation("NAVIGATE_UP_PRESSED")
-                showExitDialog = true
+                if (!showExitDialog) {  // تحقق قبل التسجيل
+                    securityManager.logViolation("NAVIGATE_UP_PRESSED")
+                    securityManager.registerInternalDialog(ExamSecurityManager.DIALOG_EXIT_WARNING)
+                    showExitDialog = true
+                }
             },
             onExamComplete = { finishExam() }
         )
 
+        // ═══════════════════════════════════════════
         // Dialogs
+        // ═══════════════════════════════════════════
+
         if (showExitDialog) {
+            DisposableEffect(Unit) {
+                onDispose {
+                    securityManager.unregisterInternalDialog(ExamSecurityManager.DIALOG_EXIT_WARNING)
+                }
+            }
+
             ExamExitWarningDialog(
-                onDismiss = { showExitDialog = false },
+                onDismiss = {
+                    showExitDialog = false
+                    securityManager.unregisterInternalDialog(ExamSecurityManager.DIALOG_EXIT_WARNING)
+                },
                 onConfirmExit = {
                     securityManager.logViolation("USER_FORCED_EXIT")
+                    securityManager.unregisterInternalDialog(ExamSecurityManager.DIALOG_EXIT_WARNING)
                     finishExam()
                 }
             )
         }
 
         if (showNoFaceWarning) {
+            DisposableEffect(Unit) {
+                onDispose {
+                    securityManager.unregisterInternalDialog(ExamSecurityManager.DIALOG_NO_FACE_WARNING)
+                }
+            }
+
             NoFaceWarningDialog(
                 violationCount = securityManager.getNoFaceViolationCount(),
                 remainingWarnings = securityManager.getRemainingNoFaceWarnings(),
@@ -335,6 +289,12 @@ class ExamActivity : ComponentActivity() {
         }
 
         if (showMultipleFacesWarning) {
+            DisposableEffect(Unit) {
+                onDispose {
+                    securityManager.unregisterInternalDialog(ExamSecurityManager.DIALOG_MULTIPLE_FACES)
+                }
+            }
+
             MultipleFacesWarningDialog(
                 onDismiss = {
                     securityManager.dismissMultipleFacesWarning()
@@ -343,6 +303,12 @@ class ExamActivity : ComponentActivity() {
         }
 
         if (showExitWarning) {
+            DisposableEffect(Unit) {
+                onDispose {
+                    securityManager.unregisterInternalDialog(ExamSecurityManager.DIALOG_EXIT_RETURN)
+                }
+            }
+
             val exitCount = violations.count { it.type.startsWith("APP_RESUMED") }
 
             ExamReturnWarningDialog(
@@ -359,15 +325,13 @@ class ExamActivity : ComponentActivity() {
                 violationType = overlayViolationType,
                 onDismiss = {
                     showOverlayDialog = false
+                    securityManager.unregisterInternalDialog(ExamSecurityManager.DIALOG_OVERLAY_DETECTED)
                     finishExam()
                 }
             )
         }
     }
 
-    /**
-     * إعداد الشاشة الآمنة
-     */
     private fun setupSecureScreen() {
         window.apply {
             setFlags(
@@ -392,9 +356,6 @@ class ExamActivity : ComponentActivity() {
         }
     }
 
-    /**
-     * عرض dialog لحظر Multi-window
-     */
     private fun showMultiWindowBlockedDialog() {
         setContent {
             SaffiEDUAppTheme {
@@ -404,8 +365,6 @@ class ExamActivity : ComponentActivity() {
             }
         }
     }
-
-    // ============ Lifecycle Callbacks ============
 
     override fun onMultiWindowModeChanged(
         isInMultiWindowMode: Boolean,
@@ -486,6 +445,7 @@ class ExamActivity : ComponentActivity() {
         }
 
         if (::securityManager.isInitialized) {
+            securityManager.registerInternalDialog(ExamSecurityManager.DIALOG_EXIT_RETURN)
             securityManager.onAppResumed()
         }
 
@@ -499,10 +459,6 @@ class ExamActivity : ComponentActivity() {
 
         if (::securityManager.isInitialized) {
             securityManager.onWindowFocusChanged(hasFocus)
-
-            if (!hasFocus) {
-                securityManager.logViolation("WINDOW_FOCUS_LOST")
-            }
         }
     }
 
@@ -514,63 +470,22 @@ class ExamActivity : ComponentActivity() {
         }
     }
 
-    /**
-     * ✅ إنهاء الاختبار وطباعة التقرير الكامل
-     */
     private fun finishExam() {
         try {
             if (::cameraViewModel.isInitialized) {
                 cameraViewModel.endExamSession()
-
-                // ✅ طباعة تقرير مفصل
-                val stats = cameraViewModel.getSessionStats()
-                stats?.let {
-                    Log.d("ExamActivity", """
-                        =====================================
-                        📊 EXAM SESSION COMPLETED
-                        =====================================
-                        Session ID: ${it.sessionId}
-                        Duration: ${it.duration / 1000}s (${it.duration / 60000}m ${(it.duration / 1000) % 60}s)
-                        Snapshots: ${it.snapshotsCount}/${com.example.saffieduapp.presentation.screens.student.exam_screen.session.ExamSession.MAX_SNAPSHOTS}
-                        Violations: ${it.violationsCount}
-                        Security Events: ${it.eventsCount}
-                        Back Camera Video: ${if (it.hasBackVideo) "✅ Recorded" else "❌ Not Recorded"}
-                        Status: ${it.status}
-                        =====================================
-                    """.trimIndent())
-                }
-
-                // ✅ طباعة إحصائيات الصور
-                val snapshotStats = cameraViewModel.getSnapshotStats()?.value
-                snapshotStats?.let {
-                    Log.d("ExamActivity", """
-                        📸 SNAPSHOT STATISTICS
-                        ────────────────────────────────────
-                        No Face: ${it.noFaceSnapshots}
-                        Multiple Faces: ${it.multipleFacesSnapshots}
-                        Looking Away: ${it.lookingAwaySnapshots}
-                        Manual: ${it.manualSnapshots}
-                        Periodic: ${it.periodicSnapshots}
-                        ────────────────────────────────────
-                        Total Successful: ${it.totalSuccessful}
-                        Total Attempts: ${it.totalAttempts}
-                        Failed Attempts: ${it.failedAttempts}
-                        Success Rate: ${String.format("%.2f", it.successRate)}%
-                        ────────────────────────────────────
-                    """.trimIndent())
-                }
             }
 
-            // ✅ تقرير الأمان
             if (::securityManager.isInitialized) {
                 val report = securityManager.generateReport()
                 Log.d("ExamActivity", """
                     🔐 SECURITY REPORT
-                    $report
+                    Total Violations: ${report.violations.size}
+                    Exit Attempts: ${report.totalExitAttempts}
+                    Time Out: ${report.totalTimeOutOfApp}ms
                 """.trimIndent())
             }
 
-            // تنظيف الموارد
             if (::cameraViewModel.isInitialized) {
                 cameraViewModel.stopMonitoring()
             }

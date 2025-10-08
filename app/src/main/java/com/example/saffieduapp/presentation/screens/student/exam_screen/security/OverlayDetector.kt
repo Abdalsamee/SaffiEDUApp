@@ -15,11 +15,7 @@ import androidx.annotation.RequiresApi
 
 /**
  * كاشف الشاشات المنبثقة (Overlays)
- *
- * يعمل عن طريق:
- * 1. مراقبة Focus Changes عبر ViewTreeObserver
- * 2. وضع View شفاف فوق الشاشة وفحص إذا كان Touch يصل له
- * 3. مراقبة Window Visibility Changes
+ * ✅ محسّن مع تأخير في الكشف لتجنب false positives
  */
 class OverlayDetector(
     private val activity: Activity,
@@ -33,12 +29,19 @@ class OverlayDetector(
     private var lastFocusTime = 0L
     private var focusLossCount = 0
 
+    // ✅ تأخير في الكشف لتجنب false positives من الـ Dialogs الداخلية
+    private val FOCUS_LOSS_THRESHOLD = 800L  // زيادة من 500ms إلى 800ms
+    private val FOCUS_COUNT_THRESHOLD = 3     // زيادة من 2 إلى 3 مرات
+
     // للكشف عن Overlays عبر Touch Events
     private var detectorView: View? = null
     private var windowManager: WindowManager? = null
 
     private var visibilityCheckRunnable: Runnable? = null
     private var focusChangeListener: ViewTreeObserver.OnWindowFocusChangeListener? = null
+
+    // ✅ تتبع آخر focus loss للتحقق من الفترة الزمنية
+    private var lastFocusLossTime = 0L
 
     /**
      * بدء المراقبة
@@ -48,6 +51,7 @@ class OverlayDetector(
 
         isMonitoring = true
         lastFocusTime = System.currentTimeMillis()
+        focusLossCount = 0
 
         // 1. مراقبة Window Focus
         setupWindowFocusMonitoring()
@@ -57,7 +61,7 @@ class OverlayDetector(
             setupOverlayDetectorView()
         }
 
-        Log.d(TAG, "Overlay monitoring started")
+        Log.d(TAG, "✅ Overlay monitoring started")
     }
 
     /**
@@ -81,7 +85,7 @@ class OverlayDetector(
         focusChangeListener = null
 
         removeDetectorView()
-        Log.d(TAG, "Overlay monitoring stopped")
+        Log.d(TAG, "❌ Overlay monitoring stopped")
     }
 
     /**
@@ -95,23 +99,45 @@ class OverlayDetector(
             if (!hasFocus) {
                 val now = System.currentTimeMillis()
                 val timeSinceLastFocus = now - lastFocusTime
+                val timeSinceLastLoss = now - lastFocusLossTime
 
-                // إذا فقدنا Focus لأكثر من 500ms معناه في Overlay حقيقي
-                // (وليس مجرد Dialog داخلي)
-                if (timeSinceLastFocus > 500) {
+                // ✅ تجاهل focus losses المتكررة جداً (أقل من 300ms)
+                // هذه غالباً من animations أو transitions
+                if (timeSinceLastLoss < 300) {
+                    Log.d(TAG, "🟡 Rapid focus loss ignored (${timeSinceLastLoss}ms)")
+                    return@OnWindowFocusChangeListener
+                }
+
+                lastFocusLossTime = now
+
+                // ✅ فقط إذا فقدنا Focus لفترة معقولة نعتبرها مخالفة محتملة
+                if (timeSinceLastFocus > FOCUS_LOSS_THRESHOLD) {
                     focusLossCount++
-                    Log.w(TAG, "Focus lost! Count: $focusLossCount, Duration: ${timeSinceLastFocus}ms")
+                    Log.w(TAG, "⚠️ Focus lost! Count: $focusLossCount/$FOCUS_COUNT_THRESHOLD, Duration: ${timeSinceLastFocus}ms")
 
-                    // بعد فقدان Focus مرتين نعتبرها مخالفة
-                    if (focusLossCount >= 2) {
-                        handleOverlayDetected("WINDOW_FOCUS_LOST")
+                    // ✅ نحتاج عدة مرات قبل اعتبارها overlay حقيقي
+                    if (focusLossCount >= FOCUS_COUNT_THRESHOLD) {
+                        // ✅ تأخير إضافي للتأكد
+                        handler.postDelayed({
+                            if (isMonitoring && !activity.hasWindowFocus()) {
+                                handleOverlayDetected("WINDOW_FOCUS_LOST")
+                            } else {
+                                Log.d(TAG, "✅ Focus restored before violation - CLEARED")
+                                focusLossCount = 0
+                            }
+                        }, 500)
                     }
+                } else {
+                    Log.d(TAG, "🟢 Brief focus loss ignored (${timeSinceLastFocus}ms)")
                 }
             } else {
                 lastFocusTime = System.currentTimeMillis()
-                // Reset counter عند استعادة Focus
+                // ✅ Reset counter عند استعادة Focus مع تأخير
                 handler.postDelayed({
                     if (isMonitoring) {
+                        if (focusLossCount > 0) {
+                            Log.d(TAG, "🔄 Resetting focus count (was: $focusLossCount)")
+                        }
                         focusLossCount = 0
                     }
                 }, 2000)
@@ -127,21 +153,18 @@ class OverlayDetector(
 
     /**
      * إنشاء View شفاف للكشف عن Touch Blocking
-     * إذا كان في Overlay فوقنا، الـ Touch Events مش هتوصل للـ View
      */
     @RequiresApi(Build.VERSION_CODES.M)
     private fun setupOverlayDetectorView() {
         try {
             windowManager = activity.getSystemService(Context.WINDOW_SERVICE) as WindowManager
 
-            // إنشاء View شفاف بحجم 1x1 في الزاوية
             detectorView = View(activity).apply {
                 setBackgroundColor(0x00000000) // شفاف تماماً
             }
 
             val params = WindowManager.LayoutParams(
-                1, // width
-                1, // height
+                1, 1,
                 WindowManager.LayoutParams.TYPE_APPLICATION_PANEL,
                 WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
                         or WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL
@@ -151,26 +174,22 @@ class OverlayDetector(
                 gravity = Gravity.TOP or Gravity.START
             }
 
-            // إضافة View للـ Window
             windowManager?.addView(detectorView, params)
 
-            // مراقبة Touch Events
             detectorView?.setOnTouchListener { _, _ ->
-                // إذا وصل Touch Event معناه مافيش Overlay يمنعه
                 Log.d(TAG, "Touch detected - No overlay blocking")
                 false
             }
 
-            // فحص دوري إذا الـ View لسه Visible
             startPeriodicVisibilityCheck()
 
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to setup detector view", e)
+            Log.e(TAG, "Failed to setup overlay detector view", e)
         }
     }
 
     /**
-     * فحص دوري لـ Visibility
+     * فحص دوري للـ Visibility
      */
     private fun startPeriodicVisibilityCheck() {
         visibilityCheckRunnable = object : Runnable {
@@ -178,30 +197,17 @@ class OverlayDetector(
                 if (!isMonitoring) return
 
                 detectorView?.let { view ->
-                    try {
-                        // فحص إذا الـ View مخفي أو مش Attached
-                        if (!view.isAttachedToWindow) {
-                            handleOverlayDetected("DETECTOR_VIEW_DETACHED")
-                            return
-                        }
-
-                        if (view.visibility != View.VISIBLE) {
-                            handleOverlayDetected("DETECTOR_VIEW_HIDDEN")
-                            return
-                        }
-                    } catch (e: Exception) {
-                        Log.e(TAG, "Error checking visibility", e)
+                    if (!view.isShown) {
+                        Log.w(TAG, "Detector view hidden - possible overlay")
+                        handleOverlayDetected("DETECTOR_VIEW_HIDDEN")
+                        return
                     }
                 }
 
-                // إعادة الفحص كل 2 ثانية
-                if (isMonitoring) {
-                    handler.postDelayed(this, 2000)
-                }
+                handler.postDelayed(this, 3000)
             }
         }
-
-        handler.postDelayed(visibilityCheckRunnable!!, 2000)
+        handler.postDelayed(visibilityCheckRunnable!!, 3000)
     }
 
     /**
@@ -224,34 +230,29 @@ class OverlayDetector(
     /**
      * معالجة اكتشاف Overlay
      */
-    /**
-     * معالجة اكتشاف Overlay
-     */
     private fun handleOverlayDetected(reason: String) {
         if (!isMonitoring) return
 
-        Log.e(TAG, "⚠️ OVERLAY DETECTED: $reason")
+        Log.e(TAG, "🚨 OVERLAY DETECTED: $reason")
 
-        // ✅ استدعاء الـ Callback مباشرة بدون handler.post
         try {
             onOverlayDetected()
-            Log.d(TAG, "✅ Overlay callback executed successfully")
+            Log.d(TAG, "✅ Overlay callback executed")
         } catch (e: Exception) {
             Log.e(TAG, "❌ Error calling overlay callback", e)
         }
 
-        // ✅ إيقاف المراقبة بعد تأخير قصير لضمان تنفيذ الـ callback
+        // إيقاف المراقبة بعد تأخير قصير
         handler.postDelayed({
             stopMonitoring()
         }, 200)
     }
 
     /**
-     * فحص يدوي إذا في Overlays نشطة
+     * فحص يدوي للـ Overlays النشطة
      */
     fun checkForActiveOverlays(): Boolean {
         return try {
-            // فحص إذا التطبيق عنده Focus
             val hasFocus = activity.window.decorView.hasWindowFocus()
 
             if (!hasFocus) {
@@ -275,13 +276,26 @@ class OverlayDetector(
         if (!hasFocus) {
             val now = System.currentTimeMillis()
             val timeSinceLastFocus = now - lastFocusTime
+            val timeSinceLastLoss = now - lastFocusLossTime
 
-            if (timeSinceLastFocus > 500) {
+            // ✅ تجاهل rapid changes
+            if (timeSinceLastLoss < 300) {
+                return
+            }
+
+            lastFocusLossTime = now
+
+            if (timeSinceLastFocus > FOCUS_LOSS_THRESHOLD) {
                 focusLossCount++
-                Log.w(TAG, "Manual focus check - Count: $focusLossCount")
+                Log.w(TAG, "📱 Manual focus check - Count: $focusLossCount/$FOCUS_COUNT_THRESHOLD")
 
-                if (focusLossCount >= 2) {
-                    handleOverlayDetected("MANUAL_FOCUS_LOST")
+                if (focusLossCount >= FOCUS_COUNT_THRESHOLD) {
+                    // ✅ تأكيد إضافي قبل التسجيل
+                    handler.postDelayed({
+                        if (isMonitoring && !activity.hasWindowFocus()) {
+                            handleOverlayDetected("MANUAL_FOCUS_LOST")
+                        }
+                    }, 500)
                 }
             }
         } else {

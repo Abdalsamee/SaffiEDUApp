@@ -12,20 +12,19 @@ import kotlinx.coroutines.launch
 
 /**
  * ViewModel لإدارة الكاميرا والمراقبة
- * ✅ محدّث: دعم تحميل جلسة موجودة من RoomScanActivity
  */
 class CameraMonitorViewModel(
     application: Application,
     private val onViolationDetected: (String) -> Unit,
     examId: String,
     studentId: String,
-    existingSessionId: String? = null // ✅ جديد: معرف جلسة موجودة
+    existingSessionId: String? = null
 ) : AndroidViewModel(application) {
 
     private val TAG = "CameraMonitorVM"
     private val context = application.applicationContext
 
-    // ✅ ExamSessionManager
+    // ExamSessionManager
     private val sessionManager = ExamSessionManager(
         context = context,
         examId = examId,
@@ -40,22 +39,14 @@ class CameraMonitorViewModel(
     )
 
     init {
-        // ✅ إذا كان هناك session موجود، حمّله
+        // تحميل جلسة موجودة إذا كانت متوفرة
         if (existingSessionId != null) {
             viewModelScope.launch {
                 val session = sessionManager.loadSession(existingSessionId)
                 if (session != null) {
-                    Log.d(TAG, """
-                        ✅ Loaded existing session:
-                        ID: ${session.sessionId}
-                        Started: ${session.startTime}
-                        Snapshots: ${session.snapshots.size}
-                        Has Video: ${session.backCameraVideo != null}
-                        Status: ${session.status}
-                    """.trimIndent())
+                    Log.d(TAG, "Session loaded: ${session.sessionId}")
                 } else {
-                    Log.e(TAG, "❌ Failed to load session: $existingSessionId")
-                    // إنشاء جلسة جديدة كخطة احتياطية
+                    Log.e(TAG, "Failed to load session: $existingSessionId")
                     sessionManager.startSession()
                 }
             }
@@ -63,48 +54,47 @@ class CameraMonitorViewModel(
     }
 
     /**
-     * تهيئة نظام الكاميرا
+     * تهيئة الكاميرا
      */
     fun initializeCamera() {
         viewModelScope.launch {
             val result = cameraMonitor.initialize()
             if (result.isSuccess) {
-                Log.d(TAG, "✅ Camera system initialized")
+                Log.d(TAG, "Camera initialized")
             } else {
-                Log.e(TAG, "❌ Failed to initialize camera: ${result.exceptionOrNull()?.message}")
+                Log.e(TAG, "Camera init failed: ${result.exceptionOrNull()?.message}")
             }
         }
     }
 
     /**
-     * بدء جلسة اختبار جديدة
+     * بدء جلسة اختبار
      */
     fun startExamSession() {
-        // ✅ فقط إذا لم تكن هناك جلسة موجودة
         if (sessionManager.getCurrentSession() == null) {
             sessionManager.startSession()
-            Log.d(TAG, "✅ New exam session started")
+            Log.d(TAG, "Exam session started")
         } else {
-            Log.d(TAG, "ℹ️ Session already exists, skipping startSession()")
+            Log.d(TAG, "Session already exists")
         }
     }
 
     /**
-     * إيقاف مؤقت للجلسة
+     * إيقاف مؤقت
      */
     fun pauseExamSession() {
         sessionManager.pauseSession()
         cameraMonitor.pauseMonitoring()
-        Log.d(TAG, "⏸️ Exam session paused")
+        Log.d(TAG, "Session paused")
     }
 
     /**
-     * استئناف الجلسة
+     * استئناف
      */
     fun resumeExamSession() {
         sessionManager.resumeSession()
         cameraMonitor.resumeMonitoring()
-        Log.d(TAG, "▶️ Exam session resumed")
+        Log.d(TAG, "Session resumed")
     }
 
     /**
@@ -113,7 +103,7 @@ class CameraMonitorViewModel(
     fun endExamSession() {
         sessionManager.endSession()
         cameraMonitor.stopMonitoring()
-        Log.d(TAG, "⏹️ Exam session ended")
+        Log.d(TAG, "Session ended")
     }
 
     /**
@@ -121,7 +111,7 @@ class CameraMonitorViewModel(
      */
     fun stopMonitoring() {
         cameraMonitor.stopMonitoring()
-        Log.d(TAG, "🛑 Monitoring stopped")
+        Log.d(TAG, "Monitoring stopped")
     }
 
     /**
@@ -137,7 +127,7 @@ class CameraMonitorViewModel(
     /**
      * الحصول على إحصائيات الصور
      */
-    fun getSnapshotStats(): StateFlow<SnapshotStats>? {
+    fun getSnapshotStats(): StateFlow<SnapshotStats> {
         return cameraMonitor.getSnapshotStats()
     }
 
@@ -147,11 +137,6 @@ class CameraMonitorViewModel(
     fun getSessionStats(): SessionStats? {
         return sessionManager.getSessionStats()
     }
-
-    /**
-     * الحصول على حالة المراقبة
-     */
-    fun getMonitoringState() = cameraMonitor.getMonitoringState()
 
     /**
      * الحصول على آخر نتيجة كشف وجه
@@ -164,7 +149,7 @@ class CameraMonitorViewModel(
     fun cleanup() {
         cameraMonitor.cleanup()
         sessionManager.cleanup()
-        Log.d(TAG, "🧹 Resources cleaned up")
+        Log.d(TAG, "Resources cleaned up")
     }
 
     override fun onCleared() {

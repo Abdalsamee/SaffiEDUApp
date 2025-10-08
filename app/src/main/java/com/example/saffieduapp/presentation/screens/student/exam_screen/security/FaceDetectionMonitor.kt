@@ -2,56 +2,66 @@ package com.example.saffieduapp.presentation.screens.student.exam_screen.securit
 
 import android.util.Log
 import androidx.camera.core.ImageProxy
+import com.google.android.gms.tasks.Task
+import com.google.mlkit.vision.common.InputImage
+import com.google.mlkit.vision.face.Face
+import com.google.mlkit.vision.face.FaceDetection
+import com.google.mlkit.vision.face.FaceDetectorOptions
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.tasks.await
+import kotlin.math.abs
 
+/**
+ * مراقب كشف الوجوه
+ */
 class FaceDetectionMonitor(
     private val onViolationDetected: (String) -> Unit,
-    private val onSnapshotNeeded: ((ImageProxy, FaceDetectionResult) -> Unit)? = null
+    private val onSnapshotNeeded: (ImageProxy, FaceDetectionResult) -> Unit
 ) {
     private val TAG = "FaceDetectionMonitor"
 
-    private val faceDetector = FaceDetector()
     private val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
 
-    private val _monitoringState = MutableStateFlow<MonitoringState>(MonitoringState.Idle)
-    val monitoringState: StateFlow<MonitoringState> = _monitoringState.asStateFlow()
+    private val detectorOptions = FaceDetectorOptions.Builder()
+        .setPerformanceMode(FaceDetectorOptions.PERFORMANCE_MODE_FAST)
+        .setLandmarkMode(FaceDetectorOptions.LANDMARK_MODE_NONE)
+        .setClassificationMode(FaceDetectorOptions.CLASSIFICATION_MODE_NONE)
+        .setMinFaceSize(0.15f)
+        .build()
+
+    private val faceDetector = FaceDetection.getClient(detectorOptions)
 
     private val _lastDetectionResult = MutableStateFlow<FaceDetectionResult?>(null)
     val lastDetectionResult: StateFlow<FaceDetectionResult?> = _lastDetectionResult.asStateFlow()
 
+    private var consecutiveNoFaceCount = 0
+    private var consecutiveLookingAwayCount = 0
+
+    private val MAX_NO_FACE_THRESHOLD = 3
+    private val MAX_LOOKING_AWAY_THRESHOLD = 5
+    private val HEAD_ROTATION_THRESHOLD = 30f
+
     @Volatile
     private var isMonitoring = false
 
-    private var noFaceCount = 0
-    private var lookingAwayCount = 0
-    private var lastFaceDetectionTime = 0L
-
-    private val MAX_NO_FACE_COUNT = 3
-    private val MAX_LOOKING_AWAY_COUNT = 5
-    private val DETECTION_INTERVAL = 2000L
-
-    private var processingJob: Job? = null
-
     fun startMonitoring() {
-        if (isMonitoring) return
         isMonitoring = true
-        noFaceCount = 0
-        lookingAwayCount = 0
-        lastFaceDetectionTime = System.currentTimeMillis()
-        _monitoringState.value = MonitoringState.Active
+        consecutiveNoFaceCount = 0
+        consecutiveLookingAwayCount = 0
         Log.d(TAG, "Face detection monitoring started")
     }
 
     fun stopMonitoring() {
         isMonitoring = false
-        processingJob?.cancel()
-        _monitoringState.value = MonitoringState.Stopped
         Log.d(TAG, "Face detection monitoring stopped")
     }
 
+    /**
+     * معالجة الصورة
+     */
     @androidx.camera.core.ExperimentalGetImage
     fun processImage(imageProxy: ImageProxy) {
         if (!isMonitoring) {
@@ -59,117 +69,111 @@ class FaceDetectionMonitor(
             return
         }
 
-        if (processingJob?.isActive == true) {
+        val mediaImage = imageProxy.image
+        if (mediaImage == null) {
             imageProxy.close()
             return
         }
 
-        val now = System.currentTimeMillis()
-        if (now - lastFaceDetectionTime < DETECTION_INTERVAL) {
-            imageProxy.close()
-            return
-        }
+        val inputImage = InputImage.fromMediaImage(
+            mediaImage,
+            imageProxy.imageInfo.rotationDegrees
+        )
 
-        lastFaceDetectionTime = now
-
-        processingJob = scope.launch {
+        scope.launch {
             try {
-                _monitoringState.value = MonitoringState.Processing
-                val result = faceDetector.detectFaces(imageProxy)
+                val faces: List<Face> = faceDetector.process(inputImage).await()
+
+                val result = when {
+                    faces.isEmpty() -> {
+                        consecutiveNoFaceCount++
+                        consecutiveLookingAwayCount = 0
+
+                        if (consecutiveNoFaceCount >= MAX_NO_FACE_THRESHOLD) {
+                            withContext(Dispatchers.Main) {
+                                onViolationDetected("لم يتم اكتشاف وجه")
+                            }
+                        }
+
+                        FaceDetectionResult.NoFace(consecutiveNoFaceCount)
+                    }
+
+                    faces.size > 1 -> {
+                        consecutiveNoFaceCount = 0
+                        consecutiveLookingAwayCount = 0
+
+                        withContext(Dispatchers.Main) {
+                            onViolationDetected("تم اكتشاف أكثر من وجه")
+                        }
+
+                        FaceDetectionResult.MultipleFaces(faces.size)
+                    }
+
+                    else -> {
+                        val face = faces[0]
+                        val rotY = face.headEulerAngleY
+
+                        if (abs(rotY) > HEAD_ROTATION_THRESHOLD) {
+                            consecutiveLookingAwayCount++
+                            consecutiveNoFaceCount = 0
+
+                            if (consecutiveLookingAwayCount >= MAX_LOOKING_AWAY_THRESHOLD) {
+                                withContext(Dispatchers.Main) {
+                                    onViolationDetected("الطالب ينظر بعيداً")
+                                }
+                            }
+
+                            FaceDetectionResult.LookingAway(rotY, consecutiveLookingAwayCount)
+                        } else {
+                            consecutiveNoFaceCount = 0
+                            consecutiveLookingAwayCount = 0
+                            FaceDetectionResult.ValidFace
+                        }
+                    }
+                }
+
+                _lastDetectionResult.value = result
                 handleDetectionResult(result, imageProxy)
-                _monitoringState.value = MonitoringState.Active
+
             } catch (e: Exception) {
                 Log.e(TAG, "Error processing image", e)
-                _monitoringState.value = MonitoringState.Error(e.message ?: "Unknown error")
+                _lastDetectionResult.value = FaceDetectionResult.Error(e.message ?: "Unknown error")
                 imageProxy.close()
             }
         }
     }
 
+    /**
+     * معالجة النتيجة
+     */
     private fun handleDetectionResult(result: FaceDetectionResult, imageProxy: ImageProxy) {
-        _lastDetectionResult.value = result
-        var needsSnapshot = false
-
         when (result) {
-            is FaceDetectionResult.ValidFace -> {
-                noFaceCount = 0
-                lookingAwayCount = 0
-                Log.d(TAG, "✅ Valid face detected")
-                imageProxy.close()
-            }
-
-            is FaceDetectionResult.NoFace -> {
-                noFaceCount++
-                lookingAwayCount = 0
-                Log.w(TAG, "⚠️ No face detected - Count: $noFaceCount")
-
-                if (noFaceCount >= MAX_NO_FACE_COUNT) {
-                    onViolationDetected("NO_FACE_DETECTED_LONG")
-                    noFaceCount = 0
-                }
-                needsSnapshot = true
-            }
-
-            is FaceDetectionResult.MultipleFaces -> {
-                Log.e(TAG, "🚨 Multiple faces detected: ${result.count}")
-                onViolationDetected("MULTIPLE_FACES_DETECTED")
-                noFaceCount = 0
-                lookingAwayCount = 0
-                needsSnapshot = true
-            }
-
+            is FaceDetectionResult.NoFace,
+            is FaceDetectionResult.MultipleFaces,
             is FaceDetectionResult.LookingAway -> {
-                lookingAwayCount++
-                noFaceCount = 0
-                Log.w(TAG, "⚠️ Looking away - Count: $lookingAwayCount, Angle: ${result.angle}")
-
-                if (lookingAwayCount >= MAX_LOOKING_AWAY_COUNT) {
-                    onViolationDetected("LOOKING_AWAY")
-                    lookingAwayCount = 0
-                }
-                needsSnapshot = true
+                onSnapshotNeeded(imageProxy, result)
             }
-
-            is FaceDetectionResult.Error -> {
-                Log.e(TAG, "Face detection error: ${result.message}")
+            else -> {
                 imageProxy.close()
             }
         }
-
-        if (needsSnapshot && onSnapshotNeeded != null) {
-            // ✅ إرسال ImageProxy - المسؤولية على الـ callback لإغلاقه
-            onSnapshotNeeded.invoke(imageProxy, result)
-        } else if (needsSnapshot) {
-            imageProxy.close()
-        }
-    }
-
-    fun getStats(): MonitoringStats {
-        return MonitoringStats(
-            noFaceCount = noFaceCount,
-            lookingAwayCount = lookingAwayCount,
-            isActive = isMonitoring
-        )
     }
 
     fun cleanup() {
-        stopMonitoring()
+        isMonitoring = false
         scope.cancel()
-        faceDetector.cleanup()
+        faceDetector.close()
         Log.d(TAG, "Face detection monitor cleaned up")
     }
 }
 
-sealed class MonitoringState {
-    object Idle : MonitoringState()
-    object Active : MonitoringState()
-    object Processing : MonitoringState()
-    object Stopped : MonitoringState()
-    data class Error(val message: String) : MonitoringState()
+/**
+ * نتائج كشف الوجه
+ */
+sealed class FaceDetectionResult {
+    object ValidFace : FaceDetectionResult()
+    data class NoFace(val count: Int) : FaceDetectionResult()
+    data class MultipleFaces(val count: Int) : FaceDetectionResult()
+    data class LookingAway(val angle: Float, val count: Int) : FaceDetectionResult()
+    data class Error(val message: String) : FaceDetectionResult()
 }
-
-data class MonitoringStats(
-    val noFaceCount: Int,
-    val lookingAwayCount: Int,
-    val isActive: Boolean
-)
