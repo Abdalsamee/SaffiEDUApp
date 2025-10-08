@@ -12,7 +12,6 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlin.math.abs
 import kotlin.math.floor
 import kotlin.math.max
 import kotlin.math.min
@@ -67,13 +66,13 @@ class RoomScanCoverageTracker(
     }
 
     fun reset() {
-        visitedSectors.fill(false)
+        for (i in visitedSectors.indices) visitedSectors[i] = false
         minPitch = 999f
         maxPitch = -999f
         _state.value = CoverageState()
     }
 
-    override fun onSensorChanged(event: SensorEvent) {
+    override fun onSensorChanged(event: android.hardware.SensorEvent) {
         if (event.sensor.type != Sensor.TYPE_ROTATION_VECTOR) return
 
         val rotationMatrix = FloatArray(9)
@@ -85,9 +84,8 @@ class RoomScanCoverageTracker(
         // radians → degrees
         val azimuthDeg = Math.toDegrees(orientation[0].toDouble()).toFloat()  // yaw
         val pitchDeg   = Math.toDegrees(orientation[1].toDouble()).toFloat()  // pitch
-        // val rollDeg    = Math.toDegrees(orientation[2].toDouble()).toFloat() // roll (غير ضروري الآن)
 
-        // طَبّع الزاوية إلى 0..360
+        // إلى 0..360
         val yaw360 = normalizeYawDeg(azimuthDeg)
 
         // علِّم القطاع الحالي كمُزار
@@ -113,7 +111,7 @@ class RoomScanCoverageTracker(
             else -> 0f
         }
 
-        // وزن أفقي 80% + رأسي 20%
+        // وزن: أفقي 80% + رأسي 20%
         val totalPercent = (yawCoveragePercent * 0.8f) + (pitchCoveragePercent * 0.2f)
 
         _state.value = CoverageState(
@@ -124,8 +122,8 @@ class RoomScanCoverageTracker(
             yawCoveragePercent = yawCoveragePercent,
             pitchCoveragePercent = pitchCoveragePercent,
             totalPercent = totalPercent,
-            yawComplete = yawCoveragePercent >= 0.75f,   // تغطية ≥ 75% من الدائرة
-            pitchComplete = pitchCoveragePercent >= 1f,  // شاف فوق وتحت
+            yawComplete = yawCoveragePercent >= 0.75f,   // ≥ 75% من الدائرة
+            pitchComplete = pitchCoveragePercent >= 1f   // شاف فوق وتحت
         )
     }
 
