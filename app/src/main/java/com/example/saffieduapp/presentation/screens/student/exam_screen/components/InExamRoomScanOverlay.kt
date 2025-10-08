@@ -2,92 +2,114 @@ package com.example.saffieduapp.presentation.screens.student.exam_screen.compone
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.material3.*
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.Text
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.saffieduapp.presentation.screens.student.exam_screen.security.InExamScanUiState
 
 @Composable
-fun InExamRoomScanOverlay(state: InExamScanUiState) {
-    val progress = (state.elapsedMs.toFloat() / state.targetMs).coerceIn(0f, 1f)
+fun InExamRoomScanOverlay(
+    state: InExamScanUiState
+) {
+    if (!state.visible) return
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xCC000000)),
-        contentAlignment = Alignment.Center
+            .background(Color(0xAA000000))
     ) {
         Card(
             modifier = Modifier
-                .fillMaxWidth(0.9f)
-                .wrapContentHeight(),
-            colors = CardDefaults.cardColors(containerColor = Color.White)
+                .align(Alignment.TopCenter)
+                .padding(16.dp)
+                .fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = Color(0xFF101427)),
+            shape = RoundedCornerShape(16.dp),
+            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
         ) {
             Column(
-                modifier = Modifier.padding(20.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
+                modifier = Modifier.padding(16.dp)
             ) {
                 Text(
-                    "مسح محيطك بالكاميرا الخلفية",
+                    text = "مسح الغرفة بالكاميرا الخلفية",
+                    color = Color.White,
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold
                 )
-
+                Spacer(Modifier.height(8.dp))
                 Text(
-                    "من فضلك حرّك الهاتف ببطء لليمين واليسار، ثم ارفع الهاتف قليلاً وأنزله لمسح كامل الغرفة.",
-                    fontSize = 14.sp,
-                    textAlign = TextAlign.Center,
-                    color = Color.Black.copy(alpha = 0.75f)
+                    text = "رجاءً لف الجهاز ببطء لمسح محيطك بالكامل. ارفع الهاتف قليلاً للأعلى ثم للأسفل.",
+                    color = Color.White.copy(alpha = 0.85f),
+                    fontSize = 14.sp
                 )
 
-                // مؤشّر عام للمدة
+                Spacer(Modifier.height(16.dp))
+
+                // تقدّم الدوران الأفقي (Yaw)
+                Text(text = "التغطية الأفقية", color = Color.White, fontSize = 14.sp)
                 LinearProgressIndicator(
-                    progress = progress,
+                    progress = state.coverage.yawCoveragePercent.coerceIn(0f, 1f),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(8.dp)
+                        .height(8.dp),
+                    color = Color(0xFF6C63FF)
+                )
+                Spacer(Modifier.height(8.dp))
+
+                // تقدّم الإمالة الرأسي (Pitch)
+                Text(text = "الإمالة (أعلى/أسفل)", color = Color.White, fontSize = 14.sp)
+                LinearProgressIndicator(
+                    progress = state.coverage.pitchCoveragePercent.coerceIn(0f, 1f),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(8.dp),
+                    color = Color(0xFFFF9800)
                 )
 
-                // مؤشرات توجيهية بسيطة
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    LabeledProgress("الدوران الأفقي", state.yawProgress)
-                    LabeledProgress("الإمالة للأعلى/الأسفل", state.pinchProgressCompat())
-                    LabeledProgress("التدوير", state.rollProgress)
-                }
-
+                Spacer(Modifier.height(12.dp))
                 Text(
-                    text = if (state.allDirectionsCovered) "تمت تغطية كل الاتجاهات تقريباً" else "تابع حتى يكتمل الشريط",
-                    fontSize = 13.sp,
-                    color = if (state.allDirectionsCovered) Color(0xFF2E7D32) else Color(0xFFB71C1C),
-                    fontWeight = FontWeight.Medium
+                    text = "الوقت المنقضي: ${(state.durationMs / 1000)} ثانية",
+                    color = Color.White.copy(alpha = 0.8f),
+                    fontSize = 12.sp
+                )
+            }
+        }
+
+        // (اختياري) تلميحات أسهم/إرشادات إضافية في أسفل الشاشة
+        Card(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(16.dp)
+                .fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = Color(0xFF0E1325)),
+            shape = RoundedCornerShape(16.dp),
+            elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
+        ) {
+            Column(Modifier.padding(16.dp)) {
+                Text(
+                    text = "نصائح:",
+                    color = Color.White,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text = "• لف الهاتف ببطء من اليسار إلى اليمين.\n• ارفع الهاتف قليلًا للأعلى، ثم اخفضه للأسفل.\n• استمر حتى يكتمل الشريطين.",
+                    color = Color.White.copy(alpha = 0.85f),
+                    fontSize = 14.sp
                 )
             }
         }
     }
 }
-
-/** اسم دالة مساعد فقط لأن الاسم الصحيح pitchProgress لكن نعرضها كما هي */
-@Composable
-private fun LabeledProgress(label: String, value: Float) {
-    Column {
-        Text(label, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-        LinearProgressIndicator(
-            progress = value.coerceIn(0f, 1f),
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(6.dp)
-        )
-    }
-}
-
-private fun InExamScanUiState.pinchProgressCompat(): Float = this.pitchProgress

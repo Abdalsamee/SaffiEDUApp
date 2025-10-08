@@ -17,7 +17,6 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModelProvider
 import com.example.saffieduapp.presentation.screens.student.exam_screen.components.*
 import com.example.saffieduapp.presentation.screens.student.exam_screen.security.*
-import com.example.saffieduapp.presentation.screens.student.exam_screen.session.ExamSessionManager
 import com.example.saffieduapp.ui.theme.SaffiEDUAppTheme
 import com.google.firebase.auth.FirebaseAuth
 import dagger.hilt.android.AndroidEntryPoint
@@ -25,15 +24,12 @@ import dagger.hilt.android.AndroidEntryPoint
 @AndroidEntryPoint
 class ExamActivity : ComponentActivity() {
 
-    // جلسة/مسجّل الفيديو الخلفي
-    private lateinit var sessionManager: ExamSessionManager
-    private lateinit var backCameraRecorder: BackCameraVideoRecorder
-    private lateinit var coverageTracker: CoverageTracker
-    private var randomScheduler: RandomEventScheduler? = null
-
     // الأمن والكاميرا
     private lateinit var securityManager: ExamSecurityManager
     private lateinit var cameraViewModel: CameraMonitorViewModel
+    private lateinit var coverageTracker: RoomScanCoverageTracker
+    private var randomScheduler: RandomEventScheduler? = null
+
     private var examId: String = ""
     private var sessionId: String? = null
 
@@ -85,12 +81,7 @@ class ExamActivity : ComponentActivity() {
                 finish(); return
             }
 
-            // تهيئة إدارة الجلسة ومسجّل الفيديو الخلفي + مُتعقّب التغطية
-            sessionManager = ExamSessionManager(this, examId, studentId)
-            backCameraRecorder = BackCameraVideoRecorder(this, sessionManager)
-            coverageTracker = CoverageTracker()
-
-            // تهيئة ViewModel الكاميرا
+            // ViewModel الكاميرا
             val factory = CameraMonitorViewModelFactory(
                 application = application,
                 onViolationDetected = { violationType ->
@@ -108,6 +99,9 @@ class ExamActivity : ComponentActivity() {
             cameraViewModel.getCameraMonitor().let { monitor ->
                 securityManager.setCameraMonitor(monitor)
             }
+
+            // متعقب تغطية المسح (حساسات)
+            coverageTracker = RoomScanCoverageTracker(this)
 
             // طلب الصلاحيات
             checkAndRequestCameraPermissions()
@@ -181,22 +175,26 @@ class ExamActivity : ComponentActivity() {
         val isPaused by securityManager.isPaused.collectAsState()
         val violations by securityManager.violations.collectAsState()
 
-        // حالة واجهة المسح المفاجئ داخل الامتحان (UI state الموحّد)
+        // واجهة المسح داخل الامتحان
         var showRoomScanOverlay by remember { mutableStateOf(false) }
-        var scanUiState by remember {
-            mutableStateOf(
-                InExamScanUiState(
-                    elapsedMs = 0L,
-                    targetMs = 10_000L,
-                    yawProgress = 0f,
-                    pitchProgress = 0f,
-                    rollProgress = 0f,
-                    allDirectionsCovered = false
-                )
-            )
+        val coverage by coverageTracker.state.collectAsState()
+        // وقت التسجيل الجاري (من BackCameraVideoRecorder)
+        // سنأخذه مباشرة عند عرض الواجهة (نستغني عن target)
+        var currentScanElapsedMs by remember { mutableStateOf(0L) }
+
+        // لتحديث الزمن كل 300ms عندما تكون الواجهة ظاهرة
+        LaunchedEffect(showRoomScanOverlay) {
+            if (showRoomScanOverlay) {
+                while (true) {
+                    val rec = randomScheduler
+                    if (rec != null) {
+                        currentScanElapsedMs = rec.getCurrentRecordingMs()
+                    }
+                    kotlinx.coroutines.delay(300)
+                }
+            }
         }
 
-        // إعادة ضبط عدّاد تعدد الوجوه عند توفر وجه صالح
         if (::cameraViewModel.isInitialized) {
             val detectionResult by cameraViewModel.lastDetectionResult.collectAsState(initial = null)
             LaunchedEffect(detectionResult) {
@@ -206,7 +204,7 @@ class ExamActivity : ComponentActivity() {
             }
         }
 
-        // منع الرجوع (ولا يسمح أثناء الـ Room Scan المفاجئ)
+        // منع الرجوع
         BackHandler {
             if (!showExitDialog && !showRoomScanOverlay) {
                 securityManager.logViolation("BACK_BUTTON_PRESSED")
@@ -220,41 +218,33 @@ class ExamActivity : ComponentActivity() {
             securityManager.startMonitoring()
             securityManager.startExam()
 
-            // مهم: احصل على FrontSnapshotManager من داخل CameraMonitor نفسه
-            val frontSnapshotManager = cameraViewModel.getCameraMonitor().getFrontSnapshotManager()
+            val cm = cameraViewModel.getCameraMonitor()
+            val sessionMgr = cm.getSessionManager()
+            val backRecorder = BackCameraVideoRecorder(this@ExamActivity, sessionMgr)
 
             randomScheduler = RandomEventScheduler(
-                frontSnapshotManager = frontSnapshotManager,
-                backCameraRecorder = backCameraRecorder,
-                sessionManager = sessionManager,
+                frontSnapshotManager = cm.getFrontSnapshotManager(),
+                backCameraRecorder = backRecorder,
+                sessionManager = sessionMgr,
                 lifecycleOwner = this@ExamActivity,
-                coverageTracker = coverageTracker,
-                onShowRoomScanOverlay = { targetMs ->
-                    scanUiState = InExamScanUiState(
-                        elapsedMs = 0L,
-                        targetMs = targetMs,
-                        yawProgress = 0f,
-                        pitchProgress = 0f,
-                        rollProgress = 0f,
-                        allDirectionsCovered = false
-                    )
+                pauseFrontDetection = { cm.pauseMonitoring() },
+                resumeFrontDetection = { cm.resumeMonitoring() },
+                onShowRoomScanOverlay = {
+                    coverageTracker.reset()
+                    coverageTracker.start()
                     showRoomScanOverlay = true
-                    // إيقاف كشف الـ overlay أثناء واجهة المسح
                     securityManager.registerInternalDialog("ROOM_SCAN")
-                },
-                onUpdateUi = { elapsed, target ->
-                    scanUiState = coverageTracker.currentUiState(elapsed, target)
                 },
                 onHideRoomScanOverlay = {
                     showRoomScanOverlay = false
+                    coverageTracker.stop()
                     securityManager.unregisterInternalDialog("ROOM_SCAN")
                 },
-                pauseFrontDetection = { cameraViewModel.getCameraMonitor().pauseMonitoring() },
-                resumeFrontDetection = { cameraViewModel.getCameraMonitor().resumeMonitoring() }
+                coverageTracker = coverageTracker
             ).also { it.startRandomEvents() }
         }
 
-        // شاشة الاختبار
+        // شاشة الامتحان
         ExamScreen(
             onNavigateUp = {
                 if (!showExitDialog && !showRoomScanOverlay) {
@@ -266,9 +256,15 @@ class ExamActivity : ComponentActivity() {
             onExamComplete = { finishExam() }
         )
 
-        // Overlay للمسح المفاجئ أثناء الامتحان
+        // Overlay للمسح أثناء الامتحان
         if (showRoomScanOverlay) {
-            InExamRoomScanOverlay(state = scanUiState)
+            InExamRoomScanOverlay(
+                state = InExamScanUiState(
+                    visible = true,
+                    durationMs = currentScanElapsedMs,
+                    coverage = coverage
+                )
+            )
         }
 
         // الحوارات
