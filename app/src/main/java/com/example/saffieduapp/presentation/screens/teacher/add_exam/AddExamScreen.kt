@@ -178,7 +178,13 @@ fun AddExamScreen(
                 AppButton(
                     text = "التالي",
                     onClick = {
-                        onNavigateToNext(state)
+                        viewModel.fetchTeacherInfo { id, name ->
+                            val updatedState = state.copy(
+                                teacherId = id,
+                                teacherName = name
+                            )
+                            onNavigateToNext(updatedState)
+                        }
                     },
                     modifier = Modifier.fillMaxWidth(),
                     enabled = state.examTitle.isNotBlank() &&
