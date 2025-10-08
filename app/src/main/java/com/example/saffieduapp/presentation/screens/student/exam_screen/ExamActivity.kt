@@ -13,12 +13,12 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.*
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModelProvider
 import com.example.saffieduapp.presentation.screens.student.exam_screen.components.*
 import com.example.saffieduapp.presentation.screens.student.exam_screen.security.*
+import com.example.saffieduapp.presentation.screens.student.exam_screen.session.ExamSessionManager
+import com.example.saffieduapp.presentation.screens.student.exam_screen.session.FrontCameraSnapshotManager
 import com.example.saffieduapp.ui.theme.SaffiEDUAppTheme
 import com.google.firebase.auth.FirebaseAuth
 import dagger.hilt.android.AndroidEntryPoint
@@ -26,6 +26,13 @@ import dagger.hilt.android.AndroidEntryPoint
 @AndroidEntryPoint
 class ExamActivity : ComponentActivity() {
 
+    // === NEW: مكوّنات الجلسة/المراقبة العشوائية ===
+    private lateinit var sessionManager: ExamSessionManager
+    private lateinit var frontSnapshotManager: FrontCameraSnapshotManager
+    private lateinit var backCameraRecorder: BackCameraVideoRecorder
+    private var randomScheduler: RandomEventScheduler? = null
+
+    // === الأمن والكاميرا ===
     private lateinit var securityManager: ExamSecurityManager
     private lateinit var cameraViewModel: CameraMonitorViewModel
     private var examId: String = ""
@@ -63,6 +70,7 @@ class ExamActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         try {
+            // === مهم: قراءة المعرفات أولاً ===
             examId = intent.getStringExtra("EXAM_ID") ?: ""
             sessionId = intent.getStringExtra("SESSION_ID")
 
@@ -80,11 +88,21 @@ class ExamActivity : ComponentActivity() {
 
             securityManager = ExamSecurityManager(this, this)
             securityManager.enableSecurityFeatures()
-
             setupSecureScreen()
 
             val studentId = FirebaseAuth.getInstance().currentUser?.uid ?: ""
+            if (studentId.isEmpty()) {
+                Toast.makeText(this, "لم يتم العثور على معرف الطالب", Toast.LENGTH_LONG).show()
+                finish()
+                return
+            }
 
+            // === NEW: تهيئة مدراء الجلسة/اللقطات/الفيديو بعد توفر examId/studentId ===
+            sessionManager = ExamSessionManager(this, examId, studentId)
+            frontSnapshotManager = FrontCameraSnapshotManager(sessionManager)
+            backCameraRecorder = BackCameraVideoRecorder(this, sessionManager)
+
+            // === ViewModel الكاميرا ===
             val factory = CameraMonitorViewModelFactory(
                 application = application,
                 onViolationDetected = { violationType ->
@@ -98,10 +116,12 @@ class ExamActivity : ComponentActivity() {
             )
             cameraViewModel = ViewModelProvider(this, factory)[CameraMonitorViewModel::class.java]
 
+            // ربط المراقب الأمني بمراقب الكاميرا
             cameraViewModel.getCameraMonitor().let { monitor ->
                 securityManager.setCameraMonitor(monitor)
             }
 
+            // طلب الصلاحيات → ثم initializeCamera()
             checkAndRequestCameraPermissions()
 
         } catch (e: Exception) {
@@ -113,7 +133,6 @@ class ExamActivity : ComponentActivity() {
 
     private fun checkAndRequestCameraPermissions() {
         val permissions = mutableListOf(Manifest.permission.CAMERA)
-
         if (sessionId == null) {
             permissions.add(Manifest.permission.RECORD_AUDIO)
         }
@@ -194,7 +213,7 @@ class ExamActivity : ComponentActivity() {
             }
         }
 
-        // ✅ BackHandler
+        // منع الرجوع
         BackHandler {
             if (!showExitDialog) {
                 securityManager.logViolation("BACK_BUTTON_PRESSED")
@@ -203,12 +222,22 @@ class ExamActivity : ComponentActivity() {
             }
         }
 
+        // بدء المراقبة + جدولة الأحداث العشوائية
         LaunchedEffect(Unit) {
             securityManager.startMonitoring()
             securityManager.startExam()
+
+            // ✅ استخدام الكائنات الحقيقية بدلاً من دوال غير موجودة
+            randomScheduler = RandomEventScheduler(
+                frontSnapshotManager = frontSnapshotManager,
+                backCameraRecorder = backCameraRecorder,
+                sessionManager = sessionManager,
+                lifecycleOwner = this@ExamActivity
+            )
+            randomScheduler?.startRandomEvents()
         }
 
-        // ✅ Exam screen body
+        // شاشة الاختبار
         ExamScreen(
             onNavigateUp = {
                 if (!showExitDialog) {
@@ -220,17 +249,13 @@ class ExamActivity : ComponentActivity() {
             onExamComplete = { finishExam() }
         )
 
-        // ═══════════════════════════════════════════
-        // Dialogs
-        // ═══════════════════════════════════════════
-
+        // الحوارات
         if (showExitDialog) {
             DisposableEffect(Unit) {
                 onDispose {
                     securityManager.unregisterInternalDialog(ExamSecurityManager.DIALOG_EXIT_WARNING)
                 }
             }
-
             ExamExitWarningDialog(
                 onDismiss = {
                     showExitDialog = false
@@ -250,7 +275,6 @@ class ExamActivity : ComponentActivity() {
                     securityManager.unregisterInternalDialog(ExamSecurityManager.DIALOG_NO_FACE_WARNING)
                 }
             }
-
             NoFaceWarningDialog(
                 violationCount = securityManager.getNoFaceViolationCount(),
                 remainingWarnings = securityManager.getRemainingNoFaceWarnings(),
@@ -267,7 +291,6 @@ class ExamActivity : ComponentActivity() {
                     securityManager.unregisterInternalDialog(ExamSecurityManager.DIALOG_MULTIPLE_FACES)
                 }
             }
-
             MultipleFacesWarningDialog(
                 onDismiss = {
                     securityManager.dismissMultipleFacesWarning()
@@ -281,24 +304,19 @@ class ExamActivity : ComponentActivity() {
                     securityManager.unregisterInternalDialog(ExamSecurityManager.DIALOG_EXIT_RETURN)
                 }
             }
-
             val exitCount = violations.count { it.type.startsWith("APP_RESUMED") }
-
             ExamReturnWarningDialog(
                 exitAttempts = exitCount,
                 remainingAttempts = securityManager.getRemainingAttempts(),
-                onContinue = {
-                    securityManager.dismissExitWarning()
-                }
+                onContinue = { securityManager.dismissExitWarning() }
             )
         }
 
-        // ✅ Overlay dialog (critical violations like overlays/external display)
+        // تحذير الـ Overlay (حالات حرجة)
         if (showOverlayWarning) {
             OverlayDetectedDialog(
                 violationType = "OVERLAY_DETECTED",
                 onDismiss = {
-                    // إغلاق التحذير وإنهاء الاختبار
                     securityManager.dismissWarning()
                     finishExam()
                 }
@@ -333,9 +351,7 @@ class ExamActivity : ComponentActivity() {
     private fun showMultiWindowBlockedDialog() {
         setContent {
             SaffiEDUAppTheme {
-                MultiWindowBlockedDialog(
-                    onDismiss = { finish() }
-                )
+                MultiWindowBlockedDialog(onDismiss = { finish() })
             }
         }
     }
@@ -348,17 +364,14 @@ class ExamActivity : ComponentActivity() {
 
         if (isInMultiWindowMode) {
             Log.e("ExamActivity", "Multi-window mode activated during exam!")
-
             if (::securityManager.isInitialized) {
                 securityManager.logViolation("MULTI_WINDOW_DETECTED")
             }
-
             Toast.makeText(
                 this,
                 "تم إنهاء الاختبار: تم اكتشاف وضع تقسيم الشاشة",
                 Toast.LENGTH_LONG
             ).show()
-
             finishExam()
         }
     }
@@ -371,24 +384,20 @@ class ExamActivity : ComponentActivity() {
 
         if (isInPictureInPictureMode) {
             Log.e("ExamActivity", "PIP mode detected!")
-
             if (::securityManager.isInitialized) {
                 securityManager.logViolation("PIP_MODE_DETECTED")
             }
-
             Toast.makeText(
                 this,
                 "تم إنهاء الاختبار: لا يسمح بوضع Picture-in-Picture",
                 Toast.LENGTH_LONG
             ).show()
-
             finishExam()
         }
     }
 
     override fun onConfigurationChanged(newConfig: android.content.res.Configuration) {
         super.onConfigurationChanged(newConfig)
-
         if (isInMultiWindowMode && ::securityManager.isInitialized) {
             securityManager.logViolation("MULTI_WINDOW_CONFIG_CHANGE")
             finishExam()
@@ -397,13 +406,8 @@ class ExamActivity : ComponentActivity() {
 
     override fun onPause() {
         super.onPause()
-        if (::securityManager.isInitialized) {
-            securityManager.onAppPaused()
-        }
-
-        if (::cameraViewModel.isInitialized) {
-            cameraViewModel.pauseExamSession()
-        }
+        if (::securityManager.isInitialized) securityManager.onAppPaused()
+        if (::cameraViewModel.isInitialized) cameraViewModel.pauseExamSession()
     }
 
     override fun onResume() {
@@ -419,18 +423,13 @@ class ExamActivity : ComponentActivity() {
         }
 
         if (::securityManager.isInitialized) {
-           // securityManager.registerInternalDialog(ExamSecurityManager.DIALOG_EXIT_RETURN)
             securityManager.onAppResumed()
         }
-
-        if (::cameraViewModel.isInitialized) {
-            cameraViewModel.resumeExamSession()
-        }
+        if (::cameraViewModel.isInitialized) cameraViewModel.resumeExamSession()
     }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
         super.onWindowFocusChanged(hasFocus)
-
         if (::securityManager.isInitialized) {
             securityManager.onWindowFocusChanged(hasFocus)
         }
@@ -438,7 +437,6 @@ class ExamActivity : ComponentActivity() {
 
     override fun onUserLeaveHint() {
         super.onUserLeaveHint()
-
         if (::securityManager.isInitialized) {
             securityManager.logViolation("USER_LEFT_APP")
         }
@@ -446,6 +444,10 @@ class ExamActivity : ComponentActivity() {
 
     private fun finishExam() {
         try {
+            // أوقف الجدولة العشوائية
+            randomScheduler?.cleanup()
+            randomScheduler = null
+
             if (::cameraViewModel.isInitialized) {
                 cameraViewModel.endExamSession()
             }
@@ -480,13 +482,14 @@ class ExamActivity : ComponentActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
-
         try {
+            randomScheduler?.cleanup()
+            randomScheduler = null
+
             if (::securityManager.isInitialized) {
                 securityManager.stopMonitoring()
                 securityManager.cleanup()
             }
-
             if (::cameraViewModel.isInitialized) {
                 cameraViewModel.cleanup()
             }

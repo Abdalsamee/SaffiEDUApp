@@ -42,7 +42,7 @@ class BackCameraVideoRecorder(
     val recordingDuration: StateFlow<Long> = _recordingDuration.asStateFlow()
 
     companion object {
-        private const val ROOM_SCAN_DURATION = 30_000L // 30 ثانية
+        private const val ROOM_SCAN_DURATION = 10_000L // 30 ثانية
     }
 
     /**
