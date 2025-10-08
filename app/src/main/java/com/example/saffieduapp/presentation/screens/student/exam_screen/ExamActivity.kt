@@ -15,13 +15,11 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.*
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModelProvider
-import androidx.lifecycle.lifecycleScope
 import com.example.saffieduapp.presentation.screens.student.exam_screen.components.*
 import com.example.saffieduapp.presentation.screens.student.exam_screen.security.*
 import com.example.saffieduapp.ui.theme.SaffiEDUAppTheme
 import com.google.firebase.auth.FirebaseAuth
 import dagger.hilt.android.AndroidEntryPoint
-import kotlinx.coroutines.launch
 
 @AndroidEntryPoint
 class ExamActivity : ComponentActivity() {
@@ -195,11 +193,13 @@ class ExamActivity : ComponentActivity() {
             }
         }
 
+        // ✅ BackHandler - مُصلح
         BackHandler {
-            securityManager.logViolation("BACK_BUTTON_PRESSED")
-            // ✅ تسجيل Dialog قبل إظهاره
-            securityManager.registerInternalDialog(ExamSecurityManager.DIALOG_EXIT_WARNING)
-            showExitDialog = true
+            if (!showExitDialog) {  // تحقق قبل التسجيل
+                securityManager.logViolation("BACK_BUTTON_PRESSED")
+                securityManager.registerInternalDialog(ExamSecurityManager.DIALOG_EXIT_WARNING)
+                showExitDialog = true
+            }
         }
 
         LaunchedEffect(shouldAutoSubmit) {
@@ -211,7 +211,6 @@ class ExamActivity : ComponentActivity() {
                 when {
                     lastViolation?.severity == Severity.CRITICAL -> {
                         overlayViolationType = lastViolation.type
-                        // ✅ تسجيل Dialog النهائي
                         securityManager.registerInternalDialog(ExamSecurityManager.DIALOG_OVERLAY_DETECTED)
                         showOverlayDialog = true
                     }
@@ -236,21 +235,25 @@ class ExamActivity : ComponentActivity() {
             securityManager.startExam()
         }
 
+        // ✅ ExamScreen - مُصلح
         ExamScreen(
             onNavigateUp = {
-                securityManager.logViolation("NAVIGATE_UP_PRESSED")
-                // ✅ تسجيل Dialog
-                securityManager.registerInternalDialog(ExamSecurityManager.DIALOG_EXIT_WARNING)
-                showExitDialog = true
+                if (!showExitDialog) {  // تحقق قبل التسجيل
+                    securityManager.logViolation("NAVIGATE_UP_PRESSED")
+                    securityManager.registerInternalDialog(ExamSecurityManager.DIALOG_EXIT_WARNING)
+                    showExitDialog = true
+                }
             },
             onExamComplete = { finishExam() }
         )
 
-        // ✅ Dialogs مع نظام التسجيل الجديد
+        // ═══════════════════════════════════════════
+        // Dialogs
+        // ═══════════════════════════════════════════
+
         if (showExitDialog) {
             DisposableEffect(Unit) {
                 onDispose {
-                    // ✅ إلغاء التسجيل عند إغلاق Dialog
                     securityManager.unregisterInternalDialog(ExamSecurityManager.DIALOG_EXIT_WARNING)
                 }
             }
@@ -269,7 +272,6 @@ class ExamActivity : ComponentActivity() {
         }
 
         if (showNoFaceWarning) {
-            // ✅ Dialog مسجل مسبقاً من SecurityManager
             DisposableEffect(Unit) {
                 onDispose {
                     securityManager.unregisterInternalDialog(ExamSecurityManager.DIALOG_NO_FACE_WARNING)
@@ -287,7 +289,6 @@ class ExamActivity : ComponentActivity() {
         }
 
         if (showMultipleFacesWarning) {
-            // ✅ Dialog مسجل مسبقاً من SecurityManager
             DisposableEffect(Unit) {
                 onDispose {
                     securityManager.unregisterInternalDialog(ExamSecurityManager.DIALOG_MULTIPLE_FACES)
@@ -302,7 +303,6 @@ class ExamActivity : ComponentActivity() {
         }
 
         if (showExitWarning) {
-            // ✅ Dialog مسجل مسبقاً من SecurityManager (من onAppResumed)
             DisposableEffect(Unit) {
                 onDispose {
                     securityManager.unregisterInternalDialog(ExamSecurityManager.DIALOG_EXIT_RETURN)
@@ -321,7 +321,6 @@ class ExamActivity : ComponentActivity() {
         }
 
         if (showOverlayDialog) {
-            // ✅ Dialog مسجل مسبقاً، لا نحتاج DisposableEffect لأنه آخر dialog
             OverlayDetectedDialog(
                 violationType = overlayViolationType,
                 onDismiss = {
@@ -446,7 +445,6 @@ class ExamActivity : ComponentActivity() {
         }
 
         if (::securityManager.isInitialized) {
-            // ✅ تسجيل Dialog قبل إظهاره
             securityManager.registerInternalDialog(ExamSecurityManager.DIALOG_EXIT_RETURN)
             securityManager.onAppResumed()
         }
