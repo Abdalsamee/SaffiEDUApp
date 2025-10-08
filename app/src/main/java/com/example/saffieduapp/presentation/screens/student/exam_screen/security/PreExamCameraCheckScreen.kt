@@ -26,7 +26,7 @@ import kotlinx.coroutines.delay
 
 /**
  * شاشة فحص الكاميرا قبل بدء الاختبار - محسّنة
- * التحسينات: عرض تفصيلي للحالة + شريط تقدم + رسائل واضحة
+ * ✅ مُصحح: استخدام faceCount بدلاً من count
  */
 @Composable
 fun PreExamCameraCheckScreen(
@@ -42,7 +42,6 @@ fun PreExamCameraCheckScreen(
     var initState by remember { mutableStateOf<InitState>(InitState.Idle) }
     var cameraAvailability by remember { mutableStateOf<CameraAvailability?>(null) }
 
-    // التحسينات الجديدة
     var lastMessage by remember { mutableStateOf("في انتظار التحقق...") }
     var totalChecks by remember { mutableStateOf(0) }
 
@@ -59,82 +58,60 @@ fun PreExamCameraCheckScreen(
             if (availability.hasFrontCamera) {
                 initState = InitState.Success
                 showPreview = true
-                Log.d("CameraCheck", "Camera initialized successfully")
+                Log.d("CameraCheck", "✅ Camera initialized successfully")
             } else {
                 initState = InitState.Error("الكاميرا الأمامية غير متوفرة")
-                Log.e("CameraCheck", "Front camera not available")
+                Log.e("CameraCheck", "❌ Front camera not available")
             }
         } catch (e: Exception) {
             initState = InitState.Error(e.message ?: "خطأ في تهيئة الكاميرا")
-            Log.e("CameraCheck", "Initialization failed", e)
+            Log.e("CameraCheck", "❌ Initialization failed", e)
         }
     }
 
-    // إضافة عداد timestamp لتتبع التحديثات
-    var lastUpdateTime by remember { mutableStateOf(0L) }
-
-    // مراقبة نتائج الكشف مع timestamp
-    LaunchedEffect(lastDetectionResult, lastUpdateTime) {
-        if (lastDetectionResult == null) return@LaunchedEffect
-
+    // ✅ مراقبة نتائج الكشف - مُصلح
+    LaunchedEffect(lastDetectionResult) {
         val result = lastDetectionResult ?: return@LaunchedEffect
-        val currentTime = System.currentTimeMillis()
 
-        // تحديث timestamp لإجبار LaunchedEffect على التشغيل
-        if (result is FaceDetectionResult.ValidFace) {
-            delay(100)
-            lastUpdateTime = currentTime
-        }
+        totalChecks++
+        Log.d("CameraCheck", "🔍 Check #$totalChecks - Result: ${result::class.simpleName}")
 
-        lastDetectionResult?.let { result ->
-            // تجنب العد المتكرر لنفس النتيجة
-            if (result != lastDetectionResult) return@let
+        when (result) {
+            is FaceDetectionResult.ValidFace -> {
+                validFaceDetectedCount++
+                lastMessage = "وجه صحيح ($validFaceDetectedCount/3)"
+                Log.d("CameraCheck", "✅ Valid face detected ($validFaceDetectedCount/3)")
 
-            totalChecks++
-            Log.d("CameraCheck", "🔍 Check #$totalChecks - Result: $result")
-
-            when (result) {
-                is FaceDetectionResult.ValidFace -> {
-                    validFaceDetectedCount++
-                    lastMessage = "وجه صحيح ($validFaceDetectedCount/3)"
-                    Log.d("CameraCheck", "Valid face $validFaceDetectedCount/3")
-
-                    if (validFaceDetectedCount >= 3) {
-                        faceCheckStatus = FaceCheckStatus.Passed
-                        lastMessage = "تم التحقق بنجاح"
-                        Log.d("CameraCheck", "CHECK PASSED - Proceeding to exam")
-                        delay(800)
-                        onCheckPassed()
-                    } else {
-                        faceCheckStatus = FaceCheckStatus.Checking
-                    }
+                if (validFaceDetectedCount >= 3) {
+                    faceCheckStatus = FaceCheckStatus.Passed
+                    lastMessage = "تم التحقق بنجاح"
+                    Log.d("CameraCheck", "🎉 CHECK PASSED - Proceeding to exam")
+                    delay(800)
+                    onCheckPassed()
+                } else {
+                    faceCheckStatus = FaceCheckStatus.Checking
                 }
+            }
 
-                is FaceDetectionResult.NoFace -> {
-                    validFaceDetectedCount = 0
-                    lastMessage = "لم يتم اكتشاف وجه"
-                    Log.w("CameraCheck", "No face detected - counter reset")
-                    faceCheckStatus = FaceCheckStatus.Failed("لم يتم اكتشاف وجه - الرجاء التأكد من ظهور وجهك بوضوح")
-                }
+            is FaceDetectionResult.NoFace -> {
+                validFaceDetectedCount = 0
+                lastMessage = "لم يتم اكتشاف وجه (${result.consecutiveCount})"
+                Log.w("CameraCheck", "⚠️ No face detected - count: ${result.consecutiveCount}")
+                faceCheckStatus = FaceCheckStatus.Failed("لم يتم اكتشاف وجه - الرجاء التأكد من ظهور وجهك بوضوح")
+            }
 
-                is FaceDetectionResult.MultipleFaces -> {
-                    validFaceDetectedCount = 0
-                    lastMessage = "أكثر من وجه (${result.count})"
-                    Log.w("CameraCheck", "Multiple faces: ${result.count} - counter reset")
-                    faceCheckStatus = FaceCheckStatus.Failed("تم اكتشاف أكثر من وجه - يجب أن تكون وحيداً")
-                }
+            is FaceDetectionResult.MultipleFaces -> {
+                validFaceDetectedCount = 0
+                lastMessage = "أكثر من وجه (${result.faceCount})"
+                Log.w("CameraCheck", "⚠️ Multiple faces: ${result.faceCount}")
+                faceCheckStatus = FaceCheckStatus.Failed("تم اكتشاف أكثر من وجه - يجب أن تكون وحيداً")
+            }
 
-                is FaceDetectionResult.LookingAway -> {
-                    validFaceDetectedCount = 0
-                    lastMessage = "انظر للكاميرا مباشرة"
-                    Log.w("CameraCheck", "Looking away: ${result.angle}° - counter reset")
-                    faceCheckStatus = FaceCheckStatus.Failed("الرجاء النظر مباشرة للكاميرا")
-                }
-
-                else -> {
-                    lastMessage = "خطأ في الكشف"
-                    Log.e("CameraCheck", "Detection error")
-                }
+            is FaceDetectionResult.LookingAway -> {
+                validFaceDetectedCount = 0
+                lastMessage = "انظر للكاميرا مباشرة"
+                Log.w("CameraCheck", "⚠️ Looking away: Y=${result.eulerY}° Z=${result.eulerZ}°")
+                faceCheckStatus = FaceCheckStatus.Failed("الرجاء النظر مباشرة للكاميرا")
             }
         }
     }
@@ -184,7 +161,7 @@ fun PreExamCameraCheckScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // بطاقة التقدم - جديد
+            // بطاقة التقدم
             ProgressCard(
                 lastMessage = lastMessage,
                 validCount = validFaceDetectedCount,
@@ -260,7 +237,7 @@ fun PreExamCameraCheckScreen(
 }
 
 /**
- * بطاقة عرض التقدم - جديد
+ * بطاقة عرض التقدم
  */
 @Composable
 private fun ProgressCard(
@@ -315,7 +292,7 @@ private fun CameraPreviewCard(viewModel: CameraMonitorViewModel) {
 
     LaunchedEffect(previewView) {
         if (previewView != null && !isMonitoringStarted) {
-            Log.d("CameraPreview", "Starting camera monitoring...")
+            Log.d("CameraPreview", "▶️ Starting camera monitoring...")
             delay(500)
 
             previewView?.let { preview ->
@@ -325,9 +302,9 @@ private fun CameraPreviewCard(viewModel: CameraMonitorViewModel) {
                         frontPreviewView = preview
                     )
                     isMonitoringStarted = true
-                    Log.d("CameraPreview", "Camera monitoring started")
+                    Log.d("CameraPreview", "✅ Camera monitoring started")
                 } catch (e: Exception) {
-                    Log.e("CameraPreview", "Failed to start monitoring", e)
+                    Log.e("CameraPreview", "❌ Failed to start monitoring", e)
                 }
             }
         }
@@ -335,7 +312,7 @@ private fun CameraPreviewCard(viewModel: CameraMonitorViewModel) {
 
     DisposableEffect(Unit) {
         onDispose {
-            Log.d("CameraPreview", "Preview disposed")
+            Log.d("CameraPreview", "🔴 Preview disposed")
         }
     }
 

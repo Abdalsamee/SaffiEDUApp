@@ -13,6 +13,8 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.*
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModelProvider
 import com.example.saffieduapp.presentation.screens.student.exam_screen.components.*
@@ -173,13 +175,12 @@ class ExamActivity : ComponentActivity() {
     @Composable
     private fun ExamActivityContent() {
         var showExitDialog by remember { mutableStateOf(false) }
-        var showOverlayDialog by remember { mutableStateOf(false) }
-        var overlayViolationType by remember { mutableStateOf("") }
 
         val showNoFaceWarning by securityManager.showNoFaceWarning.collectAsState()
         val showExitWarning by securityManager.showExitWarning.collectAsState()
         val showMultipleFacesWarning by securityManager.showMultipleFacesWarning.collectAsState()
-        val shouldAutoSubmit by securityManager.shouldAutoSubmit.collectAsState()
+        val showOverlayWarning by securityManager.shouldShowWarning.collectAsState()
+
         val isPaused by securityManager.isPaused.collectAsState()
         val violations by securityManager.violations.collectAsState()
 
@@ -193,40 +194,12 @@ class ExamActivity : ComponentActivity() {
             }
         }
 
-        // ✅ BackHandler - مُصلح
+        // ✅ BackHandler
         BackHandler {
-            if (!showExitDialog) {  // تحقق قبل التسجيل
+            if (!showExitDialog) {
                 securityManager.logViolation("BACK_BUTTON_PRESSED")
                 securityManager.registerInternalDialog(ExamSecurityManager.DIALOG_EXIT_WARNING)
                 showExitDialog = true
-            }
-        }
-
-        LaunchedEffect(shouldAutoSubmit) {
-            if (shouldAutoSubmit) {
-                val lastViolation = violations.lastOrNull()
-
-                Log.d("ExamActivity", "Auto-submit triggered. Last violation: ${lastViolation?.type}")
-
-                when {
-                    lastViolation?.severity == Severity.CRITICAL -> {
-                        overlayViolationType = lastViolation.type
-                        securityManager.registerInternalDialog(ExamSecurityManager.DIALOG_OVERLAY_DETECTED)
-                        showOverlayDialog = true
-                    }
-                    else -> {
-                        val message = when (lastViolation?.type) {
-                            "OVERLAY_DETECTED" -> "تم إنهاء الاختبار: تم اكتشاف نافذة منبثقة"
-                            "MULTI_WINDOW_DETECTED" -> "تم إنهاء الاختبار: تم اكتشاف وضع النوافذ المتعددة"
-                            "EXTERNAL_DISPLAY_CONNECTED" -> "تم إنهاء الاختبار: تم اكتشاف شاشة خارجية"
-                            "MULTIPLE_FACES_DETECTED" -> "تم إنهاء الاختبار: تم اكتشاف أكثر من شخص"
-                            "NO_FACE_DETECTED_LONG" -> "تم إنهاء الاختبار: عدم ظهور الوجه لفترة طويلة"
-                            else -> "تم إنهاء الاختبار تلقائياً"
-                        }
-                        Toast.makeText(this@ExamActivity, message, Toast.LENGTH_LONG).show()
-                        finishExam()
-                    }
-                }
             }
         }
 
@@ -235,10 +208,10 @@ class ExamActivity : ComponentActivity() {
             securityManager.startExam()
         }
 
-        // ✅ ExamScreen - مُصلح
+        // ✅ Exam screen body
         ExamScreen(
             onNavigateUp = {
-                if (!showExitDialog) {  // تحقق قبل التسجيل
+                if (!showExitDialog) {
                     securityManager.logViolation("NAVIGATE_UP_PRESSED")
                     securityManager.registerInternalDialog(ExamSecurityManager.DIALOG_EXIT_WARNING)
                     showExitDialog = true
@@ -320,12 +293,13 @@ class ExamActivity : ComponentActivity() {
             )
         }
 
-        if (showOverlayDialog) {
+        // ✅ Overlay dialog (critical violations like overlays/external display)
+        if (showOverlayWarning) {
             OverlayDetectedDialog(
-                violationType = overlayViolationType,
+                violationType = "OVERLAY_DETECTED",
                 onDismiss = {
-                    showOverlayDialog = false
-                    securityManager.unregisterInternalDialog(ExamSecurityManager.DIALOG_OVERLAY_DETECTED)
+                    // إغلاق التحذير وإنهاء الاختبار
+                    securityManager.dismissWarning()
                     finishExam()
                 }
             )
@@ -340,9 +314,9 @@ class ExamActivity : ComponentActivity() {
             )
             addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
             decorView.systemUiVisibility = (
-                    View.SYSTEM_UI_FLAG_FULLSCREEN
-                            or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
-                            or View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+                    View.SYSTEM_UI_FLAG_FULLSCREEN or
+                            View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or
+                            View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
                     )
         }
 
@@ -445,7 +419,7 @@ class ExamActivity : ComponentActivity() {
         }
 
         if (::securityManager.isInitialized) {
-            securityManager.registerInternalDialog(ExamSecurityManager.DIALOG_EXIT_RETURN)
+           // securityManager.registerInternalDialog(ExamSecurityManager.DIALOG_EXIT_RETURN)
             securityManager.onAppResumed()
         }
 
@@ -478,12 +452,15 @@ class ExamActivity : ComponentActivity() {
 
             if (::securityManager.isInitialized) {
                 val report = securityManager.generateReport()
-                Log.d("ExamActivity", """
+                Log.d(
+                    "ExamActivity",
+                    """
                     🔐 SECURITY REPORT
                     Total Violations: ${report.violations.size}
                     Exit Attempts: ${report.totalExitAttempts}
                     Time Out: ${report.totalTimeOutOfApp}ms
-                """.trimIndent())
+                    """.trimIndent()
+                )
             }
 
             if (::cameraViewModel.isInitialized) {
