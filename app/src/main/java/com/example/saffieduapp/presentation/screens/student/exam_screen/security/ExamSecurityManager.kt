@@ -3,6 +3,8 @@ package com.example.saffieduapp.presentation.screens.student.exam_screen.securit
 import android.app.Activity
 import android.content.Context
 import android.hardware.display.DisplayManager
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -67,6 +69,10 @@ class ExamSecurityManager(
     // ✅ تتبع الـ Dialogs النشطة
     private val activeInternalDialogs = mutableSetOf<String>()
 
+    // ✅ Handler للفحص الدوري
+    private val periodicCheckHandler = Handler(Looper.getMainLooper())
+    private var periodicCheckRunnable: Runnable? = null
+
     companion object {
         // ✅ أسماء الـ Dialogs المسموح بها
         const val DIALOG_EXIT_WARNING = "EXIT_WARNING"
@@ -115,7 +121,7 @@ class ExamSecurityManager(
     private fun startOverlayPeriodicCheck() {
         periodicCheckRunnable = object : Runnable {
             override fun run() {
-                if (examStarted && overlayDetector != null && !isInternalDialogActive()) {
+                if (examStarted && overlayDetector != null) {
                     // فحص Focus
                     if (!activity.hasWindowFocus()) {
                         if (!isInternalDialogActive()) {
@@ -130,7 +136,7 @@ class ExamSecurityManager(
                         }
                     }
 
-                    // ✅ إعادة الجدولة دائماً (خارج الـ if)
+                    // ✅ إعادة الجدولة
                     periodicCheckHandler.postDelayed(this, 3000)
                 }
             }
@@ -149,51 +155,6 @@ class ExamSecurityManager(
             periodicCheckHandler.removeCallbacks(it)
             periodicCheckRunnable = null
             Log.d(TAG, "❌ Periodic overlay check stopped")
-        }
-    }
-
-    /**
-     * ✅ تسجيل dialog داخلي قبل إظهاره
-     */
-    fun registerInternalDialog(dialogName: String) {
-        synchronized(activeInternalDialogs) {
-            activeInternalDialogs.add(dialogName)
-            internalDialogActive = true
-
-            Log.d(TAG, "🟢 Internal Dialog Registered: $dialogName")
-            Log.d(TAG, "📋 Active dialogs: ${activeInternalDialogs.joinToString()}")
-        }
-    }
-
-    /**
-     * ✅ إلغاء تسجيل dialog داخلي عند إغلاقه
-     */
-    fun unregisterInternalDialog(dialogName: String) {
-        synchronized(activeInternalDialogs) {
-            val wasRemoved = activeInternalDialogs.remove(dialogName)
-
-            if (!wasRemoved) {
-                Log.w(TAG, "⚠️ Tried to unregister dialog that wasn't registered: $dialogName")
-                return
-            }
-
-            // ✅ إذا لم يعد هناك dialogs نشطة
-            if (activeInternalDialogs.isEmpty()) {
-                internalDialogActive = false
-                Log.d(TAG, "🔴 All Internal Dialogs Closed - Detection Active")
-            } else {
-                Log.d(TAG, "🟡 Dialog Closed: $dialogName")
-                Log.d(TAG, "📋 Remaining dialogs: ${activeInternalDialogs.joinToString()}")
-            }
-        }
-    }
-
-    /**
-     * ✅ فحص إذا كان هناك dialog داخلي نشط
-     */
-    fun isInternalDialogActive(): Boolean {
-        return synchronized(activeInternalDialogs) {
-            internalDialogActive || activeInternalDialogs.isNotEmpty()
         }
     }
 
@@ -244,7 +205,7 @@ class ExamSecurityManager(
     /**
      * ✅ إيقاف overlay detection (متزامن وفوري)
      */
-    fun pauseOverlayDetection() {
+    private fun pauseOverlayDetection() {
         if (overlayDetectionPaused) return
 
         overlayDetectionPaused = true
@@ -256,11 +217,11 @@ class ExamSecurityManager(
     /**
      * ✅ استئناف overlay detection
      */
-    fun resumeOverlayDetection() {
+    private fun resumeOverlayDetection() {
         if (!overlayDetectionPaused) return
 
         // ✅ تأخير بسيط قبل استئناف Detection لتجنب false positives
-        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+        Handler(Looper.getMainLooper()).postDelayed({
             if (!isInternalDialogActive()) {
                 overlayDetectionPaused = false
                 overlayDetector?.startMonitoring()
