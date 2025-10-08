@@ -2,6 +2,7 @@ package com.example.saffieduapp.presentation.screens.student.exam_screen.securit
 
 import android.content.Context
 import android.os.Environment
+import android.os.SystemClock
 import android.util.Log
 import androidx.camera.core.CameraSelector
 import androidx.camera.lifecycle.ProcessCameraProvider
@@ -18,7 +19,7 @@ import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
- * مسجل فيديو الكاميرا الخلفية - لمسح الغرفة
+ * مسجل فيديو الكاميرا الخلفية - لمسح الغرفة (مع شرط التغطية)
  */
 class BackCameraVideoRecorder(
     private val context: Context,
@@ -39,27 +40,32 @@ class BackCameraVideoRecorder(
     private val _recordingDuration = MutableStateFlow(0L)
     val recordingDuration: StateFlow<Long> = _recordingDuration.asStateFlow()
 
-    private var autoStopJob: Job? = null
+    private var monitorJob: Job? = null
     private val isRecording = AtomicBoolean(false)
+    private var startElapsedMs: Long = 0L
 
     companion object {
-        // غيّرها حسب رغبتك (10 ثواني)
-        private const val ROOM_SCAN_DURATION = 10_000L
+        // زمن الهدف الناعم (لو تحققت التغطية قبل/بعده نوقف)
+        private const val SOFT_DURATION_MS = 10_000L
+        // الحد الأقصى الصلب لمنع الإطالة
+        private const val HARD_CAP_MS = 30_000L
     }
 
     /**
-     * بدء مسح الغرفة
+     * بدء مسح الغرفة: يتوقف عندما تتحقق التغطية أو نصل للحد الأقصى
      */
     suspend fun startRoomScan(
         lifecycleOwner: LifecycleOwner,
-        sessionId: String
+        sessionId: String,
+        coverageTracker: RoomScanCoverageTracker? = null,
+        softDurationMs: Long = SOFT_DURATION_MS,
+        hardCapMs: Long = HARD_CAP_MS
     ): Result<File> {
         return try {
             Log.d(TAG, "Starting room scan...")
 
             cameraProvider = ProcessCameraProvider.getInstance(context).get()
 
-            // اضبط الجودة على SD لتقليل الحجم
             val qualitySelector = QualitySelector.from(
                 Quality.SD,
                 FallbackStrategy.lowerQualityOrHigherThan(Quality.SD)
@@ -81,9 +87,13 @@ class BackCameraVideoRecorder(
                 videoCapture
             )
 
+            coverageTracker?.start()
+
             val videoFile = createVideoFile(sessionId)
             startRecording(videoFile)
-            scheduleAutoStop()
+
+            // راقب الزمن + التغطية لتحديد وقت الإيقاف
+            startStopMonitor(coverageTracker, softDurationMs, hardCapMs)
 
             Log.d(TAG, "✅ Room scan started")
             Result.success(videoFile)
@@ -95,9 +105,6 @@ class BackCameraVideoRecorder(
         }
     }
 
-    /**
-     * بدء التسجيل
-     */
     private fun startRecording(videoFile: File) {
         val outputOptions = FileOutputOptions.Builder(videoFile).build()
 
@@ -109,27 +116,47 @@ class BackCameraVideoRecorder(
 
         isRecording.set(true)
         _recordingState.value = RecordingState.RECORDING
+        startElapsedMs = SystemClock.elapsedRealtime()
         Log.d(TAG, "Recording started: ${videoFile.name}")
-        startDurationTicker()
     }
 
     /**
-     * معالجة أحداث التسجيل
+     * يراقب:
+     * - لو elapsed ≥ soft && coverage.complete ⇒ أوقف
+     * - لو elapsed ≥ hardCap ⇒ أوقف إجباريًا
      */
+    private fun startStopMonitor(
+        coverageTracker: RoomScanCoverageTracker?,
+        softDurationMs: Long,
+        hardCapMs: Long
+    ) {
+        monitorJob?.cancel()
+        monitorJob = scope.launch {
+            while (isRecording.get()) {
+                delay(300)
+                val elapsed = SystemClock.elapsedRealtime() - startElapsedMs
+                val coverageComplete = coverageTracker?.state?.value?.complete == true
+
+                if ((elapsed >= softDurationMs && coverageComplete) || (elapsed >= hardCapMs)) {
+                    Log.d(TAG, "Auto stop condition met (elapsed=$elapsed, coverage=$coverageComplete)")
+                    stopRecording()
+                    break
+                }
+            }
+        }
+    }
+
     private fun handleRecordingEvent(event: VideoRecordEvent, videoFile: File) {
         when (event) {
             is VideoRecordEvent.Start -> {
                 Log.d(TAG, "Recording event: START")
             }
-
             is VideoRecordEvent.Status -> {
                 _recordingDuration.value = event.recordingStats.recordedDurationNanos / 1_000_000
             }
-
             is VideoRecordEvent.Finalize -> {
-                // تجنّب أي إيقافات إضافية
-                autoStopJob?.cancel()
-                autoStopJob = null
+                monitorJob?.cancel()
+                monitorJob = null
                 isRecording.set(false)
                 activeRecording = null
 
@@ -142,6 +169,7 @@ class BackCameraVideoRecorder(
                     Log.d(TAG, "✅ Recording completed: ${videoFile.absolutePath}")
                     _recordingState.value = RecordingState.COMPLETED(videoFile)
 
+                    // احفظ الفيديو في الجلسة
                     scope.launch(Dispatchers.IO) {
                         val saved = sessionManager.saveBackCameraVideo(videoFile)
                         if (saved) {
@@ -155,9 +183,6 @@ class BackCameraVideoRecorder(
         }
     }
 
-    /**
-     * إيقاف التسجيل (لن ينفّذ إن كان منتهي/غير شغّال)
-     */
     fun stopRecording() {
         if (!isRecording.compareAndSet(true, false)) {
             Log.d(TAG, "stopRecording ignored (not recording)")
@@ -169,55 +194,19 @@ class BackCameraVideoRecorder(
         Log.d(TAG, "Recording stopped")
     }
 
-    /**
-     * جدولة الإيقاف التلقائي
-     */
-    private fun scheduleAutoStop() {
-        autoStopJob?.cancel()
-        autoStopJob = scope.launch {
-            delay(ROOM_SCAN_DURATION)
-            stopRecording()
-        }
-    }
-
-    /**
-     * عداد المدة (تحديث بسيط كل ثانية)
-     */
-    private fun startDurationTicker() {
-        scope.launch {
-            while (isRecording.get()) {
-                delay(1000)
-                // التحديث الفعلي للمدة يحصل من VideoRecordEvent.Status
-            }
-        }
-    }
-
-    /**
-     * إنشاء ملف الفيديو
-     */
     private fun createVideoFile(sessionId: String): File {
         val videoDir = File(
             context.getExternalFilesDir(Environment.DIRECTORY_MOVIES),
             "exam_videos"
         )
-
-        if (!videoDir.exists()) {
-            videoDir.mkdirs()
-        }
-
-        return File(
-            videoDir,
-            "room_scan_${sessionId}_${System.currentTimeMillis()}.mp4"
-        )
+        if (!videoDir.exists()) videoDir.mkdirs()
+        return File(videoDir, "room_scan_${sessionId}_${System.currentTimeMillis()}.mp4")
     }
 
-    /**
-     * تنظيف الموارد
-     */
     fun cleanup() {
-        autoStopJob?.cancel()
-        autoStopJob = null
-        stopRecording() // سيُتجاهل لو لم يكن هناك تسجيل
+        monitorJob?.cancel()
+        monitorJob = null
+        stopRecording() // سيتجاهل لو مش شغّال
         cameraProvider?.unbindAll()
         cameraProvider = null
         executor.shutdown()
@@ -225,9 +214,6 @@ class BackCameraVideoRecorder(
     }
 }
 
-/**
- * حالات التسجيل
- */
 sealed class RecordingState {
     object IDLE : RecordingState()
     object RECORDING : RecordingState()
@@ -236,9 +222,6 @@ sealed class RecordingState {
     data class ERROR(val message: String) : RecordingState()
 }
 
-/**
- * معلومات التسجيل (احتياطي للاستخدام المستقبلي)
- */
 data class RecordingInfo(
     val duration: Long = 0L,
     val fileSize: Long = 0L,
