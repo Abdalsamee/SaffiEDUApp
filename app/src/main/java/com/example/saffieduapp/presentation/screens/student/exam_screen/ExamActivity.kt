@@ -127,16 +127,22 @@ class ExamActivity : ComponentActivity() {
 
     private fun initializeCamera() {
         if (::cameraViewModel.isInitialized) {
-            cameraViewModel.initializeCamera()
-            if (sessionId != null) {
-                Log.d("ExamActivity", "✅ Using existing session: $sessionId")
-            } else {
-                cameraViewModel.startExamSession()
-                Log.d("ExamActivity", "✅ Started new session")
+            val token = securityManager.markInternalOperationStart("InitializeCamera")
+            try {
+                cameraViewModel.initializeCamera()
+                if (sessionId != null) {
+                    Log.d("ExamActivity", "✅ Using existing session: $sessionId")
+                } else {
+                    cameraViewModel.startExamSession()
+                    Log.d("ExamActivity", "✅ Started new session")
+                }
+            } finally {
+                securityManager.markInternalOperationEnd(token)
             }
         }
         setupUI()
     }
+
 
     private fun setupUI() {
         setContent {
@@ -171,6 +177,7 @@ class ExamActivity : ComponentActivity() {
         val showExitWarning by securityManager.showExitWarning.collectAsState()
         val showMultipleFacesWarning by securityManager.showMultipleFacesWarning.collectAsState()
         val showOverlayWarning by securityManager.shouldShowWarning.collectAsState()
+        val autoSubmit by securityManager.shouldAutoSubmit.collectAsState() // 👈 NEW
 
         val isPaused by securityManager.isPaused.collectAsState()
         val violations by securityManager.violations.collectAsState()
@@ -178,18 +185,13 @@ class ExamActivity : ComponentActivity() {
         // واجهة المسح داخل الامتحان
         var showRoomScanOverlay by remember { mutableStateOf(false) }
         val coverage by coverageTracker.state.collectAsState()
-        // وقت التسجيل الجاري (من BackCameraVideoRecorder)
-        // سنأخذه مباشرة عند عرض الواجهة (نستغني عن target)
         var currentScanElapsedMs by remember { mutableStateOf(0L) }
 
-        // لتحديث الزمن كل 300ms عندما تكون الواجهة ظاهرة
+        // تحديث زمن التسجيل في واجهة المسح
         LaunchedEffect(showRoomScanOverlay) {
             if (showRoomScanOverlay) {
                 while (true) {
-                    val rec = randomScheduler
-                    if (rec != null) {
-                        currentScanElapsedMs = rec.getCurrentRecordingMs()
-                    }
+                    randomScheduler?.let { currentScanElapsedMs = it.getCurrentRecordingMs() }
                     kotlinx.coroutines.delay(300)
                 }
             }
@@ -203,6 +205,21 @@ class ExamActivity : ComponentActivity() {
                 }
             }
         }
+
+        // 👇 NEW: عند طلب الإنهاء التلقائي من المانجر — ننهي بهدوء مع كتم كاشف الـ overlay
+        LaunchedEffect(autoSubmit) {
+            if (autoSubmit) {
+                val token = securityManager.markInternalOperationStart("AutoSubmitExam")
+                try {
+                    Toast.makeText(this@ExamActivity, "تم إنهاء الاختبار تلقائيًا.", Toast.LENGTH_SHORT).show()
+                    finishExam()
+                } finally {
+                    securityManager.markInternalOperationEnd(token)
+                    securityManager.resetAutoSubmit()
+                }
+            }
+        }
+
 
         // منع الرجوع
         BackHandler {
@@ -230,15 +247,19 @@ class ExamActivity : ComponentActivity() {
                 pauseFrontDetection = { cm.pauseMonitoring() },
                 resumeFrontDetection = { cm.resumeMonitoring() },
                 onShowRoomScanOverlay = {
+                    val token = securityManager.markInternalOperationStart("RoomScanStart")
                     coverageTracker.reset()
                     coverageTracker.start()
                     showRoomScanOverlay = true
                     securityManager.registerInternalDialog("ROOM_SCAN")
+                    securityManager.markInternalOperationEnd(token)
                 },
                 onHideRoomScanOverlay = {
+                    val token = securityManager.markInternalOperationStart("RoomScanEnd")
                     showRoomScanOverlay = false
                     coverageTracker.stop()
                     securityManager.unregisterInternalDialog("ROOM_SCAN")
+                    securityManager.markInternalOperationEnd(token)
                 },
                 coverageTracker = coverageTracker
             ).also { it.startRandomEvents() }
@@ -410,6 +431,8 @@ class ExamActivity : ComponentActivity() {
 
     private fun finishExam() {
         try {
+            val token = securityManager.markInternalOperationStart("FinalizeExam")
+
             randomScheduler?.stop()
             randomScheduler = null
 
@@ -418,22 +441,24 @@ class ExamActivity : ComponentActivity() {
             if (::securityManager.isInitialized) {
                 val report = securityManager.generateReport()
                 Log.d("ExamActivity", """
-                    🔐 SECURITY REPORT
-                    Total Violations: ${report.violations.size}
-                    Exit Attempts: ${report.totalExitAttempts}
-                    Time Out: ${report.totalTimeOutOfApp}ms
-                """.trimIndent())
+                🔐 SECURITY REPORT
+                Total Violations: ${report.violations.size}
+                Exit Attempts: ${report.totalExitAttempts}
+                Time Out: ${report.totalTimeOutOfApp}ms
+            """.trimIndent())
             }
 
             if (::cameraViewModel.isInitialized) cameraViewModel.stopMonitoring()
             if (::securityManager.isInitialized) securityManager.cleanup()
 
+            securityManager.markInternalOperationEnd(token)
         } catch (e: Exception) {
             Log.e("ExamActivity", "Error in finishExam", e)
         } finally {
             finish()
         }
     }
+
 
     override fun onDestroy() {
         super.onDestroy()

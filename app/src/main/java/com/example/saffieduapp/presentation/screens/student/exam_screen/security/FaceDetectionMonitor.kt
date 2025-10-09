@@ -1,5 +1,6 @@
 package com.example.saffieduapp.presentation.screens.student.exam_screen.security
 
+import android.os.SystemClock
 import android.util.Log
 import androidx.camera.core.ImageProxy
 import com.google.mlkit.vision.common.InputImage
@@ -14,8 +15,10 @@ import kotlinx.coroutines.tasks.await
 import kotlin.math.abs
 
 /**
- * مراقب كشف الوجوه
- * ✅ مُصلح: إرسال رموز بدلاً من نصوص
+ * مراقب كشف الوجوه (إصدار بتهدئة زمنيّة)
+ * - يعتمد على نوافذ زمنية بدلاً من عدّ الإطارات لتقليل الحساسية المفرطة
+ * - يرسل رموز المخالفة لـ ExamSecurityManager
+ * - يمرّر نتيجة الكشف و ImageProxy إلى FrontCameraSnapshotManager ليقرر التقاط snapshot من نفس الفريم
  */
 class FaceDetectionMonitor(
     private val onViolationDetected: (String) -> Unit,
@@ -37,28 +40,27 @@ class FaceDetectionMonitor(
     private val _lastDetectionResult = MutableStateFlow<FaceDetectionResult?>(null)
     val lastDetectionResult: StateFlow<FaceDetectionResult?> = _lastDetectionResult.asStateFlow()
 
-    private var consecutiveNoFaceCount = 0
-    private var consecutiveLookingAwayCount = 0
-    private var consecutiveMultipleFacesCount = 0
+    // ───── ضبط الحساسية (يمكن تعديل القيم لاحقًا بسهولة) ─────
+    private val NO_FACE_WINDOW_MS = 8_000L            // لا وجه لمدة ≥ 8 ثوانٍ
+    private val MULTIPLE_FACES_WINDOW_MS = 3_000L     // أكثر من وجه لمدة ≥ 3 ثوانٍ
+    private val LOOKING_AWAY_WINDOW_MS = 5_000L       // النظر بعيدًا لمدة ≥ 5 ثوانٍ
+    private val HEAD_ROTATION_THRESHOLD = 35f         // زاوية الانحراف لاعتبار "ينظر بعيدًا"
 
-    // ✅ عدادات التحذيرات الإجمالية
+    // طوابع زمنية لبدء الحالة (بدلاً من العدّ بالإطارات)
+    private var noFaceStartAt: Long? = null
+    private var multipleFacesStartAt: Long? = null
+    private var lookingAwayStartAt: Long? = null
+
+    // إحصاءات بسيطة
     private var totalNoFaceViolations = 0
     private var totalMultipleFacesViolations = 0
-
-    // ✅ Thresholds محسّنة
-    private val MAX_NO_FACE_THRESHOLD = 10  // 10 إطارات متتالية (~3 ثواني)
-    private val MAX_MULTIPLE_FACES_THRESHOLD = 5  // 5 إطارات متتالية
-    private val MAX_LOOKING_AWAY_THRESHOLD = 15
-    private val HEAD_ROTATION_THRESHOLD = 35f
 
     @Volatile
     private var isMonitoring = false
 
     fun startMonitoring() {
         isMonitoring = true
-        consecutiveNoFaceCount = 0
-        consecutiveLookingAwayCount = 0
-        consecutiveMultipleFacesCount = 0
+        resetAllTimers()
         Log.d(TAG, "✅ Face detection monitoring started")
     }
 
@@ -67,8 +69,14 @@ class FaceDetectionMonitor(
         Log.d(TAG, "❌ Face detection monitoring stopped")
     }
 
+    private fun resetAllTimers() {
+        noFaceStartAt = null
+        multipleFacesStartAt = null
+        lookingAwayStartAt = null
+    }
+
     /**
-     * معالجة الصورة
+     * معالجة كل فريم من الـ ImageAnalysis
      */
     @androidx.camera.core.ExperimentalGetImage
     fun processImage(imageProxy: ImageProxy) {
@@ -91,80 +99,83 @@ class FaceDetectionMonitor(
         scope.launch {
             try {
                 val faces: List<Face> = faceDetector.process(inputImage).await()
+                val now = SystemClock.elapsedRealtime()
 
-                val result = when {
+                val result: FaceDetectionResult = when {
                     faces.isEmpty() -> {
-                        consecutiveNoFaceCount++
-                        consecutiveLookingAwayCount = 0
-                        consecutiveMultipleFacesCount = 0
+                        // لا يوجد وجه
+                        if (noFaceStartAt == null) noFaceStartAt = now
+                        // أعد ضبط المؤقتات الأخرى
+                        multipleFacesStartAt = null
+                        lookingAwayStartAt = null
 
-                        Log.d(TAG, "⚠️ No face detected (count: $consecutiveNoFaceCount)")
+                        val elapsed = now - (noFaceStartAt ?: now)
+                        Log.d(TAG, "⚠️ No face - ${elapsed}ms")
 
-                        if (consecutiveNoFaceCount >= MAX_NO_FACE_THRESHOLD) {
+                        if (elapsed >= NO_FACE_WINDOW_MS) {
                             totalNoFaceViolations++
-
                             withContext(Dispatchers.Main) {
-                                // ✅ إرسال رمز بدلاً من نص
                                 onViolationDetected("NO_FACE_DETECTED_LONG")
                             }
-
-                            Log.w(TAG, "🚨 NO_FACE_DETECTED_LONG violation triggered! (total: $totalNoFaceViolations)")
-
-                            // ✅ إعادة تعيين العداد بعد التسجيل
-                            consecutiveNoFaceCount = 0
+                            Log.w(TAG, "🚨 NO_FACE_DETECTED_LONG (total=$totalNoFaceViolations)")
+                            // بعد تسجيل المخالفة، أعد فتح نافذة جديدة
+                            noFaceStartAt = now
                         }
 
-                        FaceDetectionResult.NoFace(consecutiveNoFaceCount)
+                        FaceDetectionResult.NoFace(elapsedMs = elapsed)
                     }
 
                     faces.size > 1 -> {
-                        consecutiveNoFaceCount = 0
-                        consecutiveLookingAwayCount = 0
-                        consecutiveMultipleFacesCount++
+                        // أكثر من وجه
+                        if (multipleFacesStartAt == null) multipleFacesStartAt = now
+                        // أعد ضبط المؤقتات الأخرى
+                        noFaceStartAt = null
+                        lookingAwayStartAt = null
 
-                        Log.d(TAG, "⚠️ Multiple faces detected: ${faces.size} (count: $consecutiveMultipleFacesCount)")
+                        val elapsed = now - (multipleFacesStartAt ?: now)
+                        Log.d(TAG, "⚠️ Multiple faces (${faces.size}) - ${elapsed}ms")
 
-                        if (consecutiveMultipleFacesCount >= MAX_MULTIPLE_FACES_THRESHOLD) {
+                        if (elapsed >= MULTIPLE_FACES_WINDOW_MS) {
                             totalMultipleFacesViolations++
-
                             withContext(Dispatchers.Main) {
-                                // ✅ إرسال رمز بدلاً من نص
                                 onViolationDetected("MULTIPLE_FACES_DETECTED")
                             }
-
-                            Log.w(TAG, "🚨 MULTIPLE_FACES_DETECTED violation triggered! (total: $totalMultipleFacesViolations)")
-
-                            // ✅ إعادة تعيين العداد بعد التسجيل
-                            consecutiveMultipleFacesCount = 0
+                            Log.w(TAG, "🚨 MULTIPLE_FACES_DETECTED (total=$totalMultipleFacesViolations)")
+                            // افتح نافذة جديدة لو استمر الوضع
+                            multipleFacesStartAt = now
                         }
 
-                        FaceDetectionResult.MultipleFaces(faces.size)
+                        FaceDetectionResult.MultipleFaces(faceCount = faces.size, elapsedMs = elapsed)
                     }
 
                     else -> {
+                        // وجه واحد: افحص اتجاه الرأس
                         val face = faces[0]
+                        val eulerY = face.headEulerAngleY
+                        val eulerZ = face.headEulerAngleZ
+                        val isLookingAway = abs(eulerY) > HEAD_ROTATION_THRESHOLD ||
+                                abs(eulerZ) > HEAD_ROTATION_THRESHOLD
 
-                        consecutiveNoFaceCount = 0
-                        consecutiveMultipleFacesCount = 0
-
-                        // فحص اتجاه الرأس
-                        val headEulerAngleY = face.headEulerAngleY
-                        val headEulerAngleZ = face.headEulerAngleZ
-
-                        val isLookingAway = abs(headEulerAngleY) > HEAD_ROTATION_THRESHOLD ||
-                                abs(headEulerAngleZ) > HEAD_ROTATION_THRESHOLD
+                        // بمجرد وجود وجه، نوقف عدّاد "لا وجه"
+                        noFaceStartAt = null
+                        // و”تعدد الوجوه“ بالتبعية
+                        multipleFacesStartAt = null
 
                         if (isLookingAway) {
-                            consecutiveLookingAwayCount++
+                            if (lookingAwayStartAt == null) lookingAwayStartAt = now
+                            val elapsed = now - (lookingAwayStartAt ?: now)
 
-                            if (consecutiveLookingAwayCount >= MAX_LOOKING_AWAY_THRESHOLD) {
-                                Log.w(TAG, "⚠️ Looking away for too long")
-                                consecutiveLookingAwayCount = 0
+                            if (elapsed >= LOOKING_AWAY_WINDOW_MS) {
+                                Log.w(TAG, "⚠️ Looking away for too long ($elapsed ms)")
+                                // لا نرفع مخالفة قوية هنا، فقط نتيح للسナップشوت أن يلتقط عند الاشتباه
+                                // ونعيد فتح نافذة جديدة لو استمر الوضع
+                                lookingAwayStartAt = now
                             }
 
-                            FaceDetectionResult.LookingAway(headEulerAngleY, headEulerAngleZ)
+                            FaceDetectionResult.LookingAway(eulerY = eulerY, eulerZ = eulerZ, elapsedMs = elapsed)
                         } else {
-                            consecutiveLookingAwayCount = 0
+                            // عودة إلى حالة طبيعية → صفّر مؤقت النظر بعيدًا
+                            lookingAwayStartAt = null
                             FaceDetectionResult.ValidFace(face)
                         }
                     }
@@ -172,7 +183,7 @@ class FaceDetectionMonitor(
 
                 _lastDetectionResult.value = result
 
-                // ✅ إرسال للـ Snapshot Manager
+                // مرّر الإطار ونتيجته إلى مدير الـ snapshots (هو سيغلق الـ imageProxy)
                 withContext(Dispatchers.Main) {
                     onSnapshotNeeded(imageProxy, result)
                 }
@@ -192,20 +203,20 @@ class FaceDetectionMonitor(
         scope.cancel()
         faceDetector.close()
 
-        Log.d(TAG, """
+        Log.d(
+            TAG, """
             📊 Final Statistics:
-            - Total No Face Violations: $totalNoFaceViolations
-            - Total Multiple Faces Violations: $totalMultipleFacesViolations
-        """.trimIndent())
+            - Total No-Face Violations: $totalNoFaceViolations
+            - Total Multiple-Faces Violations: $totalMultipleFacesViolations
+        """.trimIndent()
+        )
     }
 }
 
-/**
- * نتائج كشف الوجه
- */
+/** نتائج كشف الوجه (محدّثة بإضافة elapsedMs لحالات زمنية) */
 sealed class FaceDetectionResult {
     data class ValidFace(val face: Face) : FaceDetectionResult()
-    data class NoFace(val consecutiveCount: Int) : FaceDetectionResult()
-    data class MultipleFaces(val faceCount: Int) : FaceDetectionResult()
-    data class LookingAway(val eulerY: Float, val eulerZ: Float) : FaceDetectionResult()
+    data class NoFace(val elapsedMs: Long) : FaceDetectionResult()
+    data class MultipleFaces(val faceCount: Int, val elapsedMs: Long) : FaceDetectionResult()
+    data class LookingAway(val eulerY: Float, val eulerZ: Float, val elapsedMs: Long) : FaceDetectionResult()
 }
