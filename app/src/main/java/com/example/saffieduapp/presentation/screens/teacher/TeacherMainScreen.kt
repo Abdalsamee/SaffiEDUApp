@@ -55,7 +55,7 @@ fun TeacherMainScreen(
         ),
         BottomNavItem(
             "المهام",
-            Routes.TEACHER_TASKS_SCREEN,
+            Routes.TEACHER_TASKS_GRAPH,
             painterResource(id = R.drawable.tasks)
         ),
         BottomNavItem("الدردشة", Routes.TEACHER_CHAT_SCREEN,
