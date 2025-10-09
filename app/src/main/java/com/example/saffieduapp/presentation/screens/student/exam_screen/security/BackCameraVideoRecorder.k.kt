@@ -48,7 +48,7 @@ class BackCameraVideoRecorder(
         // زمن الهدف الناعم (لو تحققت التغطية قبل/بعده نوقف)
         private const val SOFT_DURATION_MS = 10_000L
         // الحد الأقصى الصلب لمنع الإطالة
-        private const val HARD_CAP_MS = 30_000L
+        private const val HARD_CAP_MS = 15_000L
     }
 
     /**

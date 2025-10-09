@@ -33,10 +33,7 @@ fun TeacherNavHost(
             // TODO: Replace with actual screen
             TeacherClassesScreen()
         }
-        composable(Routes.TEACHER_TASKS_SCREEN) {
-            // TODO: Replace with actual screen
-            TeacherTasksScreen(navController = navController)
-        }
+        teacherTasksNavGraph(navController)
         composable(Routes.TEACHER_CHAT_SCREEN) {
 
             TeacherChatScreen(navController = navController)
@@ -62,18 +59,6 @@ fun TeacherNavHost(
     }
 }
 // Add these placeholder screens temporarily to prevent crashes
-
-
-
-@Composable
-fun TeacherTasksScreen(navController: NavHostController) {
-    Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
-    ) {
-        Text("Teacher Tasks Screen - Coming Soon")
-    }
-}
 
 @Composable
 fun TeacherChatScreen(navController: NavHostController) {

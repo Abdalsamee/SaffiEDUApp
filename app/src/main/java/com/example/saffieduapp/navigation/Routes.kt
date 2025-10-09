@@ -38,7 +38,6 @@ object Routes {
     const val TEACHER_MAIN_SCREEN = "teacher_main_screen"
     const val TEACHER_HOME_SCREEN = "teacher_home_screen"
     const val TEACHER_CLASSES_SCREEN = "teacher_classes_screen"
-    const val TEACHER_TASKS_SCREEN = "teacher_tasks_screen"
     const val TEACHER_CHAT_SCREEN = "teacher_chat_screen"
     const val TEACHER_PROFILE_SCREEN = "teacher_profile_screen"
 
@@ -51,5 +50,12 @@ object Routes {
     const val ADD_EXAM_SCREEN = "add_exam_screen"
     const val ADD_QUESTION_SCREEN = "add_question_screen"
     const val QUIZ_SUMMARY_SCREEN = "quiz_summary_screen"
+
+    //Teacher Tasks
+    const val TEACHER_TASKS_GRAPH = "teacher_tasks_graph"
+    const val TEACHER_TASKS_SCREEN = "teacher_tasks_screen"
+    const val TEACHER_TASK_DETAILS_SCREEN = "teacher_task_details_screen"
+
+
 
 }
