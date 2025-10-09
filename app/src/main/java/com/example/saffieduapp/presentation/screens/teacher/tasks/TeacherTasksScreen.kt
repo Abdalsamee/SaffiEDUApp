@@ -13,6 +13,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.example.saffieduapp.presentation.screens.student.components.CommonTopAppBar
+import com.example.saffieduapp.presentation.screens.teacher.tasks.components.ClassFilterButton
 import com.example.saffieduapp.ui.theme.AppPrimary
 import com.example.saffieduapp.ui.theme.AppTextSecondary
 import com.example.saffieduapp.ui.theme.SaffiEDUAppTheme
@@ -40,12 +41,15 @@ fun TeacherTasksScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                    .padding(horizontal = 16.dp),
                 horizontalArrangement = Arrangement.Start
             ) {
-                FilterButton("الصف السادس") {
-                    // لاحقًا نفتح قائمة الفصول
-                }
+                var selectedClass by remember { mutableStateOf("الصف السادس") }
+
+                ClassFilterButton(
+                    selectedClass = selectedClass,
+                    onClassSelected = { selectedClass = it }
+                )
             }
 
             // 🔹 التبويبات (الواجبات / الاختبارات)
@@ -93,23 +97,7 @@ private fun TeacherCustomTab(
     )
 }
 
-@Composable
-private fun FilterButton(title: String, onClick: () -> Unit) {
-    Surface(
-        color = AppPrimary.copy(alpha = 0.1f),
-        shape = MaterialTheme.shapes.medium,
-        modifier = Modifier
-            .clickable(onClick = onClick)
-    ) {
-        Text(
-            text = title,
-            color = AppPrimary,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-            fontSize = 14.sp,
-            fontWeight = FontWeight.Medium
-        )
-    }
-}
+
 
 // placeholders مؤقتة حتى نكمل الشاشات الفرعية
 @Composable
@@ -125,61 +113,5 @@ private fun TasksExamPlaceholder() {
         Text("واجهة الاختبارات للمعلم (قريباً)", color = AppTextSecondary)
     }
 }
-@Preview(showBackground = true, showSystemUi = true)
-@Composable
-fun PreviewTeacherTasksScreen() {
-    // نستخدم Theme التطبيق
-    SaffiEDUAppTheme {
-        // حالة وهمية للعرض فقط
-        val fakeState = remember { mutableStateOf(0) }
 
-        Scaffold(
-            topBar = {
-         CommonTopAppBar(title = "المهام")
-            }
-        ) { innerPadding ->
-            Column(
-                modifier = Modifier
-                    .padding(innerPadding)
-                    .fillMaxSize()
-            ) {
 
-                // 🔹 زر الفلترة (ثابت في المعاينة)
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
-                    horizontalArrangement = Arrangement.End
-                ) {
-                    FilterButton("الصف السادس") { }
-                }
-
-                // 🔹 التبويبات (محاكاة للتفاعل)
-                val tabTitles = listOf("الواجبات", "الاختبارات")
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 8.dp),
-                    horizontalArrangement = Arrangement.SpaceEvenly
-                ) {
-                    tabTitles.forEachIndexed { index, title ->
-                        TeacherCustomTab(
-                            text = title,
-                            isSelected = fakeState.value == index,
-                            onClick = { fakeState.value = index }
-                        )
-                    }
-                }
-
-                Spacer(Modifier.height(16.dp))
-
-                // 🔹 محتوى وهمي حسب التبويب
-                if (fakeState.value == 0) {
-                    TasksHomeworkPlaceholder()
-                } else {
-                    TasksExamPlaceholder()
-                }
-            }
-        }
-    }
-}
