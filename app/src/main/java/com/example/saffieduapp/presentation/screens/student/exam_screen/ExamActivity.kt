@@ -24,8 +24,12 @@ import dagger.hilt.android.AndroidEntryPoint
 @AndroidEntryPoint
 class ExamActivity : ComponentActivity() {
 
+    // الأمن والكاميرا
     private lateinit var securityManager: ExamSecurityManager
     private lateinit var cameraViewModel: CameraMonitorViewModel
+    private lateinit var coverageTracker: RoomScanCoverageTracker
+    private var randomScheduler: RandomEventScheduler? = null
+
     private var examId: String = ""
     private var sessionId: String? = null
 
@@ -39,19 +43,11 @@ class ExamActivity : ComponentActivity() {
         val audioGranted = permissions[Manifest.permission.RECORD_AUDIO] ?: false
 
         if (!cameraGranted) {
-            Toast.makeText(
-                this,
-                "صلاحية الكاميرا مطلوبة لبدء الاختبار",
-                Toast.LENGTH_LONG
-            ).show()
+            Toast.makeText(this, "صلاحية الكاميرا مطلوبة لبدء الاختبار", Toast.LENGTH_LONG).show()
             finish()
         } else {
             if (sessionId == null && !audioGranted) {
-                Toast.makeText(
-                    this,
-                    "صلاحية التسجيل مطلوبة لمسح الغرفة",
-                    Toast.LENGTH_SHORT
-                ).show()
+                Toast.makeText(this, "صلاحية التسجيل مطلوبة لمسح الغرفة", Toast.LENGTH_SHORT).show()
             }
             initializeCamera()
         }
@@ -66,8 +62,7 @@ class ExamActivity : ComponentActivity() {
 
             if (examId.isEmpty()) {
                 Toast.makeText(this, "خطأ: معرف الاختبار مفقود", Toast.LENGTH_SHORT).show()
-                finish()
-                return
+                finish(); return
             }
 
             if (isInMultiWindowMode) {
@@ -78,11 +73,15 @@ class ExamActivity : ComponentActivity() {
 
             securityManager = ExamSecurityManager(this, this)
             securityManager.enableSecurityFeatures()
-
             setupSecureScreen()
 
             val studentId = FirebaseAuth.getInstance().currentUser?.uid ?: ""
+            if (studentId.isEmpty()) {
+                Toast.makeText(this, "لم يتم العثور على معرف الطالب", Toast.LENGTH_LONG).show()
+                finish(); return
+            }
 
+            // ViewModel الكاميرا
             val factory = CameraMonitorViewModelFactory(
                 application = application,
                 onViolationDetected = { violationType ->
@@ -96,10 +95,15 @@ class ExamActivity : ComponentActivity() {
             )
             cameraViewModel = ViewModelProvider(this, factory)[CameraMonitorViewModel::class.java]
 
+            // ربط المراقب الأمني بمراقب الكاميرا
             cameraViewModel.getCameraMonitor().let { monitor ->
                 securityManager.setCameraMonitor(monitor)
             }
 
+            // متعقب تغطية المسح (حساسات)
+            coverageTracker = RoomScanCoverageTracker(this)
+
+            // طلب الصلاحيات
             checkAndRequestCameraPermissions()
 
         } catch (e: Exception) {
@@ -111,35 +115,34 @@ class ExamActivity : ComponentActivity() {
 
     private fun checkAndRequestCameraPermissions() {
         val permissions = mutableListOf(Manifest.permission.CAMERA)
+        if (sessionId == null) permissions.add(Manifest.permission.RECORD_AUDIO)
 
-        if (sessionId == null) {
-            permissions.add(Manifest.permission.RECORD_AUDIO)
+        val allGranted = permissions.all { p ->
+            ContextCompat.checkSelfPermission(this, p) == PackageManager.PERMISSION_GRANTED
         }
 
-        val allGranted = permissions.all { permission ->
-            ContextCompat.checkSelfPermission(this, permission) == PackageManager.PERMISSION_GRANTED
-        }
-
-        if (allGranted) {
-            initializeCamera()
-        } else {
-            cameraPermissionLauncher.launch(permissions.toTypedArray())
-        }
+        if (allGranted) initializeCamera()
+        else cameraPermissionLauncher.launch(permissions.toTypedArray())
     }
 
     private fun initializeCamera() {
         if (::cameraViewModel.isInitialized) {
-            cameraViewModel.initializeCamera()
-
-            if (sessionId != null) {
-                Log.d("ExamActivity", "✅ Using existing session: $sessionId")
-            } else {
-                cameraViewModel.startExamSession()
-                Log.d("ExamActivity", "✅ Started new session")
+            val token = securityManager.markInternalOperationStart("InitializeCamera")
+            try {
+                cameraViewModel.initializeCamera()
+                if (sessionId != null) {
+                    Log.d("ExamActivity", "✅ Using existing session: $sessionId")
+                } else {
+                    cameraViewModel.startExamSession()
+                    Log.d("ExamActivity", "✅ Started new session")
+                }
+            } finally {
+                securityManager.markInternalOperationEnd(token)
             }
         }
         setupUI()
     }
+
 
     private fun setupUI() {
         setContent {
@@ -155,11 +158,7 @@ class ExamActivity : ComponentActivity() {
                             showCameraCheck.value = false
                         },
                         onCheckFailed = { reason ->
-                            Toast.makeText(
-                                this@ExamActivity,
-                                "فشل فحص الكاميرا: $reason",
-                                Toast.LENGTH_LONG
-                            ).show()
+                            Toast.makeText(this@ExamActivity, "فشل فحص الكاميرا: $reason", Toast.LENGTH_LONG).show()
                             finish()
                         }
                     )
@@ -173,19 +172,33 @@ class ExamActivity : ComponentActivity() {
     @Composable
     private fun ExamActivityContent() {
         var showExitDialog by remember { mutableStateOf(false) }
-        var showOverlayDialog by remember { mutableStateOf(false) }
-        var overlayViolationType by remember { mutableStateOf("") }
 
         val showNoFaceWarning by securityManager.showNoFaceWarning.collectAsState()
         val showExitWarning by securityManager.showExitWarning.collectAsState()
         val showMultipleFacesWarning by securityManager.showMultipleFacesWarning.collectAsState()
-        val shouldAutoSubmit by securityManager.shouldAutoSubmit.collectAsState()
+        val showOverlayWarning by securityManager.shouldShowWarning.collectAsState()
+        val autoSubmit by securityManager.shouldAutoSubmit.collectAsState() // 👈 NEW
+
         val isPaused by securityManager.isPaused.collectAsState()
         val violations by securityManager.violations.collectAsState()
 
+        // واجهة المسح داخل الامتحان
+        var showRoomScanOverlay by remember { mutableStateOf(false) }
+        val coverage by coverageTracker.state.collectAsState()
+        var currentScanElapsedMs by remember { mutableStateOf(0L) }
+
+        // تحديث زمن التسجيل في واجهة المسح
+        LaunchedEffect(showRoomScanOverlay) {
+            if (showRoomScanOverlay) {
+                while (true) {
+                    randomScheduler?.let { currentScanElapsedMs = it.getCurrentRecordingMs() }
+                    kotlinx.coroutines.delay(300)
+                }
+            }
+        }
+
         if (::cameraViewModel.isInitialized) {
             val detectionResult by cameraViewModel.lastDetectionResult.collectAsState(initial = null)
-
             LaunchedEffect(detectionResult) {
                 if (detectionResult is FaceDetectionResult.ValidFace) {
                     securityManager.resetMultipleFacesCount()
@@ -193,52 +206,69 @@ class ExamActivity : ComponentActivity() {
             }
         }
 
-        // ✅ BackHandler - مُصلح
+        // 👇 NEW: عند طلب الإنهاء التلقائي من المانجر — ننهي بهدوء مع كتم كاشف الـ overlay
+        LaunchedEffect(autoSubmit) {
+            if (autoSubmit) {
+                val token = securityManager.markInternalOperationStart("AutoSubmitExam")
+                try {
+                    Toast.makeText(this@ExamActivity, "تم إنهاء الاختبار تلقائيًا.", Toast.LENGTH_SHORT).show()
+                    finishExam()
+                } finally {
+                    securityManager.markInternalOperationEnd(token)
+                    securityManager.resetAutoSubmit()
+                }
+            }
+        }
+
+
+        // منع الرجوع
         BackHandler {
-            if (!showExitDialog) {  // تحقق قبل التسجيل
+            if (!showExitDialog && !showRoomScanOverlay) {
                 securityManager.logViolation("BACK_BUTTON_PRESSED")
                 securityManager.registerInternalDialog(ExamSecurityManager.DIALOG_EXIT_WARNING)
                 showExitDialog = true
             }
         }
 
-        LaunchedEffect(shouldAutoSubmit) {
-            if (shouldAutoSubmit) {
-                val lastViolation = violations.lastOrNull()
-
-                Log.d("ExamActivity", "Auto-submit triggered. Last violation: ${lastViolation?.type}")
-
-                when {
-                    lastViolation?.severity == Severity.CRITICAL -> {
-                        overlayViolationType = lastViolation.type
-                        securityManager.registerInternalDialog(ExamSecurityManager.DIALOG_OVERLAY_DETECTED)
-                        showOverlayDialog = true
-                    }
-                    else -> {
-                        val message = when (lastViolation?.type) {
-                            "OVERLAY_DETECTED" -> "تم إنهاء الاختبار: تم اكتشاف نافذة منبثقة"
-                            "MULTI_WINDOW_DETECTED" -> "تم إنهاء الاختبار: تم اكتشاف وضع النوافذ المتعددة"
-                            "EXTERNAL_DISPLAY_CONNECTED" -> "تم إنهاء الاختبار: تم اكتشاف شاشة خارجية"
-                            "MULTIPLE_FACES_DETECTED" -> "تم إنهاء الاختبار: تم اكتشاف أكثر من شخص"
-                            "NO_FACE_DETECTED_LONG" -> "تم إنهاء الاختبار: عدم ظهور الوجه لفترة طويلة"
-                            else -> "تم إنهاء الاختبار تلقائياً"
-                        }
-                        Toast.makeText(this@ExamActivity, message, Toast.LENGTH_LONG).show()
-                        finishExam()
-                    }
-                }
-            }
-        }
-
+        // بدء المراقبة + جدولة الأحداث العشوائية
         LaunchedEffect(Unit) {
             securityManager.startMonitoring()
             securityManager.startExam()
+
+            val cm = cameraViewModel.getCameraMonitor()
+            val sessionMgr = cm.getSessionManager()
+            val backRecorder = BackCameraVideoRecorder(this@ExamActivity, sessionMgr)
+
+            randomScheduler = RandomEventScheduler(
+                frontSnapshotManager = cm.getFrontSnapshotManager(),
+                backCameraRecorder = backRecorder,
+                sessionManager = sessionMgr,
+                lifecycleOwner = this@ExamActivity,
+                pauseFrontDetection = { cm.pauseMonitoring() },
+                resumeFrontDetection = { cm.resumeMonitoring() },
+                onShowRoomScanOverlay = {
+                    val token = securityManager.markInternalOperationStart("RoomScanStart")
+                    coverageTracker.reset()
+                    coverageTracker.start()
+                    showRoomScanOverlay = true
+                    securityManager.registerInternalDialog("ROOM_SCAN")
+                    securityManager.markInternalOperationEnd(token)
+                },
+                onHideRoomScanOverlay = {
+                    val token = securityManager.markInternalOperationStart("RoomScanEnd")
+                    showRoomScanOverlay = false
+                    coverageTracker.stop()
+                    securityManager.unregisterInternalDialog("ROOM_SCAN")
+                    securityManager.markInternalOperationEnd(token)
+                },
+                coverageTracker = coverageTracker
+            ).also { it.startRandomEvents() }
         }
 
-        // ✅ ExamScreen - مُصلح
+        // شاشة الامتحان
         ExamScreen(
             onNavigateUp = {
-                if (!showExitDialog) {  // تحقق قبل التسجيل
+                if (!showExitDialog && !showRoomScanOverlay) {
                     securityManager.logViolation("NAVIGATE_UP_PRESSED")
                     securityManager.registerInternalDialog(ExamSecurityManager.DIALOG_EXIT_WARNING)
                     showExitDialog = true
@@ -247,17 +277,22 @@ class ExamActivity : ComponentActivity() {
             onExamComplete = { finishExam() }
         )
 
-        // ═══════════════════════════════════════════
-        // Dialogs
-        // ═══════════════════════════════════════════
+        // Overlay للمسح أثناء الامتحان
+        if (showRoomScanOverlay) {
+            InExamRoomScanOverlay(
+                state = InExamScanUiState(
+                    visible = true,
+                    durationMs = currentScanElapsedMs,
+                    coverage = coverage
+                )
+            )
+        }
 
+        // الحوارات
         if (showExitDialog) {
             DisposableEffect(Unit) {
-                onDispose {
-                    securityManager.unregisterInternalDialog(ExamSecurityManager.DIALOG_EXIT_WARNING)
-                }
+                onDispose { securityManager.unregisterInternalDialog(ExamSecurityManager.DIALOG_EXIT_WARNING) }
             }
-
             ExamExitWarningDialog(
                 onDismiss = {
                     showExitDialog = false
@@ -273,59 +308,41 @@ class ExamActivity : ComponentActivity() {
 
         if (showNoFaceWarning) {
             DisposableEffect(Unit) {
-                onDispose {
-                    securityManager.unregisterInternalDialog(ExamSecurityManager.DIALOG_NO_FACE_WARNING)
-                }
+                onDispose { securityManager.unregisterInternalDialog(ExamSecurityManager.DIALOG_NO_FACE_WARNING) }
             }
-
             NoFaceWarningDialog(
                 violationCount = securityManager.getNoFaceViolationCount(),
                 remainingWarnings = securityManager.getRemainingNoFaceWarnings(),
                 isPaused = isPaused,
-                onDismiss = {
-                    securityManager.dismissNoFaceWarning()
-                }
+                onDismiss = { securityManager.dismissNoFaceWarning() }
             )
         }
 
         if (showMultipleFacesWarning) {
             DisposableEffect(Unit) {
-                onDispose {
-                    securityManager.unregisterInternalDialog(ExamSecurityManager.DIALOG_MULTIPLE_FACES)
-                }
+                onDispose { securityManager.unregisterInternalDialog(ExamSecurityManager.DIALOG_MULTIPLE_FACES) }
             }
-
-            MultipleFacesWarningDialog(
-                onDismiss = {
-                    securityManager.dismissMultipleFacesWarning()
-                }
-            )
+            MultipleFacesWarningDialog(onDismiss = { securityManager.dismissMultipleFacesWarning() })
         }
 
         if (showExitWarning) {
             DisposableEffect(Unit) {
-                onDispose {
-                    securityManager.unregisterInternalDialog(ExamSecurityManager.DIALOG_EXIT_RETURN)
-                }
+                onDispose { securityManager.unregisterInternalDialog(ExamSecurityManager.DIALOG_EXIT_RETURN) }
             }
-
             val exitCount = violations.count { it.type.startsWith("APP_RESUMED") }
-
             ExamReturnWarningDialog(
                 exitAttempts = exitCount,
                 remainingAttempts = securityManager.getRemainingAttempts(),
-                onContinue = {
-                    securityManager.dismissExitWarning()
-                }
+                onContinue = { securityManager.dismissExitWarning() }
             )
         }
 
-        if (showOverlayDialog) {
+        // تحذير الـ Overlay (حالات حرجة)
+        if (showOverlayWarning) {
             OverlayDetectedDialog(
-                violationType = overlayViolationType,
+                violationType = "OVERLAY_DETECTED",
                 onDismiss = {
-                    showOverlayDialog = false
-                    securityManager.unregisterInternalDialog(ExamSecurityManager.DIALOG_OVERLAY_DETECTED)
+                    securityManager.dismissWarning()
                     finishExam()
                 }
             )
@@ -334,23 +351,18 @@ class ExamActivity : ComponentActivity() {
 
     private fun setupSecureScreen() {
         window.apply {
-            setFlags(
-                WindowManager.LayoutParams.FLAG_SECURE,
-                WindowManager.LayoutParams.FLAG_SECURE
-            )
+            setFlags(WindowManager.LayoutParams.FLAG_SECURE, WindowManager.LayoutParams.FLAG_SECURE)
             addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
             decorView.systemUiVisibility = (
-                    View.SYSTEM_UI_FLAG_FULLSCREEN
-                            or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
-                            or View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+                    View.SYSTEM_UI_FLAG_FULLSCREEN or
+                            View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or
+                            View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
                     )
         }
-
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             window.attributes.layoutInDisplayCutoutMode =
                 WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
         }
-
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             setRecentsScreenshotEnabled(false)
         }
@@ -358,63 +370,32 @@ class ExamActivity : ComponentActivity() {
 
     private fun showMultiWindowBlockedDialog() {
         setContent {
-            SaffiEDUAppTheme {
-                MultiWindowBlockedDialog(
-                    onDismiss = { finish() }
-                )
-            }
+            SaffiEDUAppTheme { MultiWindowBlockedDialog(onDismiss = { finish() }) }
         }
     }
 
-    override fun onMultiWindowModeChanged(
-        isInMultiWindowMode: Boolean,
-        newConfig: android.content.res.Configuration
-    ) {
+    override fun onMultiWindowModeChanged(isInMultiWindowMode: Boolean, newConfig: android.content.res.Configuration) {
         super.onMultiWindowModeChanged(isInMultiWindowMode, newConfig)
-
         if (isInMultiWindowMode) {
             Log.e("ExamActivity", "Multi-window mode activated during exam!")
-
-            if (::securityManager.isInitialized) {
-                securityManager.logViolation("MULTI_WINDOW_DETECTED")
-            }
-
-            Toast.makeText(
-                this,
-                "تم إنهاء الاختبار: تم اكتشاف وضع تقسيم الشاشة",
-                Toast.LENGTH_LONG
-            ).show()
-
+            if (::securityManager.isInitialized) securityManager.logViolation("MULTI_WINDOW_DETECTED")
+            Toast.makeText(this, "تم إنهاء الاختبار: تم اكتشاف وضع تقسيم الشاشة", Toast.LENGTH_LONG).show()
             finishExam()
         }
     }
 
-    override fun onPictureInPictureModeChanged(
-        isInPictureInPictureMode: Boolean,
-        newConfig: android.content.res.Configuration
-    ) {
+    override fun onPictureInPictureModeChanged(isInPictureInPictureMode: Boolean, newConfig: android.content.res.Configuration) {
         super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
-
         if (isInPictureInPictureMode) {
             Log.e("ExamActivity", "PIP mode detected!")
-
-            if (::securityManager.isInitialized) {
-                securityManager.logViolation("PIP_MODE_DETECTED")
-            }
-
-            Toast.makeText(
-                this,
-                "تم إنهاء الاختبار: لا يسمح بوضع Picture-in-Picture",
-                Toast.LENGTH_LONG
-            ).show()
-
+            if (::securityManager.isInitialized) securityManager.logViolation("PIP_MODE_DETECTED")
+            Toast.makeText(this, "تم إنهاء الاختبار: لا يسمح بوضع Picture-in-Picture", Toast.LENGTH_LONG).show()
             finishExam()
         }
     }
 
     override fun onConfigurationChanged(newConfig: android.content.res.Configuration) {
         super.onConfigurationChanged(newConfig)
-
         if (isInMultiWindowMode && ::securityManager.isInitialized) {
             securityManager.logViolation("MULTI_WINDOW_CONFIG_CHANGE")
             finishExam()
@@ -423,77 +404,54 @@ class ExamActivity : ComponentActivity() {
 
     override fun onPause() {
         super.onPause()
-        if (::securityManager.isInitialized) {
-            securityManager.onAppPaused()
-        }
-
-        if (::cameraViewModel.isInitialized) {
-            cameraViewModel.pauseExamSession()
-        }
+        if (::securityManager.isInitialized) securityManager.onAppPaused()
+        if (::cameraViewModel.isInitialized) cameraViewModel.pauseExamSession()
     }
 
     override fun onResume() {
         super.onResume()
-
         if (isInMultiWindowMode) {
-            if (::securityManager.isInitialized) {
-                securityManager.logViolation("MULTI_WINDOW_ON_RESUME")
-            }
+            if (::securityManager.isInitialized) securityManager.logViolation("MULTI_WINDOW_ON_RESUME")
             Toast.makeText(this, "تم اكتشاف وضع تقسيم الشاشة", Toast.LENGTH_LONG).show()
-            finish()
-            return
+            finish(); return
         }
-
-        if (::securityManager.isInitialized) {
-            securityManager.registerInternalDialog(ExamSecurityManager.DIALOG_EXIT_RETURN)
-            securityManager.onAppResumed()
-        }
-
-        if (::cameraViewModel.isInitialized) {
-            cameraViewModel.resumeExamSession()
-        }
+        if (::securityManager.isInitialized) securityManager.onAppResumed()
+        if (::cameraViewModel.isInitialized) cameraViewModel.resumeExamSession()
     }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
         super.onWindowFocusChanged(hasFocus)
-
-        if (::securityManager.isInitialized) {
-            securityManager.onWindowFocusChanged(hasFocus)
-        }
+        if (::securityManager.isInitialized) securityManager.onWindowFocusChanged(hasFocus)
     }
 
     override fun onUserLeaveHint() {
         super.onUserLeaveHint()
-
-        if (::securityManager.isInitialized) {
-            securityManager.logViolation("USER_LEFT_APP")
-        }
+        if (::securityManager.isInitialized) securityManager.logViolation("USER_LEFT_APP")
     }
 
     private fun finishExam() {
         try {
-            if (::cameraViewModel.isInitialized) {
-                cameraViewModel.endExamSession()
-            }
+            val token = securityManager.markInternalOperationStart("FinalizeExam")
+
+            randomScheduler?.stop()
+            randomScheduler = null
+
+            if (::cameraViewModel.isInitialized) cameraViewModel.endExamSession()
 
             if (::securityManager.isInitialized) {
                 val report = securityManager.generateReport()
                 Log.d("ExamActivity", """
-                    🔐 SECURITY REPORT
-                    Total Violations: ${report.violations.size}
-                    Exit Attempts: ${report.totalExitAttempts}
-                    Time Out: ${report.totalTimeOutOfApp}ms
-                """.trimIndent())
+                🔐 SECURITY REPORT
+                Total Violations: ${report.violations.size}
+                Exit Attempts: ${report.totalExitAttempts}
+                Time Out: ${report.totalTimeOutOfApp}ms
+            """.trimIndent())
             }
 
-            if (::cameraViewModel.isInitialized) {
-                cameraViewModel.stopMonitoring()
-            }
+            if (::cameraViewModel.isInitialized) cameraViewModel.stopMonitoring()
+            if (::securityManager.isInitialized) securityManager.cleanup()
 
-            if (::securityManager.isInitialized) {
-                securityManager.cleanup()
-            }
-
+            securityManager.markInternalOperationEnd(token)
         } catch (e: Exception) {
             Log.e("ExamActivity", "Error in finishExam", e)
         } finally {
@@ -501,18 +459,17 @@ class ExamActivity : ComponentActivity() {
         }
     }
 
+
     override fun onDestroy() {
         super.onDestroy()
-
         try {
+            randomScheduler?.stop()
+            randomScheduler = null
             if (::securityManager.isInitialized) {
                 securityManager.stopMonitoring()
                 securityManager.cleanup()
             }
-
-            if (::cameraViewModel.isInitialized) {
-                cameraViewModel.cleanup()
-            }
+            if (::cameraViewModel.isInitialized) cameraViewModel.cleanup()
         } catch (e: Exception) {
             Log.e("ExamActivity", "Error in onDestroy", e)
         }

@@ -5,21 +5,27 @@ import android.content.Context
 import android.hardware.display.DisplayManager
 import android.os.Handler
 import android.os.Looper
+import android.provider.Settings
 import android.util.Log
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 /**
- * مدير الأمان المركزي للاختبار
- * ✅ مع نظام Whitelist للـ Dialogs الداخلية
+ * ExamSecurityManager
+ * - كتم/تخفيف إيجابيات overlay الكاذبة أثناء الحوارات والعمليات الداخلية
+ * - تحكم تدريجي في No-Face / Multiple-Faces مع تحذيرات قبل الإنهاء
+ * - لا نعتمد مجرد وجود صلاحية SYSTEM_ALERT_WINDOW كدليل حاسم
  */
 class ExamSecurityManager(
     private val context: Context,
     private val activity: Activity
 ) {
-    private val TAG = "ExamSecurityManager"
 
+    private val TAG = "ExamSecurityManager"
+    private val DIALOG_SUPPRESS_MS = 1500L
+
+    // ==================== الحالة العامة ====================
     private val _violations = MutableStateFlow<List<SecurityViolation>>(emptyList())
     val violations: StateFlow<List<SecurityViolation>> = _violations.asStateFlow()
 
@@ -28,9 +34,6 @@ class ExamSecurityManager(
 
     private val _shouldShowWarning = MutableStateFlow(false)
     val shouldShowWarning: StateFlow<Boolean> = _shouldShowWarning.asStateFlow()
-
-    private val _shouldAutoSubmit = MutableStateFlow(false)
-    val shouldAutoSubmit: StateFlow<Boolean> = _shouldAutoSubmit.asStateFlow()
 
     private val _showExitWarning = MutableStateFlow(false)
     val showExitWarning: StateFlow<Boolean> = _showExitWarning.asStateFlow()
@@ -41,399 +44,365 @@ class ExamSecurityManager(
     private val _showMultipleFacesWarning = MutableStateFlow(false)
     val showMultipleFacesWarning: StateFlow<Boolean> = _showMultipleFacesWarning.asStateFlow()
 
+    // auto-submit channel
+    private val _shouldAutoSubmit = MutableStateFlow(false)
+    val shouldAutoSubmit: StateFlow<Boolean> = _shouldAutoSubmit.asStateFlow()
+
+    // ==================== العدادات ====================
     private var appPausedTime: Long = 0
     private var totalTimeOutOfApp: Long = 0
     private var exitAttempts = 0
     private val maxExitAttempts = 2
 
     private var noFaceViolationCount = 0
-    private val maxNoFaceWarnings = 2
-    private val maxNoFaceBeforeTerminate = 5
+    private val maxNoFaceWarnings = 2 // محاولتان قبل الإنهاء
 
     private var multipleFacesCount = 0
-    private val maxMultipleFacesWarnings = 2
+    private val maxMultipleFacesWarnings = 2 // محاولتان قبل الإنهاء
 
     private var examStarted = false
 
     private val displayManager = context.getSystemService(Context.DISPLAY_SERVICE) as DisplayManager
-
     private var overlayDetector: OverlayDetector? = null
     private var cameraMonitor: CameraMonitor? = null
 
-    // ✅ نظام Whitelist للـ Dialogs الداخلية
-    @Volatile
-    private var internalDialogActive = false
-    @Volatile
-    private var overlayDetectionPaused = false
+    // ==================== الحماية الداخلية/العمليات المحمية ====================
+    @Volatile private var internalDialogActive = false
+    @Volatile private var overlayDetectionPaused = false
 
-    // ✅ تتبع الـ Dialogs النشطة
+    // نستخدم set للأسماء + عداد للعمليات الداخلية لتفادي التكرارات والتصادمات
     private val activeInternalDialogs = mutableSetOf<String>()
+    private var internalOpSeq = 0
 
-    // ✅ Handler للفحص الدوري
     private val periodicCheckHandler = Handler(Looper.getMainLooper())
     private var periodicCheckRunnable: Runnable? = null
 
     companion object {
-        // ✅ أسماء الـ Dialogs المسموح بها
         const val DIALOG_EXIT_WARNING = "EXIT_WARNING"
         const val DIALOG_NO_FACE_WARNING = "NO_FACE_WARNING"
         const val DIALOG_MULTIPLE_FACES = "MULTIPLE_FACES"
         const val DIALOG_EXIT_RETURN = "EXIT_RETURN"
         const val DIALOG_OVERLAY_DETECTED = "OVERLAY_DETECTED"
-        const val DIALOG_SUBMIT_CONFIRM = "SUBMIT_CONFIRM"
+        const val DIALOG_FINALIZE_FLOW = "FINALIZE_FLOW"
     }
 
-    /**
-     * تفعيل جميع الميزات الأمنية
-     */
+    // ==========================================================
+    // 🔒 تفعيل النظام الأمني
+    // ==========================================================
     fun enableSecurityFeatures() {
         try {
             setupExternalDisplayMonitoring()
             setupOverlayDetection()
-            Log.d(TAG, "Security features enabled successfully")
+            Log.d(TAG, "✅ Security features enabled")
         } catch (e: Exception) {
             Log.e(TAG, "Error enabling security features", e)
         }
     }
 
-    /**
-     * إعداد كشف الـ Overlay
-     */
+    // ==========================================================
+    // 🧠 كشف الـ Overlay
+    // ==========================================================
     private fun setupOverlayDetection() {
-        overlayDetector = OverlayDetector(activity) {
-            // ✅ فحص إذا كان في dialog داخلي نشط
-            if (!isInternalDialogActive()) {
-                logViolation("OVERLAY_DETECTED")
-                handleCriticalViolation()
-            } else {
-                Log.d(TAG, "Overlay detected but internal dialog is active - IGNORED")
-            }
-        }
-
-        // ✅ فحص دوري مع مراعاة الـ Dialogs الداخلية
+        overlayDetector = OverlayDetector(
+            activity = activity,
+            onOverlayDetected = {
+                Log.e(TAG, "🚨 Overlay detected callback!")
+                Handler(Looper.getMainLooper()).post {
+                    if (!isInternalDialogActive()) {
+                        // حالة حرجة فقط عندما لا توجد عملية داخلية جارية
+                        logViolation("OVERLAY_DETECTED")
+                        registerInternalDialog(DIALOG_OVERLAY_DETECTED)
+                        _shouldShowWarning.value = true
+                        pauseMonitoring()
+                    } else {
+                        // يتم تجاهلها إذا كنا في تدفق داخلي (مثال: Room Scan / Finalize)
+                        Log.d(TAG, "Overlay ignored (internal dialog/operation active)")
+                    }
+                }
+            },
+            // مهم: كتم الكشف أثناء أي Dialog داخلي
+            shouldSuppress = { isInternalDialogActive() }
+        )
         startOverlayPeriodicCheck()
     }
 
-    /**
-     * ✅ فحص دوري للكشف عن Overlays (مُصلح)
-     * الفحص يعمل دائماً، لكن التسجيل يحدث فقط عندما لا يوجد dialog داخلي
-     */
     private fun startOverlayPeriodicCheck() {
         periodicCheckRunnable = object : Runnable {
             override fun run() {
-                if (examStarted && overlayDetector != null) {
-                    // فحص Focus
-                    if (!activity.hasWindowFocus()) {
-                        if (!isInternalDialogActive()) {
-                            // ✅ overlay حقيقي!
-                            Log.w(TAG, "⚠️ Periodic check: Lost window focus - possible overlay")
-                            logViolation("OVERLAY_FOCUS_LOST")
-                            handleCriticalViolation()
-                            return // لا نعيد الجدولة بعد اكتشاف overlay
-                        } else {
-                            // ✅ dialog داخلي نشط، تجاهل
-                            Log.d(TAG, "🟢 Periodic check: Focus lost but internal dialog active")
-                        }
-                    }
-
-                    // ✅ إعادة الجدولة
+                // لا نفحص قبل بدء الامتحان أو أثناء كتم المراقبة
+                if (!examStarted || overlayDetectionPaused) {
                     periodicCheckHandler.postDelayed(this, 3000)
+                    return
                 }
+
+                // لا نفحص أثناء وجود أي Dialog داخلي/عملية محمية
+                if (isInternalDialogActive()) {
+                    periodicCheckHandler.postDelayed(this, 3000)
+                    return
+                }
+
+                // وجود صلاحية SYSTEM_OVERLAY: نسجل مخالفة LOW فقط - بدون ديالوج
+                if (Settings.canDrawOverlays(context)) {
+                    logViolation("OVERLAY_PERMISSION_ACTIVE") // LOW فقط
+                }
+
+                // ملاحظة: فقدان الفوكس يُدار بدقة داخل OverlayDetector نفسه.
+                periodicCheckHandler.postDelayed(this, 3000)
             }
         }
-
-        // بدء الفحص الدوري
         periodicCheckHandler.postDelayed(periodicCheckRunnable!!, 3000)
-        Log.d(TAG, "✅ Periodic overlay check started")
     }
 
-    /**
-     * ✅ إيقاف الفحص الدوري
-     */
     private fun stopOverlayPeriodicCheck() {
         periodicCheckRunnable?.let {
             periodicCheckHandler.removeCallbacks(it)
             periodicCheckRunnable = null
-            Log.d(TAG, "❌ Periodic overlay check stopped")
         }
     }
 
-    /**
-     * ✅ تسجيل dialog داخلي قبل إظهاره
-     */
+    // ==========================================================
+    // 🧱 إدارة Dialogs والعمليات الداخلية
+    // ==========================================================
     fun registerInternalDialog(dialogName: String) {
         synchronized(activeInternalDialogs) {
             activeInternalDialogs.add(dialogName)
             internalDialogActive = true
-
-            // ✅ إيقاف overlay detection فوراً
+            // كتم مؤقت لتقلبات الفوكس عند ظهور/اختفاء عناصر الواجهة
+            overlayDetector?.suppressFor(DIALOG_SUPPRESS_MS)
             pauseOverlayDetection()
-
-            Log.d(TAG, "🟢 Internal Dialog Registered: $dialogName")
-            Log.d(TAG, "Active dialogs: ${activeInternalDialogs.joinToString()}")
         }
     }
 
-    /**
-     * ✅ إلغاء تسجيل dialog داخلي عند إغلاقه
-     */
     fun unregisterInternalDialog(dialogName: String) {
         synchronized(activeInternalDialogs) {
             activeInternalDialogs.remove(dialogName)
-
-            // ✅ إذا لم يعد هناك dialogs نشطة، نستأنف Detection
             if (activeInternalDialogs.isEmpty()) {
                 internalDialogActive = false
-                resumeOverlayDetection()
-                Log.d(TAG, "🔴 All Internal Dialogs Closed - Detection Resumed")
-            } else {
-                Log.d(TAG, "🟡 Dialog Closed: $dialogName")
-                Log.d(TAG, "Remaining dialogs: ${activeInternalDialogs.joinToString()}")
+                Handler(Looper.getMainLooper()).postDelayed({
+                    overlayDetector?.suppressFor(400) // سماح بإنهاء أي أنيميشن
+                    resumeOverlayDetection()
+                }, 300)
             }
         }
     }
 
     /**
-     * ✅ فحص إذا كان هناك dialog داخلي نشط
+     * API عالي المستوى لكتم كشف الـ overlay أثناء عملية داخلية قصيرة.
+     * يعيد "token" داخلي يتم التخلص منه تلقائيًا عند النداء الموازي لـ markInternalOperationEnd().
+     *
+     * ملاحظات:
+     * - لست مضطرًا لإعادة تمرير نفس الوسم في end؛ أي استدعاء end سيُنهي عملية داخلية واحدة.
+     * - لمن يريد الدقة: يمكن الاحتفاظ بالـ token وإرساله إلى end لإغلاق نفس العملية بعينها.
      */
-    fun isInternalDialogActive(): Boolean {
+    fun markInternalOperationStart(tag: String = "INTERNAL_OP"): String {
+        val token = "INTERNAL_OP_${tag}_${++internalOpSeq}_${System.nanoTime()}"
+        registerInternalDialog(token)
+        return token
+    }
+
+    fun markInternalOperationEnd(tokenOrTag: String? = null) {
+        synchronized(activeInternalDialogs) {
+            // إذا زوّدنا token/Tag نحاول إزالة المطابق أولاً
+            val direct = tokenOrTag?.let { tok ->
+                activeInternalDialogs.firstOrNull { it == tok || it.contains(tok) }
+            }
+            if (direct != null) {
+                unregisterInternalDialog(direct)
+                return
+            }
+            // وإلا نزيل أي عملية داخلية متبقية
+            val anyInternal = activeInternalDialogs.firstOrNull { it.startsWith("INTERNAL_OP_") }
+            if (anyInternal != null) {
+                unregisterInternalDialog(anyInternal)
+            } else {
+                // لا شيء لإزالته؛ نتأكد فقط من حالة الكتم
+                if (activeInternalDialogs.isEmpty()) {
+                    internalDialogActive = false
+                    resumeOverlayDetection()
+                }
+            }
+        }
+    }
+
+    // مساعدات لتغليف تدفق إنهاء/تسليم الامتحان (اختياري استعمالها من الـActivity)
+    fun beginFinalizeFlow() = registerInternalDialog(DIALOG_FINALIZE_FLOW)
+    fun endFinalizeFlow()   = unregisterInternalDialog(DIALOG_FINALIZE_FLOW)
+
+    private fun isInternalDialogActive(): Boolean {
         return synchronized(activeInternalDialogs) {
             internalDialogActive || activeInternalDialogs.isNotEmpty()
         }
     }
 
-    /**
-     * ✅ إيقاف overlay detection (متزامن وفوري)
-     */
     private fun pauseOverlayDetection() {
         if (overlayDetectionPaused) return
-
         overlayDetectionPaused = true
         overlayDetector?.stopMonitoring()
-
-        Log.e(TAG, "🛑 OVERLAY DETECTION PAUSED")
     }
 
-    /**
-     * ✅ استئناف overlay detection
-     */
     private fun resumeOverlayDetection() {
         if (!overlayDetectionPaused) return
-
-        // ✅ تأخير بسيط قبل استئناف Detection لتجنب false positives
         Handler(Looper.getMainLooper()).postDelayed({
             if (!isInternalDialogActive()) {
                 overlayDetectionPaused = false
                 overlayDetector?.startMonitoring()
-                Log.e(TAG, "✅ OVERLAY DETECTION RESUMED")
             }
         }, 500)
     }
 
-    /**
-     * إعداد مراقبة الشاشات الخارجية
-     */
+    // ==========================================================
+    // 🖥️ مراقبة الشاشات الخارجية
+    // ==========================================================
     private fun setupExternalDisplayMonitoring() {
-        try {
-            displayManager.registerDisplayListener(
-                object : DisplayManager.DisplayListener {
-                    override fun onDisplayAdded(displayId: Int) {
-                        if (displayId != 0) {
-                            Log.e(TAG, "External display detected: $displayId")
-                            logViolation("EXTERNAL_DISPLAY_CONNECTED")
-                            handleCriticalViolation()
-                        }
+        displayManager.registerDisplayListener(
+            object : DisplayManager.DisplayListener {
+                override fun onDisplayAdded(displayId: Int) {
+                    if (displayId != 0) {
+                        logViolation("EXTERNAL_DISPLAY_CONNECTED")
+                        registerInternalDialog(DIALOG_OVERLAY_DETECTED)
+                        _shouldShowWarning.value = true
+                        pauseMonitoring()
+                        Log.e(TAG, "🚨 External display detected!")
                     }
-
-                    override fun onDisplayRemoved(displayId: Int) {}
-                    override fun onDisplayChanged(displayId: Int) {}
-                },
-                null
-            )
-        } catch (e: Exception) {
-            Log.e(TAG, "Error setting up display monitoring", e)
-        }
+                }
+                override fun onDisplayRemoved(displayId: Int) {}
+                override fun onDisplayChanged(displayId: Int) {}
+            },
+            null
+        )
     }
 
-    /**
-     * معالجة المخالفات الحرجة
-     */
-    private fun handleCriticalViolation() {
-        _shouldAutoSubmit.value = true
-    }
-
-    /**
-     * ربط CameraMonitor مع SecurityManager
-     */
+    // ==========================================================
+    // 📷 مراقبة الكاميرا
+    // ==========================================================
     fun setCameraMonitor(monitor: CameraMonitor) {
         this.cameraMonitor = monitor
-        monitor.getLastDetectionResult()
         Log.d(TAG, "Camera monitor linked")
     }
 
-    /**
-     * إعادة تعيين عداد الوجوه المتعددة عند اكتشاف وجه صحيح
-     */
-    fun resetMultipleFacesCount() {
-        if (multipleFacesCount > 0) {
-            Log.d(TAG, "Resetting multiple faces count (was: $multipleFacesCount)")
-            multipleFacesCount = 0
-        }
-    }
+    private fun checkForExistingOverlays(): Boolean {
+        return try {
+            // لا نفتح تحذير — فقط تسجيل LOW
+            if (Settings.canDrawOverlays(context)) {
+                logViolation("OVERLAY_PERMISSION_ENABLED_AT_START") // LOW
+                Log.w(TAG, "Overlay permission active before exam start (logged only)")
+            }
 
-    /**
-     * بدء المراقبة
-     */
-    fun startMonitoring() {
-        try {
-            overlayDetector?.startMonitoring()
-            Log.d(TAG, "✅ Monitoring started")
+            // لا نفتح تحذير عند فقدان الفوكس لحظة البدء — نترك OverlayDetector يتأكد
+            val hasFocus = activity.hasWindowFocus()
+            if (!hasFocus) {
+                logViolation("FOCUS_LOST_AT_START") // LOW
+                Log.w(TAG, "No window focus at start (logged only)")
+            }
+
+            false
         } catch (e: Exception) {
-            Log.e(TAG, "Error starting monitoring", e)
+            Log.e(TAG, "Error checking for existing overlays", e)
+            false
         }
     }
 
-    /**
-     * بدء الاختبار الفعلي
-     */
-    fun startExam() {
-        examStarted = true
-        Log.d(TAG, "✅ Exam officially started - exit tracking enabled")
+    // ==========================================================
+    // 🧩 التحكم في المراقبة
+    // ==========================================================
+    fun startMonitoring() {
+        checkForExistingOverlays()
+        overlayDetector?.startMonitoring()
+        Log.d(TAG, "Monitoring started")
     }
 
-    /**
-     * إيقاف المراقبة مؤقتاً
-     */
+    fun startExam() { examStarted = true }
+
     fun pauseMonitoring() {
         _isPaused.value = true
-        // ✅ لا نوقف overlayDetector - فقط الكاميرا
         cameraMonitor?.pauseMonitoring()
-        Log.d(TAG, "Monitoring paused (camera only)")
     }
 
-    /**
-     * استئناف المراقبة
-     */
     fun resumeMonitoring() {
         _isPaused.value = false
-        // ✅ لا نحتاج إعادة تشغيل overlayDetector - هو يعمل دائماً
         cameraMonitor?.resumeMonitoring()
-        Log.d(TAG, "Monitoring resumed")
+        if (!overlayDetectionPaused && periodicCheckRunnable == null) {
+            startOverlayPeriodicCheck()
+        }
+        Log.d(TAG, "✅ Monitoring resumed")
     }
 
-    /**
-     * إيقاف كامل للمراقبة
-     */
     fun stopMonitoring() {
         stopOverlayPeriodicCheck()
         overlayDetector?.stopMonitoring()
         overlayDetector = null
         cameraMonitor?.cleanup()
         cameraMonitor = null
-        Log.d(TAG, "Monitoring stopped and cleaned up")
     }
 
-    /**
-     * تنظيف الموارد
-     */
     fun cleanup() {
         stopMonitoring()
-        activeInternalDialogs.clear()
+        synchronized(activeInternalDialogs) { activeInternalDialogs.clear() }
         internalDialogActive = false
         overlayDetectionPaused = false
-        Log.d(TAG, "Cleanup completed")
     }
 
-    /**
-     * معالجة توقف التطبيق
-     */
+    // ==========================================================
+    // ⚙️ دورة حياة التطبيق
+    // ==========================================================
     fun onAppPaused() {
-        if (!examStarted) {
-            Log.d(TAG, "App paused but exam not started yet - ignoring")
-            return
-        }
-
+        if (!examStarted) return
         appPausedTime = System.currentTimeMillis()
         pauseMonitoring()
-        Log.w(TAG, "App paused during exam")
     }
 
-    /**
-     * معالجة استئناف التطبيق
-     */
     fun onAppResumed() {
-        if (!examStarted) {
-            Log.d(TAG, "App resumed but exam not started yet - ignoring")
-            return
-        }
-
+        if (!examStarted) return
         if (appPausedTime > 0) {
-            val timeOut = System.currentTimeMillis() - appPausedTime
-            totalTimeOutOfApp += timeOut
+            totalTimeOutOfApp += System.currentTimeMillis() - appPausedTime
             exitAttempts++
-
             logViolation("APP_RESUMED_AFTER_EXIT_$exitAttempts")
 
-            Log.w(TAG, "App resumed after ${timeOut}ms - Exit attempt #$exitAttempts")
-
-            when {
-                exitAttempts > maxExitAttempts -> {
-                    _shouldAutoSubmit.value = true
-                    Log.e(TAG, "Auto-submit - max exit attempts")
-                }
-                else -> {
-                    registerInternalDialog(DIALOG_EXIT_RETURN)
-                    _showExitWarning.value = true
-                    resumeMonitoring()
-                }
+            if (exitAttempts > maxExitAttempts) {
+                logViolation("MAX_EXIT_ATTEMPTS_REACHED")
+                registerInternalDialog(DIALOG_OVERLAY_DETECTED)
+                _shouldShowWarning.value = true
+                pauseMonitoring()
+                Log.e(TAG, "🚨 Exam terminated — too many exits")
+            } else {
+                registerInternalDialog(DIALOG_EXIT_RETURN)
+                _showExitWarning.value = true
+                resumeMonitoring()
             }
-
             appPausedTime = 0
         }
     }
 
-    /**
-     * معالجة فقدان التركيز على النافذة
-     */
-    fun onWindowFocusChanged(hasFocus: Boolean) {
-        // ✅ تجاهل focus changes إذا كان dialog داخلي نشط
-        if (isInternalDialogActive()) {
-            Log.d(TAG, "Window focus changed but internal dialog active - IGNORED")
-            return
-        }
-
-        overlayDetector?.onWindowFocusChanged(hasFocus)
-
-        if (!hasFocus && examStarted && !isInternalDialogActive()) {
-            Log.w(TAG, "⚠️ Window focus lost during exam (no internal dialog)")
-        }
-    }
-
-    /**
-     * إخفاء التحذيرات
-     */
+    // ==========================================================
+    // 🚨 إدارة التحذيرات
+    // ==========================================================
     fun dismissWarning() {
+        unregisterInternalDialog(DIALOG_OVERLAY_DETECTED)
         _shouldShowWarning.value = false
+        resumeMonitoring()
     }
 
     fun dismissExitWarning() {
         unregisterInternalDialog(DIALOG_EXIT_RETURN)
         _showExitWarning.value = false
+        resumeMonitoring()
     }
 
     fun dismissNoFaceWarning() {
         unregisterInternalDialog(DIALOG_NO_FACE_WARNING)
         _showNoFaceWarning.value = false
+        resumeMonitoring()
     }
 
     fun dismissMultipleFacesWarning() {
         unregisterInternalDialog(DIALOG_MULTIPLE_FACES)
         _showMultipleFacesWarning.value = false
+        resumeMonitoring()
     }
 
-    /**
-     * تسجيل مخالفة
-     */
+    // ==========================================================
+    // 🧾 تسجيل المخالفات
+    // ==========================================================
     fun logViolation(type: String) {
         val violation = SecurityViolation(
             type = type,
@@ -441,70 +410,106 @@ class ExamSecurityManager(
             description = getViolationDescription(type),
             severity = getViolationSeverity(type)
         )
-
         _violations.value = _violations.value + violation
-        Log.w(TAG, "⚠️ Violation logged: $type (${violation.severity})")
 
-        when {
-            type == "NO_FACE_DETECTED_LONG" -> handleNoFaceDetected()
-            type == "MULTIPLE_FACES_DETECTED" -> handleMultipleFacesDetected()
+        when (type) {
+            "NO_FACE_DETECTED_LONG"     -> handleNoFaceDetected()
+            "MULTIPLE_FACES_DETECTED"   -> handleMultipleFacesDetected()
         }
     }
 
-    /**
-     * معالجة عدم اكتشاف وجه
-     */
     private fun handleNoFaceDetected() {
         noFaceViolationCount++
         Log.w(TAG, "No face violation #$noFaceViolationCount")
 
-        when {
-            noFaceViolationCount >= maxNoFaceBeforeTerminate -> {
-                _shouldAutoSubmit.value = true
-                _showNoFaceWarning.value = false
-                Log.e(TAG, "🚨 Auto-submit triggered - max no face violations")
-            }
-            noFaceViolationCount > maxNoFaceWarnings -> {
-                registerInternalDialog(DIALOG_NO_FACE_WARNING)
-                _showNoFaceWarning.value = true
-                pauseMonitoring()
-                Log.w(TAG, "⚠️ No face warning shown - count: $noFaceViolationCount")
-            }
+        if (noFaceViolationCount > maxNoFaceWarnings) {
+            // لا نفتح ديالوج Overlay — نفعّل auto-submit ونكتم الكشف مؤقتًا
+            beginFinalizeFlow()
+            _shouldAutoSubmit.value = true
+            pauseMonitoring()
+            Log.e(TAG, "🚨 Exceeded allowed no-face warnings — will auto-submit")
+            return
+        }
+
+        if (!_showNoFaceWarning.value && !isInternalDialogActive()) {
+            registerInternalDialog(DIALOG_NO_FACE_WARNING)
+            _showNoFaceWarning.value = true
+            pauseMonitoring()
+            Log.w(TAG, "⚠️ No face warning displayed ($noFaceViolationCount/$maxNoFaceWarnings)")
         }
     }
 
-    /**
-     * معالجة اكتشاف أكثر من وجه
-     */
     private fun handleMultipleFacesDetected() {
         multipleFacesCount++
         Log.w(TAG, "Multiple faces violation #$multipleFacesCount")
 
-        when {
-            multipleFacesCount > maxMultipleFacesWarnings -> {
-                _shouldAutoSubmit.value = true
-                _showMultipleFacesWarning.value = false
-                Log.e(TAG, "🚨 Auto-submit triggered - multiple faces")
-            }
-            else -> {
-                registerInternalDialog(DIALOG_MULTIPLE_FACES)
-                _showMultipleFacesWarning.value = true
-                pauseMonitoring()
-                Log.w(TAG, "⚠️ Multiple faces warning shown")
-            }
+        if (multipleFacesCount > maxMultipleFacesWarnings) {
+            beginFinalizeFlow()
+            _shouldAutoSubmit.value = true
+            pauseMonitoring()
+            Log.e(TAG, "🚨 Multiple faces exceeded limit — will auto-submit")
+            return
+        }
+
+        if (!_showMultipleFacesWarning.value && !isInternalDialogActive()) {
+            registerInternalDialog(DIALOG_MULTIPLE_FACES)
+            _showMultipleFacesWarning.value = true
+            pauseMonitoring()
+            Log.w(TAG, "⚠️ Multiple faces warning displayed ($multipleFacesCount/$maxMultipleFacesWarnings)")
         }
     }
 
-    /**
-     * الحصول على عدد التحذيرات المتبقية
-     */
-    fun getRemainingAttempts(): Int = maxExitAttempts - exitAttempts
-    fun getNoFaceViolationCount(): Int = noFaceViolationCount
-    fun getRemainingNoFaceWarnings(): Int = maxNoFaceBeforeTerminate - noFaceViolationCount
+    // ==========================================================
+    // 🧠 وصف وشدة المخالفات
+    // ==========================================================
+    private fun getViolationDescription(type: String): String {
+        return when {
+            type == "OVERLAY_PERMISSION_ACTIVE" ||
+                    type == "OVERLAY_PERMISSION_ENABLED_AT_START" -> "صلاحية الرسم فوق التطبيقات مفعّلة"
 
-    /**
-     * إنشاء تقرير أمني
-     */
+            type.startsWith("OVERLAY") -> "تم اكتشاف تطبيق يعمل فوق الاختبار"
+            type.startsWith("NO_FACE") -> "لم يتم اكتشاف وجه الطالب"
+            type.startsWith("MULTIPLE_FACES") -> "تم اكتشاف أكثر من وجه"
+            type.startsWith("EXTERNAL_DISPLAY") -> "تم اكتشاف شاشة خارجية"
+            type.contains("APP_RESUMED") -> "عودة من خارج التطبيق"
+            type == "FOCUS_LOST_AT_START" -> "فقدان تركيز النافذة عند البدء"
+            else -> "مخالفة أمنية عامة"
+        }
+    }
+
+    private fun getViolationSeverity(type: String): Severity {
+        return when {
+            type == "OVERLAY_PERMISSION_ACTIVE" ||
+                    type == "OVERLAY_PERMISSION_ENABLED_AT_START" ||
+                    type == "FOCUS_LOST_AT_START" -> Severity.LOW
+
+            type.startsWith("OVERLAY") -> Severity.CRITICAL
+            type.startsWith("MULTIPLE_FACES") -> Severity.HIGH
+            type.startsWith("NO_FACE") -> Severity.MEDIUM
+            else -> Severity.LOW
+        }
+    }
+
+    // ==========================================================
+    // 🧩 دوال مطلوبة من ExamActivity
+    // ==========================================================
+    fun triggerAutoSubmit() { _shouldAutoSubmit.value = true }
+    fun resetAutoSubmit() { _shouldAutoSubmit.value = false }
+
+    fun resetMultipleFacesCount() {
+        multipleFacesCount = 0
+        Log.d(TAG, "✅ Multiple faces count reset")
+    }
+
+    fun getNoFaceViolationCount(): Int = noFaceViolationCount
+    fun getRemainingNoFaceWarnings(): Int = (maxNoFaceWarnings - noFaceViolationCount).coerceAtLeast(0)
+    fun getRemainingAttempts(): Int = (maxExitAttempts - exitAttempts).coerceAtLeast(0)
+
+    fun onWindowFocusChanged(hasFocus: Boolean) {
+        // نمرر حدث الفوكس للكاشف؛ وهو أصلاً سيحترم shouldSuppress()
+        overlayDetector?.onWindowFocusChanged(hasFocus)
+    }
+
     fun generateReport(): SecurityReport {
         return SecurityReport(
             violations = _violations.value,
@@ -513,49 +518,12 @@ class ExamSecurityManager(
             noFaceViolations = noFaceViolationCount
         )
     }
-
-    /**
-     * الحصول على وصف المخالفة
-     */
-    private fun getViolationDescription(type: String): String {
-        return when {
-            type.startsWith("OVERLAY_") -> "تم اكتشاف تطبيق يعمل فوق الاختبار"
-            type.startsWith("NO_FACE") -> "لم يتم اكتشاف وجه الطالب"
-            type.startsWith("APP_RESUMED") -> "خروج من التطبيق"
-            type.startsWith("MULTIPLE_FACES") -> "تم اكتشاف أكثر من وجه"
-            type.startsWith("MULTI_WINDOW") -> "تم اكتشاف وضع تقسيم الشاشة"
-            type.startsWith("PIP_MODE") -> "تم اكتشاف وضع Picture-in-Picture"
-            type.startsWith("EXTERNAL_DISPLAY") -> "تم اكتشاف شاشة خارجية"
-            type.contains("BACK_BUTTON") -> "محاولة الضغط على زر الرجوع"
-            type.contains("USER_LEFT") -> "مغادرة التطبيق"
-            else -> "مخالفة أمنية"
-        }
-    }
-
-    /**
-     * تحديد شدة المخالفة
-     */
-    private fun getViolationSeverity(type: String): Severity {
-        return when {
-            type.contains("MULTI_WINDOW") -> Severity.CRITICAL
-            type.contains("EXTERNAL_DISPLAY") -> Severity.CRITICAL
-            type.contains("PIP_MODE") -> Severity.CRITICAL
-            type.startsWith("OVERLAY_") -> Severity.CRITICAL
-            type.contains("AUTO_SUBMIT") -> Severity.CRITICAL
-            type.startsWith("MULTIPLE_FACES") -> Severity.HIGH
-            type.startsWith("NO_FACE") -> Severity.MEDIUM
-            type.contains("APP_RESUMED") -> Severity.MEDIUM
-            else -> Severity.LOW
-        }
-    }
 }
 
-enum class Severity {
-    LOW,
-    MEDIUM,
-    HIGH,
-    CRITICAL
-}
+// ==========================================================
+// 🧩 الكيانات المساعدة
+// ==========================================================
+enum class Severity { LOW, MEDIUM, HIGH, CRITICAL }
 
 data class SecurityViolation(
     val type: String,
