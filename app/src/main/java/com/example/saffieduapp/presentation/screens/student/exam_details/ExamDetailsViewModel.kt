@@ -1,5 +1,8 @@
 package com.example.saffieduapp.presentation.screens.student.exam_details
 
+
+import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -20,7 +23,6 @@ class ExamDetailsViewModel @Inject constructor(
     private val _state = MutableStateFlow(ExamDetailsState())
     val state = _state.asStateFlow()
 
-
     init {
         val examId = savedStateHandle.get<String>("examId")
         if (examId != null) {
@@ -33,12 +35,13 @@ class ExamDetailsViewModel @Inject constructor(
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.O)
     private fun loadExamDetails(examId: String) {
         viewModelScope.launch {
             try {
                 _state.value = ExamDetailsState(isLoading = true)
 
-                // جلب بيانات الاختبار من مجموعة exams في Firestore
+                // جلب بيانات الاختبار من Firestore
                 val document = firestore.collection("exams")
                     .document(examId)
                     .get()
@@ -65,20 +68,17 @@ class ExamDetailsViewModel @Inject constructor(
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.O)
     private fun mapToExamDetails(id: String, data: Map<String, Any>): ExamDetails {
-        // تحويل البيانات من Firestore إلى نموذج ExamDetails
         return ExamDetails(
             id = id,
             title = data["examTitle"] as? String ?: "بدون عنوان",
             subjectName = data["className"] as? String ?: "بدون مادة",
             teacherName = data["teacherName"] as? String ?: "بدون معلم",
-            imageUrl = "", // يمكنك إضافة صورة المادة إذا كانت متوفرة
+            imageUrl = "", // يمكن إضافة صورة لاحقًا
             date = data["examDate"] as? String ?: "غير محدد",
             startTime = data["examStartTime"] as? String ?: "غير محدد",
-            endTime = calculateEndTime(
-                data["examStartTime"] as? String,
-                data["examTime"] as? String
-            ),
+            endTime = calculateEndTime(data["examDate"] as? String),
             durationInMinutes = (data["examTime"] as? String)?.toIntOrNull() ?: 0,
             questionCount = getQuestionCount(data["questions"]),
             status = determineExamStatus(
@@ -88,11 +88,15 @@ class ExamDetailsViewModel @Inject constructor(
         )
     }
 
-    private fun calculateEndTime(startTime: String?, duration: String?): String {
-        if (startTime == null) return "غير محدد"
-
-        // تحديد وقت الانتهاء ليكون دائمًا 11:59 مساءً
-        return "11:59 مساءً"
+    /**
+     * تحديد وقت الانتهاء ليكون في نفس يوم الاختبار الساعة 23:59 مساءً.
+     */
+    private fun calculateEndTime(examDate: String?): String {
+        return if (examDate.isNullOrBlank()) {
+            "غير محدد"
+        } else {
+            "$examDate 23:59 مساءً"
+        }
     }
 
     private fun getQuestionCount(questions: Any?): Int {
@@ -102,9 +106,25 @@ class ExamDetailsViewModel @Inject constructor(
         }
     }
 
+    /**
+     * تحديد حالة الاختبار بناءً على التاريخ ووقت البداية.
+     */
+    @RequiresApi(Build.VERSION_CODES.O)
     private fun determineExamStatus(examDate: String?, examStartTime: String?): String {
-        // منطق تحديد حالة الاختبار (متاح، منتهي، لم يبدأ بعد)
-        // يمكنك تحسين هذا المنطق حسب احتياجاتك
-        return "متاح"
+        if (examDate.isNullOrBlank() || examStartTime.isNullOrBlank()) return "غير محدد"
+
+        return try {
+            val dateTimeString = "$examDate $examStartTime" // مثال: 2025-10-08 14:22
+            val formatter = java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
+            val examDateTime = java.time.LocalDateTime.parse(dateTimeString, formatter)
+            val now = java.time.LocalDateTime.now()
+
+            when {
+                now.isBefore(examDateTime) -> "لم يبدأ بعد"
+                else -> "متاح"
+            }
+        } catch (e: Exception) {
+            "غير محدد"
+        }
     }
 }
