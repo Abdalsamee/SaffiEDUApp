@@ -12,6 +12,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.saffieduapp.ui.theme.AppPrimary
 import com.example.saffieduapp.ui.theme.SaffiEDUAppTheme
@@ -38,7 +39,7 @@ fun StudentTaskItemCard(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            // صورة الطالب (مع معالجة الخطأ)
+
             AsyncImage(
                 model = imageUrl ?: "",
                 contentDescription = "صورة الطالب",
@@ -74,37 +75,37 @@ fun StudentTaskItemCard(
                 colors = ButtonDefaults.buttonColors(containerColor = AppPrimary),
                 modifier = Modifier.height(36.dp)
             ) {
-                Text("التفاصيل", color = Color.White)
+                Text("التفاصيل", color = Color.White, fontSize = 11.sp)
             }
         }
     }
 }
 
-@Preview(showBackground = true, showSystemUi = false, locale = "ar")
-@Composable
-fun StudentTaskItemCardPreview() {
-    SaffiEDUAppTheme {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.Center
-        ) {
-            // بطاقة بصورة صحيحة
-            StudentTaskItemCard(
-                name = "محمد أحمد",
-                score = "95/100",
-                imageUrl = "https://randomuser.me/api/portraits/men/75.jpg",
-                onDetailsClick = {}
-            )
-
-            // بطاقة بدون صورة (تظهر الصورة الافتراضية)
-            StudentTaskItemCard(
-                name = "أحمد يوسف",
-                score = "88/100",
-                imageUrl = null,
-                onDetailsClick = {}
-            )
-        }
-    }
-}
+//@Preview(showBackground = true, showSystemUi = false, locale = "ar")
+//@Composable
+//fun StudentTaskItemCardPreview() {
+//    SaffiEDUAppTheme {
+//        Column(
+//            modifier = Modifier
+//                .fillMaxSize()
+//                .padding(16.dp),
+//            verticalArrangement = Arrangement.Center
+//        ) {
+//            // بطاقة بصورة صحيحة
+//            StudentTaskItemCard(
+//                name = "محمد أحمد",
+//                score = "95/100",
+//                imageUrl = "https://randomuser.me/api/portraits/men/75.jpg",
+//                onDetailsClick = {}
+//            )
+//
+//            // بطاقة بدون صورة (تظهر الصورة الافتراضية)
+//            StudentTaskItemCard(
+//                name = "أحمد يوسف",
+//                score = "88/100",
+//                imageUrl = null,
+//                onDetailsClick = {}
+//            )
+//        }
+//    }
+//}
