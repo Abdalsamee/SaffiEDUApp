@@ -167,7 +167,7 @@ class TasksViewModel @Inject constructor(
                     title = doc.getString("examTitle") ?: "بدون عنوان",
                     subjectName = doc.getString("examType") ?: "عام",
                     imageUrl = "",
-                    time = parseExamDateTime(doc), // ✅ استخدام دالة محسنة
+                    time = parseExamDateTime(doc),
                     status = determineExamStatus(doc)
                 )
             }
