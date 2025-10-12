@@ -10,6 +10,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.NavController
 import com.example.saffieduapp.presentation.screens.student.components.CommonTopAppBar
 import com.example.saffieduapp.presentation.screens.student.home.components.SearchBar
 import com.example.saffieduapp.presentation.screens.teacher.tasks.details.components.StudentTaskItemCard
@@ -17,6 +18,7 @@ import com.example.saffieduapp.ui.theme.SaffiEDUAppTheme
 
 @Composable
 fun TeacherTaskDetailsScreen(
+    navController: NavController,
     viewModel: TeacherTaskDetailsViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
@@ -25,7 +27,9 @@ fun TeacherTaskDetailsScreen(
         topBar = {
             CommonTopAppBar(
                 title = "تفاصيل المهمة",
-                onNavigateUp = { /* Handle back navigation */ }
+                onNavigateUp = {
+                    navController.popBackStack()
+                }
             )
         }
     ) { innerPadding ->
@@ -74,11 +78,5 @@ fun TeacherTaskDetailsScreen(
     }
 }
 
-@Preview(showBackground = true, showSystemUi = true, locale = "ar")
-@Composable
-fun TeacherTaskDetailsScreenPreview() {
-    SaffiEDUAppTheme {
-        TeacherTaskDetailsScreen()
-    }
-}
+
 
