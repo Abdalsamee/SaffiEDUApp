@@ -2,21 +2,23 @@ package com.example.saffieduapp.presentation.screens.teacher.tasks
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.example.saffieduapp.navigation.Routes
 import com.example.saffieduapp.presentation.screens.student.components.CommonTopAppBar
 import com.example.saffieduapp.presentation.screens.teacher.tasks.components.ClassFilterButton
+import com.example.saffieduapp.presentation.screens.teacher.tasks.components.TeacherTaskCard
 import com.example.saffieduapp.ui.theme.AppPrimary
 import com.example.saffieduapp.ui.theme.AppTextSecondary
-import com.example.saffieduapp.ui.theme.SaffiEDUAppTheme
 
 @Composable
 fun TeacherTasksScreen(
@@ -27,9 +29,7 @@ fun TeacherTasksScreen(
     val tabTitles = listOf("الواجبات", "الاختبارات")
 
     Scaffold(
-        topBar = {
-            CommonTopAppBar(title = "المهام")
-        }
+        topBar = { CommonTopAppBar(title = "المهام") }
     ) { innerPadding ->
         Column(
             modifier = Modifier
@@ -44,11 +44,9 @@ fun TeacherTasksScreen(
                     .padding(horizontal = 16.dp),
                 horizontalArrangement = Arrangement.Start
             ) {
-                var selectedClass by remember { mutableStateOf("الصف السادس") }
-
                 ClassFilterButton(
-                    selectedClass = selectedClass,
-                    onClassSelected = { selectedClass = it }
+                    selectedClass = state.selectedClass,
+                    onClassSelected = { viewModel.onClassSelected(it) }
                 )
             }
 
@@ -60,58 +58,50 @@ fun TeacherTasksScreen(
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
                 tabTitles.forEachIndexed { index, title ->
-                    TeacherCustomTab(
+                    val textColor = if (state.selectedTabIndex == index) AppPrimary else AppTextSecondary
+                    Text(
                         text = title,
-                        isSelected = state.selectedTabIndex == index,
-                        onClick = { viewModel.onTabSelected(index) }
+                        color = textColor,
+                        fontWeight = FontWeight.Medium,
+                        fontSize = 18.sp,
+                        modifier = Modifier
+                            .clickable { viewModel.onTabSelected(index) }
+                            .padding(8.dp)
                     )
                 }
             }
 
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(8.dp))
 
             // 🔹 المحتوى حسب التبويب المحدد
-            when (state.selectedTabIndex) {
-                0 -> TasksHomeworkPlaceholder()
-                1 -> TasksExamPlaceholder()
+            if (state.isLoading) {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    val list = if (state.selectedTabIndex == 0) state.assignments else state.exams
+                    items(list) { task ->
+                        TeacherTaskCard(
+                            type = task.type,
+                            subject = task.subject,
+                            date = task.date,
+                            time = task.time,
+                            isActive = task.isActive,
+                            onDetailsClick = {
+                                navController.navigate("${Routes.TEACHER_TASK_DETAILS_SCREEN}/${task.id}")
+                            }
+                            ,
+                            onDeleteClick = { /* delete task later */ }
+                        )
+                    }
+                }
             }
         }
     }
 }
-
-@Composable
-private fun TeacherCustomTab(
-    text: String,
-    isSelected: Boolean,
-    onClick: () -> Unit
-) {
-    val textColor = if (isSelected) AppPrimary else AppTextSecondary
-    Text(
-        text = text,
-        color = textColor,
-        fontWeight = FontWeight.Medium,
-        fontSize = 18.sp,
-        modifier = Modifier
-            .clickable(onClick = onClick)
-            .padding(8.dp)
-    )
-}
-
-
-
-// placeholders مؤقتة حتى نكمل الشاشات الفرعية
-@Composable
-private fun TasksHomeworkPlaceholder() {
-    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Text("واجهة الواجبات للمعلم (قريباً)", color = AppTextSecondary)
-    }
-}
-
-@Composable
-private fun TasksExamPlaceholder() {
-    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Text("واجهة الاختبارات للمعلم (قريباً)", color = AppTextSecondary)
-    }
-}
-
-

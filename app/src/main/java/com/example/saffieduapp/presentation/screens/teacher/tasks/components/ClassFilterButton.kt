@@ -72,7 +72,7 @@ fun ClassFilterButton(
                 painter = painterResource(id = R.drawable.filter),
                 contentDescription = "فلترة الصفوف",
                 tint = AppPrimary,
-                modifier = Modifier.size(22.dp)
+                modifier = Modifier.size(40.dp)
             )
         }
 
