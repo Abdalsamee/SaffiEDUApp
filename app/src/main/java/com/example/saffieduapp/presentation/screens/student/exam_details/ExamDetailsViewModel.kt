@@ -114,14 +114,20 @@ class ExamDetailsViewModel @Inject constructor(
         if (examDate.isNullOrBlank() || examStartTime.isNullOrBlank()) return "غير محدد"
 
         return try {
-            val dateTimeString = "$examDate $examStartTime" // مثال: 2025-10-08 14:22
             val formatter = java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
-            val examDateTime = java.time.LocalDateTime.parse(dateTimeString, formatter)
+
+            // وقت بداية الاختبار
+            val startDateTime = java.time.LocalDateTime.parse("$examDate $examStartTime", formatter)
+
+            // وقت نهاية اليوم 23:59
+            val endDateTime = java.time.LocalDateTime.parse("$examDate 23:59", formatter)
+
             val now = java.time.LocalDateTime.now()
 
             when {
-                now.isBefore(examDateTime) -> "لم يبدأ بعد"
-                else -> "متاح"
+                now.isBefore(startDateTime) -> "لم يبدأ بعد"
+                now.isAfter(endDateTime) -> "انتهى"
+                else -> "متاح الآن"
             }
         } catch (e: Exception) {
             "غير محدد"
