@@ -2,9 +2,12 @@ package com.example.saffieduapp.navigation
 
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.composable
+import androidx.navigation.navArgument
 import androidx.navigation.navigation
 import com.example.saffieduapp.presentation.screens.teacher.tasks.TeacherTasksScreen
+import com.example.saffieduapp.presentation.screens.teacher.tasks.details.TeacherTaskDetailsScreen
 
 
 fun NavGraphBuilder.teacherTasksNavGraph(navController: NavHostController) {
@@ -17,11 +20,15 @@ fun NavGraphBuilder.teacherTasksNavGraph(navController: NavHostController) {
             TeacherTasksScreen(navController = navController)
         }
 
-//        // شاشة تفاصيل مهمة
-//        composable(Routes.TEACHER_TASK_DETAILS_SCREEN + "/{taskId}") { backStackEntry ->
-//            val taskId = backStackEntry.arguments?.getString("taskId") ?: ""
-//            TaskDetailsScreen(navController = navController, taskId = taskId)
-//        }
+        composable(
+            route = "${Routes.TEACHER_TASK_DETAILS_SCREEN}/{taskId}",
+            arguments = listOf(navArgument("taskId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val taskId = backStackEntry.arguments?.getString("taskId") ?: ""
+            TeacherTaskDetailsScreen(
+                navController = navController
+            ) // يمكنك تمرير taskId لاحقاً للـ ViewModel
+        }
 
 
     }

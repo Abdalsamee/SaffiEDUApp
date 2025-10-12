@@ -13,6 +13,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.example.saffieduapp.navigation.Routes
 import com.example.saffieduapp.presentation.screens.student.components.CommonTopAppBar
 import com.example.saffieduapp.presentation.screens.teacher.tasks.components.ClassFilterButton
 import com.example.saffieduapp.presentation.screens.teacher.tasks.components.TeacherTaskCard
@@ -92,7 +93,10 @@ fun TeacherTasksScreen(
                             date = task.date,
                             time = task.time,
                             isActive = task.isActive,
-                            onDetailsClick = { /* nav to details later */ },
+                            onDetailsClick = {
+                                navController.navigate("${Routes.TEACHER_TASK_DETAILS_SCREEN}/${task.id}")
+                            }
+                            ,
                             onDeleteClick = { /* delete task later */ }
                         )
                     }
