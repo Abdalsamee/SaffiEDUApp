@@ -55,7 +55,8 @@ object Routes {
     const val TEACHER_TASKS_GRAPH = "teacher_tasks_graph"
     const val TEACHER_TASKS_SCREEN = "teacher_tasks_screen"
     const val TEACHER_TASK_DETAILS_SCREEN = "teacher_task_details_screen"
-
+    const val TEACHER_STUDENT_ASSIGNMENT_SCREEN = "teacher_student_assignment_screen"
+    const val TEACHER_STUDENT_EXAM_SCREEN = "teacher_student_exam_screen"
 
 
 }

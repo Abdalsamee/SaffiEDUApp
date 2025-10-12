@@ -8,6 +8,7 @@ import androidx.navigation.navArgument
 import androidx.navigation.navigation
 import com.example.saffieduapp.presentation.screens.teacher.tasks.TeacherTasksScreen
 import com.example.saffieduapp.presentation.screens.teacher.tasks.details.TeacherTaskDetailsScreen
+import com.example.saffieduapp.presentation.screens.teacher.tasks.student_details.assignmnet.TeacherStudentAssignmentScreen
 
 
 fun NavGraphBuilder.teacherTasksNavGraph(navController: NavHostController) {
@@ -27,7 +28,10 @@ fun NavGraphBuilder.teacherTasksNavGraph(navController: NavHostController) {
             val taskId = backStackEntry.arguments?.getString("taskId") ?: ""
             TeacherTaskDetailsScreen(
                 navController = navController
-            ) // يمكنك تمرير taskId لاحقاً للـ ViewModel
+            )
+        }
+        composable(Routes.TEACHER_STUDENT_ASSIGNMENT_SCREEN) {
+            TeacherStudentAssignmentScreen(navController = navController)
         }
 
 
