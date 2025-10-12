@@ -124,7 +124,7 @@ private fun ExamDetailsScreenContent(
                             AppButton(
                                 text = "بدء الاختبار الآن",
                                 onClick =  { showDialog = true },
-                                enabled = details.status == "متاح"
+                                enabled = details.status == "متاح الآن"
                             )
                             Text(
                                 text = details.status,
