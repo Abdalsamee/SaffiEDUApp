@@ -11,6 +11,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.example.saffieduapp.navigation.Routes
 import com.example.saffieduapp.presentation.screens.student.components.CommonTopAppBar
 import com.example.saffieduapp.presentation.screens.student.home.components.SearchBar
 import com.example.saffieduapp.presentation.screens.teacher.tasks.details.components.StudentTaskItemCard
@@ -68,7 +69,7 @@ fun TeacherTaskDetailsScreen(
                             score = student.score,
                             imageUrl = student.imageUrl,
                             onDetailsClick = {
-                                // لاحقًا: فتح شاشة تفاصيل الطالب
+                                navController.navigate(Routes.TEACHER_STUDENT_ASSIGNMENT_SCREEN)
                             }
                         )
                     }
