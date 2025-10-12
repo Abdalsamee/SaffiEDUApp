@@ -13,7 +13,8 @@ data class ExamItem(
 // ٢. تعريف حالة الاختبار (مكتمل أم لا)
 enum class ExamStatus {
     COMPLETED,
-    NOT_COMPLETED
+    NOT_COMPLETED,
+    IN_PROGRESS
 }
 
 // ٣. تعريف موديل الواجب الواحد
@@ -41,5 +42,5 @@ data class TasksState(
     val selectedTabIndex: Int = 0,
     val examsByDate: Map<String, List<ExamItem>> = emptyMap(),
     val assignmentsByDate: Map<String, List<AssignmentItem>> = emptyMap(),
-    val error: String
+    val error: String?
 )

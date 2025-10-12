@@ -63,19 +63,20 @@ fun TasksScreen(
             } else {
 
                 if (state.selectedTabIndex == 0) {
-                    AssignmentsList(assignmentsByDate = state.assignmentsByDate,
+                    AssignmentsList(
+                        assignmentsByDate = state.assignmentsByDate,
                         onAssignmentClick = { assignmentId ->
                             navController.navigate("${Routes.ASSIGNMENT_DETAILS_SCREEN}/$assignmentId")
                         }
-                        )
+                    )
 
                 } else {
-                    ExamsList(examsByDate = state.examsByDate,
+                    ExamsList(
+                        examsByDate = state.examsByDate,
                         onExamClick = { examId ->
-
                             navController.navigate("${Routes.EXAM_DETAILS_SCREEN}/$examId")
                         }
-                        )
+                    )
                 }
             }
         }
@@ -149,9 +150,9 @@ private fun AssignmentsList(
 
 @Composable
 private fun ExamsList(
-    examsByDate: Map<String,List<ExamItem>>,
+    examsByDate: Map<String, List<ExamItem>>,
     onExamClick: (String) -> Unit
-    ) {
+) {
     if (examsByDate.isEmpty()) {
         EmptyState(message = "لا توجد اختبارات حالياً")
     } else {
@@ -172,7 +173,7 @@ private fun ExamsList(
                 items(exams) { exam ->
                     Box(
                         modifier = Modifier.clickable { onExamClick(exam.id) }
-                    ){
+                    ) {
                         ExamCard(
                             title = exam.title,
                             subtitle = exam.subjectName,
@@ -192,6 +193,7 @@ private fun ExamsList(
         }
     }
 }
+
 @Composable
 private fun EmptyState(message: String, modifier: Modifier = Modifier) {
     Box(

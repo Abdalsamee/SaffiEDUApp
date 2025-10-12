@@ -17,5 +17,6 @@ data class ExamDetails(
 
 data class ExamDetailsState(
     val isLoading: Boolean = true,
-    val examDetails: ExamDetails? = null
+    val examDetails: ExamDetails? = null,
+    val error: String? = null
 )

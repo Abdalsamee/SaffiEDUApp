@@ -116,8 +116,8 @@ fun AddExamScreen(
                         TimePickerField(
                             selectedTime = state.examStartTime,
                             onTimeSelected = { hour, minute ->
-                                val formattedTime =
-                                    String.format("%02d:%02d", hour, minute) // مثال: "09:30"
+                                // 👇 هنا نضمن أن الوقت يُخزَّن بصيغة موحدة 24-ساعة
+                                val formattedTime = String.format(Locale.ENGLISH, "%02d:%02d", hour, minute)
                                 viewModel.onEvent(AddExamEvent.StartTimeChanged(formattedTime))
                             },
                             modifier = Modifier.fillMaxWidth(0.4f)
