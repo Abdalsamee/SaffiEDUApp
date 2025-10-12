@@ -5,6 +5,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.saffieduapp.presentation.screens.teacher.add_question.Choice
 import com.example.saffieduapp.presentation.screens.teacher.add_question.QuestionType
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -14,6 +16,7 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 
 sealed class ExamUiEvent {
@@ -49,67 +52,53 @@ class ExamViewModel @Inject constructor(
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true) }
 
-            // TODO: استدعاء Firebase هنا
-            delay(1000) // محاكاة التحميل
+            try {
+                val examDoc = FirebaseFirestore.getInstance()
+                    .collection("exams")
+                    .document(examId)
+                    .get()
+                    .await()
 
-            // بيانات تجريبية
-            val mockQuestions = listOf(
-                ExamQuestion(
-                    id = "q1",
-                    text = "هو طلب للمعلومة أو المعرفة أو البيانات، وهو أسلوب يستخدم لجمع المعلومات، أو طلب شيء، أو طلب تركيع أو طلب شيء؟",
-                    type = QuestionType.MULTIPLE_CHOICE_SINGLE,
-                    points = 1,
-                    choices = listOf(
-                        Choice(id = "c1", text = "الخيار الأول", isCorrect = true),
-                        Choice(id = "c2", text = "الخيار الثاني", isCorrect = false),
-                        Choice(id = "c3", text = "الخيار الثالث", isCorrect = false),
-                        Choice(id = "c4", text = "الخيار الرابع", isCorrect = false)
-                    )
-                ),
-                ExamQuestion(
-                    id = "q2",
-                    text = "اختر الإجابات الصحيحة من التالي؟",
-                    type = QuestionType.MULTIPLE_CHOICE_MULTIPLE,
-                    points = 2,
-                    choices = listOf(
-                        Choice(id = "c1", text = "الخيار الأول", isCorrect = true),
-                        Choice(id = "c2", text = "الخيار الثاني", isCorrect = true),
-                        Choice(id = "c3", text = "الخيار الثالث", isCorrect = false),
-                        Choice(id = "c4", text = "الخيار الرابع", isCorrect = false)
-                    )
-                ),
-                ExamQuestion(
-                    id = "q3",
-                    text = "هل العبارة التالية صحيحة؟",
-                    type = QuestionType.TRUE_FALSE,
-                    points = 1,
-                    choices = listOf(
-                        Choice(id = "c1", text = "صح", isCorrect = true),
-                        Choice(id = "c2", text = "خطأ", isCorrect = false)
-                    )
-                ),
-                ExamQuestion(
-                    id = "q4",
-                    text = "اكتب موضوعاً عن أهمية التعليم؟",
-                    type = QuestionType.ESSAY,
-                    points = 5,
-                    choices = emptyList()
-                )
-            )
+                val examData = examDoc.data ?: return@launch
 
-            _state.update {
-                it.copy(
-                    examId = examId,
-                    examTitle = "اختبار الوحدة الثانية",
-                    totalQuestions = mockQuestions.size,
-                    questions = mockQuestions,
-                    remainingTimeInSeconds = 180, // 2 دقيقة
-                    isLoading = false
-                )
+                // استخراج الأسئلة
+                val questions = (examData["questions"] as? List<Map<String, Any>>)?.map { q ->
+                    ExamQuestion(
+                        id = q["id"] as String,
+                        text = q["text"] as String,
+                        type = QuestionType.valueOf(q["type"] as String),
+                        points = (q["points"] as Long).toInt(),
+                        choices = (q["choices"] as? List<Map<String, Any>>)?.map { c ->
+                            Choice(
+                                id = c["id"] as String,
+                                text = c["text"] as String,
+                                isCorrect = c["isCorrect"] as Boolean
+                            )
+                        } ?: emptyList()
+                    )
+                } ?: emptyList()
+
+                // ضبط الوقت المتبقي بالدقائق إلى ثواني
+                val examTimeMinutes = (examData["examTime"] as Long).toInt()
+                val remainingTimeInSeconds = examTimeMinutes * 60
+
+                _state.update {
+                    it.copy(
+                        examTitle = examData["examTitle"] as String,
+                        totalQuestions = questions.size,
+                        questions = questions,
+                        remainingTimeInSeconds = remainingTimeInSeconds,
+                        isLoading = false
+                    )
+                }
+
+                // بدء المؤقت
+                startTimer()
+
+            } catch (e: Exception) {
+                _eventFlow.emit(ExamUiEvent.ShowToast("فشل تحميل الاختبار: ${e.message}"))
+                _state.update { it.copy(isLoading = false) }
             }
-
-            // بدء المؤقت
-            startTimer()
         }
     }
 
@@ -132,7 +121,11 @@ class ExamViewModel @Inject constructor(
     fun onEvent(event: ExamEvent) {
         when (event) {
             is ExamEvent.SelectSingleChoice -> selectSingleChoice(event.questionId, event.choiceId)
-            is ExamEvent.ToggleMultipleChoice -> toggleMultipleChoice(event.questionId, event.choiceId)
+            is ExamEvent.ToggleMultipleChoice -> toggleMultipleChoice(
+                event.questionId,
+                event.choiceId
+            )
+
             is ExamEvent.UpdateEssayAnswer -> updateEssayAnswer(event.questionId, event.text)
             is ExamEvent.NextQuestion -> nextQuestion()
             is ExamEvent.PreviousQuestion -> previousQuestion()
@@ -207,16 +200,105 @@ class ExamViewModel @Inject constructor(
     private fun submitExam() {
         viewModelScope.launch {
             _state.update { it.copy(isSubmitting = true) }
+            timerJob?.cancel()
 
-            timerJob?.cancel() // إيقاف المؤقت
+            val email = FirebaseAuth.getInstance().currentUser?.email
+            if (email.isNullOrEmpty()) {
+                _eventFlow.emit(ExamUiEvent.ShowToast("خطأ: لم يتم تسجيل الدخول"))
+                _state.update { it.copy(isSubmitting = false) }
+                return@launch
+            }
 
-            // TODO: إرسال الإجابات إلى Firebase
-            delay(1000) // محاكاة الإرسال
+            try {
 
-            _state.update { it.copy(isSubmitting = false) }
-            _eventFlow.emit(ExamUiEvent.ExamCompleted)
+                val userDoc = FirebaseFirestore.getInstance()
+                    .collection("students")
+                    .whereEqualTo("email", email)
+                    .get()
+                    .await()
+                    .documents
+                    .firstOrNull()
+
+                val studentId = userDoc?.id
+                if (studentId.isNullOrEmpty()) {
+                    _eventFlow.emit(ExamUiEvent.ShowToast("خطأ: لم يتم العثور على بيانات الطالب"))
+                    _state.update { it.copy(isSubmitting = false) }
+                    return@launch
+                }
+
+                val answersMap = _state.value.userAnswers.mapValues { entry ->
+                    when (val ans = entry.value) {
+                        is ExamAnswer.SingleChoice -> ans.choiceId
+                        is ExamAnswer.MultipleChoice -> ans.choiceIds
+                        is ExamAnswer.TrueFalse -> ans.choiceId
+                        is ExamAnswer.Essay -> ans.text
+                    }
+                }
+
+                // حفظ الإجابات باستخدام studentId الذي تم الحصول عليه من البريد
+                FirebaseFirestore.getInstance()
+                    .collection("exam_submissions")
+                    .document(_state.value.examId)
+                    .collection("submissions")
+                    .document(studentId)
+                    .set(
+                        mapOf(
+                            "answers" to answersMap,
+                            "submittedAt" to System.currentTimeMillis()
+                        )
+                    )
+                    .await()
+
+                _state.update { it.copy(isSubmitting = false) }
+                _eventFlow.emit(ExamUiEvent.ExamCompleted)
+
+            } catch (e: Exception) {
+                _state.update { it.copy(isSubmitting = false) }
+                _eventFlow.emit(ExamUiEvent.ShowToast("فشل تسليم الاختبار: ${e.message}"))
+            }
         }
     }
+
+    fun saveAnswersTemporarily() {
+        viewModelScope.launch {
+            val email = FirebaseAuth.getInstance().currentUser?.email ?: return@launch
+            try {
+                val userDoc = FirebaseFirestore.getInstance()
+                    .collection("students")
+                    .whereEqualTo("email", email)
+                    .get()
+                    .await()
+                    .documents
+                    .firstOrNull()
+
+                val studentId = userDoc?.id ?: return@launch
+
+                val answersMap = _state.value.userAnswers.mapValues { entry ->
+                    when (val ans = entry.value) {
+                        is ExamAnswer.SingleChoice -> ans.choiceId
+                        is ExamAnswer.MultipleChoice -> ans.choiceIds
+                        is ExamAnswer.TrueFalse -> ans.choiceId
+                        is ExamAnswer.Essay -> ans.text
+                    }
+                }
+
+                FirebaseFirestore.getInstance()
+                    .collection("exam_submissions")
+                    .document(_state.value.examId)
+                    .collection("drafts") // تخزين مؤقت
+                    .document(studentId)
+                    .set(
+                        mapOf(
+                            "answers" to answersMap,
+                            "savedAt" to System.currentTimeMillis()
+                        )
+                    ).await()
+            } catch (_: Exception) {
+                // يمكن تجاهل الأخطاء هنا أو تسجيلها
+            }
+        }
+    }
+
 
     override fun onCleared() {
         super.onCleared()
