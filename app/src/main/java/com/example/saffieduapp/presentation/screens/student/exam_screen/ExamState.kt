@@ -9,6 +9,8 @@ import com.example.saffieduapp.presentation.screens.teacher.add_question.Questio
 data class ExamState(
     val examId: String = "",
     val examTitle: String = "",
+    val examDate: String = "",
+    val examStartTime: String = "",
     val totalQuestions: Int = 0,
     val currentQuestionIndex: Int = 0,
     val questions: List<ExamQuestion> = emptyList(),
@@ -28,8 +30,7 @@ data class ExamQuestion(
     val type: QuestionType,
     val points: Int,
     val choices: List<Choice> = emptyList(), // فارغة للأسئلة المقالية
-    // TODO: للفايربيز - الإجابة الصحيحة (لن نستخدمها في الواجهة)
-    // val correctAnswer: Any? = null
+    val essayText: String = "" // 🔴 أضف هذا للحقول المقالية
 )
 
 /**
