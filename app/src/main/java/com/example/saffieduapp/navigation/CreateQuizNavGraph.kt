@@ -1,6 +1,8 @@
 package com.example.saffieduapp.navigation
 
 import android.annotation.SuppressLint
+import android.widget.Toast
+import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
@@ -68,7 +70,10 @@ fun NavGraphBuilder.createQuizNavGraph(navController: NavController) {
                 questions = questions,
                 onNavigateUp = { navController.popBackStack() },
                 onPublish = {
-                    navController.popBackStack(Routes.CREATE_QUIZ_GRAPH, inclusive = true)
+                    // ✅ العودة إلى شاشة المعلم الرئيسية بعد النشر
+                    navController.navigate(Routes.TEACHER_HOME_SCREEN) {
+                        popUpTo(Routes.TEACHER_HOME_SCREEN) { inclusive = true }
+                    }
                 }
             )
         }

@@ -1,5 +1,6 @@
 package com.example.saffieduapp.presentation.screens.student.exam_screen
 
+import android.util.Log
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -53,38 +54,91 @@ class ExamViewModel @Inject constructor(
             _state.update { it.copy(isLoading = true) }
 
             try {
+                if (examId.isBlank()) {
+                    Log.e("ExamViewModel", "loadExamData: examId فارغ")
+                    _eventFlow.emit(ExamUiEvent.ShowToast("خطأ: معرف الاختبار فارغ"))
+                    _state.update { it.copy(isLoading = false) }
+                    return@launch
+                }
+
                 val examDoc = FirebaseFirestore.getInstance()
                     .collection("exams")
                     .document(examId)
                     .get()
                     .await()
 
-                val examData = examDoc.data ?: return@launch
+                val examData = examDoc.data
+                if (examData == null) {
+                    Log.e("ExamViewModel", "loadExamData: لم يتم العثور على المستند examId=$examId")
+                    _eventFlow.emit(ExamUiEvent.ShowToast("خطأ: لم يتم العثور على بيانات الاختبار"))
+                    _state.update { it.copy(isLoading = false) }
+                    return@launch
+                }
 
-                // استخراج الأسئلة
-                val questions = (examData["questions"] as? List<Map<String, Any>>)?.map { q ->
-                    ExamQuestion(
-                        id = q["id"] as String,
-                        text = q["text"] as String,
-                        type = QuestionType.valueOf(q["type"] as String),
-                        points = (q["points"] as Long).toInt(),
-                        choices = (q["choices"] as? List<Map<String, Any>>)?.map { c ->
-                            Choice(
-                                id = c["id"] as String,
-                                text = c["text"] as String,
-                                isCorrect = c["isCorrect"] as Boolean
+                // examTitle
+                val examTitle = examData["examTitle"] as? String ?: examData["title"] as? String ?: "اختبار"
+
+                // استخراج الأسئلة بطريقة مرنة
+                val rawQuestions = examData["questions"] as? List<*> ?: emptyList<Any>()
+                val questions = rawQuestions.mapNotNull { item ->
+                    (item as? Map<*, *>)?.let { q ->
+                        try {
+                            val id = (q["id"] ?: q["questionId"] ?: q["uid"])?.toString() ?: return@let null
+                            val text = (q["text"] ?: q["questionText"])?.toString() ?: ""
+                            val typeStr = (q["type"] ?: "ESSAY").toString()
+                            val type = try {
+                                QuestionType.valueOf(typeStr)
+                            } catch (ex: Exception) {
+                                Log.w("ExamViewModel", "غير معروف QuestionType: $typeStr, افتراض ESSAY")
+                                QuestionType.ESSAY
+                            }
+                            val points = when (val p = q["points"]) {
+                                is Number -> p.toInt()
+                                is String -> p.toIntOrNull() ?: 0
+                                else -> 0
+                            }
+
+                            val rawChoices = q["choices"] as? List<*> ?: emptyList<Any>()
+                            val choices = rawChoices.mapNotNull { rc ->
+                                (rc as? Map<*, *>)?.let { c ->
+                                    val cid = (c["id"] ?: c["choiceId"])?.toString() ?: return@let null
+                                    val ctext = (c["text"] ?: c["choiceText"])?.toString() ?: ""
+                                    val isCorrect = when (val ic = c["isCorrect"]) {
+                                        is Boolean -> ic
+                                        is String -> ic.equals("true", ignoreCase = true)
+                                        is Number -> ic.toInt() != 0
+                                        else -> false
+                                    }
+                                    Choice(id = cid, text = ctext, isCorrect = isCorrect)
+                                }
+                            }
+
+                            ExamQuestion(
+                                id = id,
+                                text = text,
+                                type = type,
+                                points = points,
+                                choices = choices
                             )
-                        } ?: emptyList()
-                    )
-                } ?: emptyList()
+                        } catch (ex: Exception) {
+                            Log.e("ExamViewModel", "خطأ عند تحويل سؤال: ${ex.message}")
+                            null
+                        }
+                    }
+                }
 
-                // ضبط الوقت المتبقي بالدقائق إلى ثواني
-                val examTimeMinutes = (examData["examTime"] as Long).toInt()
+                // examTime قد يكون Long أو String
+                val examTimeMinutes = when (val t = examData["examTime"]) {
+                    is Number -> t.toInt()
+                    is String -> t.toIntOrNull() ?: 0
+                    else -> 0
+                }
                 val remainingTimeInSeconds = examTimeMinutes * 60
 
                 _state.update {
                     it.copy(
-                        examTitle = examData["examTitle"] as String,
+                        examId = examId,
+                        examTitle = examTitle,
                         totalQuestions = questions.size,
                         questions = questions,
                         remainingTimeInSeconds = remainingTimeInSeconds,
@@ -92,10 +146,17 @@ class ExamViewModel @Inject constructor(
                     )
                 }
 
+                // إذا وجدنا أسئلة فارغة نعرض تنبيه للمطور
+                if (questions.isEmpty()) {
+                    Log.w("ExamViewModel", "لا توجد أسئلة بعد التحويل - تحقق من هيكل البيانات في Firestore (examId=$examId)")
+                    _eventFlow.emit(ExamUiEvent.ShowToast("لا توجد أسئلة في الاختبار"))
+                }
+
                 // بدء المؤقت
                 startTimer()
 
             } catch (e: Exception) {
+                Log.e("ExamViewModel", "loadExamData error", e)
                 _eventFlow.emit(ExamUiEvent.ShowToast("فشل تحميل الاختبار: ${e.message}"))
                 _state.update { it.copy(isLoading = false) }
             }

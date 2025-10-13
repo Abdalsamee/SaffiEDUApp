@@ -1,11 +1,13 @@
 package com.example.saffieduapp.presentation.screens.teacher.quiz_summary
 
+import android.widget.Toast
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.saffieduapp.data.FireBase.Exam
@@ -85,10 +87,12 @@ fun QuizSummaryScreen(
                 }
             }
 
-
+            val context = LocalContext.current
             AppButton(
                 text = "نشر الاختبار",
                 onClick = {
+                    Toast.makeText(context, "تم نشر الاختبار بنجاح ✅", Toast.LENGTH_SHORT).show()
+
                     val exam = Exam(
                         className = examState.selectedClass,
                         examTitle = examState.examTitle,
@@ -103,11 +107,13 @@ fun QuizSummaryScreen(
                         createdAt = examState.createdAt,
                         questions = uiQuestions
                     )
+
                     viewModel.publishExam(
                         examData = exam,
                         onSuccess = { onPublish() },
                         onError = { message -> println("خطأ: $message") }
                     )
+
                 },
                 modifier = Modifier
                     .fillMaxWidth()
