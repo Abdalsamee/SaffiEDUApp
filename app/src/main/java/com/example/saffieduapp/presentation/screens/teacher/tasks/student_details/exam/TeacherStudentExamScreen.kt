@@ -20,6 +20,7 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.saffieduapp.presentation.screens.student.components.CommonTopAppBar
+import com.example.saffieduapp.presentation.screens.teacher.tasks.student_details.exam.components.ExamEvaluationSection
 import com.example.saffieduapp.presentation.screens.teacher.tasks.student_details.exam.components.StudentHeaderRow
 import com.example.saffieduapp.ui.theme.AppPrimary
 import com.example.saffieduapp.ui.theme.SaffiEDUAppTheme
@@ -55,6 +56,12 @@ fun TeacherStudentExamScreen(
                     studentName = studentName,
                     studentImageUrl = studentImageUrl,
                     onSaveClick = onSaveClick
+                )
+                ExamEvaluationSection(
+                    earnedScore = "15",
+                    totalScore = "20",
+                    onScoreChange = {},
+
                 )
 
             }
