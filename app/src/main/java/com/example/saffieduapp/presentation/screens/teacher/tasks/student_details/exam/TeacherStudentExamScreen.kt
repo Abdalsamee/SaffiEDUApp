@@ -69,7 +69,7 @@ fun TeacherStudentExamScreen(
                     onViewAnswersClick = viewModel::onViewAnswersClick
                 )
 
-                // 🔹 لاحقاً: سيتم هنا إضافة أقسام محاولات الغش والصور والفيديو
+
             }
         }
     }
@@ -79,6 +79,31 @@ fun TeacherStudentExamScreen(
 @Composable
 private fun PreviewTeacherStudentExamScreen() {
     SaffiEDUAppTheme {
-        TeacherStudentExamScreen()
+        Scaffold(topBar = { CommonTopAppBar(title = "نظام المراقبة") }) { innerPadding ->
+            Column(
+                modifier = Modifier
+                    .padding(innerPadding)
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                StudentHeaderRow(
+                    studentName = "يزن عادل ظهير",
+                    studentImageUrl = "https://randomuser.me/api/portraits/men/60.jpg",
+                    onSaveClick = {}
+                )
+                ExamEvaluationSection(
+                    earnedScore = "15",
+                    totalScore = "20",
+                    onScoreChange = {},
+                    answerStatus = "مكتملة",
+                    totalTime = "45 دقيقة",
+                    examStatus = "مستبعد",
+                    onViewAnswersClick = {}
+                )
+            }
+        }
     }
 }
+

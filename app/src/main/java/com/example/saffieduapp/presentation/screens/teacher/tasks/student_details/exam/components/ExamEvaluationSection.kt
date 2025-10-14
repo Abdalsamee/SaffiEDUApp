@@ -17,6 +17,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.saffieduapp.ui.theme.AppPrimary
 import com.example.saffieduapp.ui.theme.AppTextSecondary
+import com.example.saffieduapp.ui.theme.CardBackgroundColor
 
 @Composable
 fun ExamEvaluationSection(
@@ -28,35 +29,23 @@ fun ExamEvaluationSection(
     examStatus: String,
     onViewAnswersClick: () -> Unit
 ) {
-    Row(
+    Column(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.Top
+        verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        // العمود الأيمن: العناوين
-        Column(
-            verticalArrangement = Arrangement.spacedBy(20.dp),
-            horizontalAlignment = Alignment.End
+        // 🔹 الدرجة المستحقة
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("الدرجة المستحقة:", fontSize = 15.sp, color = AppTextSecondary)
-            Text("حالة الإجابات:", fontSize = 15.sp, color = AppTextSecondary)
-            Text("الوقت الكلي للمحاولة:", fontSize = 15.sp, color = AppTextSecondary)
-            Text("الحالة:", fontSize = 15.sp, color = AppTextSecondary)
-        }
+            Text("الدرجة المستحقة:", fontSize = 15.sp, color = Color.Black)
 
-        // العمود الأيسر: القيم الديناميكية
-        Column(
-            verticalArrangement = Arrangement.spacedBy(14.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-
-            // 🔹 إدخال الدرجة (digits only)
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
                     .background(Color.White, RoundedCornerShape(8.dp))
                     .padding(horizontal = 8.dp, vertical = 4.dp)
-                    .widthIn(min = 140.dp)
             ) {
                 OutlinedTextField(
                     value = earnedScore,
@@ -65,13 +54,10 @@ fun ExamEvaluationSection(
                         onScoreChange(filtered)
                     },
                     modifier = Modifier
-                        .width(70.dp)
-                        .height(45.dp),
+                        .width(70.dp),
                     singleLine = true,
                     shape = RoundedCornerShape(8.dp),
-                    keyboardOptions = KeyboardOptions(
-                        keyboardType = KeyboardType.Number
-                    ),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     textStyle = LocalTextStyle.current.copy(textAlign = TextAlign.Center),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = AppPrimary,
@@ -84,26 +70,42 @@ fun ExamEvaluationSection(
                 Text(
                     text = "من $totalScore",
                     color = AppTextSecondary,
-                    fontSize = 14.sp,
+                    fontSize = 16.sp,
                     fontWeight = FontWeight.Medium
                 )
             }
+        }
 
-            // 🔹 زر مشاهدة الإجابات
+        // 🔹 حالة الإجابات
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text("حالة الإجابات:", fontSize = 15.sp, color = Color.Black)
+
             Button(
                 onClick = onViewAnswersClick,
                 colors = ButtonDefaults.buttonColors(containerColor = AppPrimary),
                 shape = RoundedCornerShape(8.dp),
-                modifier = Modifier.width(150.dp)
+                modifier = Modifier.width(160.dp)
             ) {
-                Text("مشاهدة الإجابات", fontSize = 13.sp)
+                Text("مشاهدة الإجابات", fontSize = 11.sp, color = Color.White)
             }
+        }
 
-            // 🔹 الوقت الكلي للمحاولة
+        // 🔹 الوقت الكلي للمحاولة
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text("الوقت الكلي للمحاولة:", fontSize = 15.sp, color = Color.Black)
+
             Surface(
                 shape = RoundedCornerShape(8.dp),
-                color = Color(0xFFEAEAEA),
-                modifier = Modifier.width(150.dp)
+                color = CardBackgroundColor,
+                modifier = Modifier.width(160.dp)
             ) {
                 Box(
                     modifier = Modifier.padding(vertical = 10.dp),
@@ -112,12 +114,20 @@ fun ExamEvaluationSection(
                     Text(totalTime, fontSize = 14.sp)
                 }
             }
+        }
 
-            // 🔹 الحالة
+        // 🔹 الحالة
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text("الحالة:", fontSize = 15.sp, color = Color.Black)
+
             Surface(
                 shape = RoundedCornerShape(8.dp),
-                color = Color(0xFFEAEAEA),
-                modifier = Modifier.width(150.dp)
+                color = CardBackgroundColor,
+                modifier = Modifier.width(160.dp)
             ) {
                 Box(
                     modifier = Modifier.padding(vertical = 10.dp),
