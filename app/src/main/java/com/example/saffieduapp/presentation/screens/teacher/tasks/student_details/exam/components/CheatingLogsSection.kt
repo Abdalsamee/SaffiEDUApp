@@ -12,7 +12,9 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.saffieduapp.ui.theme.AppPrimary
+import com.example.saffieduapp.ui.theme.AppTextPrimary
 import com.example.saffieduapp.ui.theme.AppTextSecondary
+import com.example.saffieduapp.ui.theme.CardBackgroundColor
 
 @Composable
 fun CheatingLogsSection(
@@ -27,14 +29,13 @@ fun CheatingLogsSection(
             text = "محاولات الغش:",
             fontSize = 16.sp,
             fontWeight = FontWeight.Medium,
-            color = AppPrimary
+            color = AppTextPrimary
         )
 
         // 🔹 صندوق المحاولات
         Surface(
             shape = RoundedCornerShape(8.dp),
-            color = Color(0xFFE9F2FF), // أزرق فاتح جدًا
-            tonalElevation = 0.dp,
+            color = CardBackgroundColor,
             modifier = Modifier.fillMaxWidth()
         ) {
             Column(
@@ -47,14 +48,14 @@ fun CheatingLogsSection(
                     // في حال لا توجد محاولات
                     Text(
                         text = "لا توجد محاولات غش مسجلة.",
-                        color = AppTextSecondary,
+                        color = AppTextPrimary,
                         fontSize = 14.sp
                     )
                 } else {
                     logs.forEach { log ->
                         Text(
                             text = log,
-                            color = AppTextSecondary,
+                            color = AppTextPrimary,
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Normal
                         )
@@ -72,7 +73,13 @@ private fun PreviewCheatingLogsSection() {
         logs = listOf(
             "10:05 ص → خرج من التطبيق (تنبيه)",
             "10:15 ص → أوقف الكاميرا",
-            "10:20 ص → عودة للامتحان"
+            "10:20 ص → عودة للامتحان",
+            "10:05 ص → خرج من التطبيق (تنبيه)",
+            "10:15 ص → أوقف الكاميرا",
+            "10:05 ص → خرج من التطبيق (تنبيه)",
+            "10:15 ص → أوقف الكاميرا",
+            "10:05 ص → خرج من التطبيق (تنبيه)",
+            "10:15 ص → أوقف الكاميرا",
         )
     )
 }

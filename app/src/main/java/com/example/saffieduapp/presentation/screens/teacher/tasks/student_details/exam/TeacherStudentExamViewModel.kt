@@ -17,58 +17,83 @@ class TeacherStudentExamViewModel : ViewModel() {
         loadExamData()
     }
 
-    // 🔹 محاكاة تحميل بيانات الطالب والاختبار من Firebase
+    /**
+     * 🔹 تحميل بيانات الطالب والاختبار (محاكاة Firebase)
+     * لاحقًا: سيتم استبدال هذه الدالة بالاستدعاء الفعلي لـ Firestore.
+     */
     private fun loadExamData() {
         viewModelScope.launch {
-            delay(1000) // محاكاة تأخير الشبكة
-            _state.value = TeacherStudentExamState(
-                isLoading = false,
-                studentName = "يزن عادل ظهير",
-                studentImageUrl = "https://randomuser.me/api/portraits/men/60.jpg",
-                earnedScore = "15",
-                totalScore = "20",
-                answerStatus = "مكتملة",
-                totalTime = "45 دقيقة",
-                examStatus = "مستبعد",
-                cheatingLogs = listOf(
-                    "10:05 ص → خرج من التطبيق (تنبيه)",
-                    "10:15 ص → أوقف الكاميرا",
-                    "10:20 ص → عودة للامتحان"
-                ),
-                imageUrls = listOf(
-                    "https://picsum.photos/200/300",
-                    "https://picsum.photos/200/301",
-                    "https://picsum.photos/200/302"
-                ),
-                videoUrl = "https://cdn-icons-png.flaticon.com/512/1384/1384060.png"
-            )
+            try {
+                delay(1000) // محاكاة تأخير الشبكة أو التحميل
+
+                _state.value = TeacherStudentExamState(
+                    isLoading = false,
+                    studentName = "يزن عادل ظهير",
+                    studentImageUrl = "https://randomuser.me/api/portraits/men/60.jpg",
+                    earnedScore = 15,
+                    totalScore = 20,
+                    answerStatus = "مكتملة",
+                    totalTimeMinutes = 45,
+                    examStatus = ExamStatus.EXCLUDED,
+                    cheatingLogs = listOf(
+                        "10:05 ص → خرج من التطبيق (تنبيه)",
+                        "10:15 ص → أوقف الكاميرا",
+                        "10:20 ص → عودة للامتحان"
+                    ),
+                    imageUrls = listOf(
+                        "https://picsum.photos/200/300",
+                        "https://picsum.photos/200/301",
+                        "https://picsum.photos/200/302"
+                    ),
+                    videoUrl = "https://sample-videos.com/video123/mp4/720/big_buck_bunny_720p_1mb.mp4"
+                )
+
+            } catch (e: Exception) {
+                _state.update { it.copy(isLoading = false, errorMessage = e.message ?: "حدث خطأ أثناء تحميل البيانات") }
+            }
         }
     }
 
-    // 🔹 تعديل العلامة أثناء الكتابة
+    /**
+     * 🔹 تحديث درجة الطالب أثناء الكتابة
+     * يتم التحقق من إدخال أرقام صحيحة فقط
+     */
     fun onScoreChange(newScore: String) {
-        _state.update { it.copy(earnedScore = newScore) }
+        val numericValue = newScore.toIntOrNull() ?: 0
+        _state.update { it.copy(earnedScore = numericValue) }
     }
 
-    // 🔹 حفظ التقييم بعد إدخال الدرجة أو التعليق
+    /**
+     * 🔹 حفظ تقييم الطالب (لاحقًا سيتم ربطها بـ Firestore)
+     */
     fun onSaveExamEvaluation() {
-        // لاحقاً: حفظ في Firestore
-        println("✅ تم حفظ تقييم الطالب (${_state.value.studentName}) بنجاح.")
+        viewModelScope.launch {
+            println("✅ تم حفظ تقييم الطالب (${_state.value.studentName}) بنجاح.")
+            // TODO: حفظ في Firestore عبر collection("exam_submissions")
+        }
     }
 
-    // 🔹 عرض إجابات الطالب
+    /**
+     * 🔹 فتح شاشة عرض إجابات الطالب
+     */
     fun onViewAnswersClick() {
-        // لاحقاً: الانتقال إلى شاشة عرض الإجابات
         println("📄 عرض إجابات الطالب: ${_state.value.studentName}")
+        // TODO: navController.navigate(Routes.TEACHER_STUDENT_EXAM_ANSWERS)
     }
 
-    // 🔹 عرض صورة المراقبة داخل Dialog
+    /**
+     * 🔹 عند النقر على صورة مراقبة
+     */
     fun onImageClick(url: String) {
         println("🖼️ عرض الصورة: $url")
+        // TODO: فتح Dialog أو شاشة لعرض الصورة بالحجم الكامل
     }
 
-    // 🔹 تشغيل الفيديو داخل عارض خارجي
+    /**
+     * 🔹 عند النقر على الفيديو
+     */
     fun onVideoClick() {
         println("🎥 تشغيل الفيديو من الرابط: ${_state.value.videoUrl}")
+        // TODO: تشغيل الفيديو باستخدام ExoPlayer أو External Viewer
     }
 }
