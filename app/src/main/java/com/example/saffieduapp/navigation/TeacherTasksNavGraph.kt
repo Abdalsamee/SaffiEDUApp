@@ -9,6 +9,7 @@ import androidx.navigation.navigation
 import com.example.saffieduapp.presentation.screens.teacher.tasks.TeacherTasksScreen
 import com.example.saffieduapp.presentation.screens.teacher.tasks.details.TeacherTaskDetailsScreen
 import com.example.saffieduapp.presentation.screens.teacher.tasks.student_details.assignmnet.TeacherStudentAssignmentScreen
+import com.example.saffieduapp.presentation.screens.teacher.tasks.student_details.exam.TeacherStudentExamScreen
 
 
 fun NavGraphBuilder.teacherTasksNavGraph(navController: NavHostController) {
@@ -34,6 +35,19 @@ fun NavGraphBuilder.teacherTasksNavGraph(navController: NavHostController) {
             TeacherStudentAssignmentScreen(navController = navController)
         }
 
+        composable(
+            route = Routes.TEACHER_STUDENT_EXAM_ROUTE,
+            arguments = listOf(
+                navArgument("studentId") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val studentId = backStackEntry.arguments?.getString("studentId") ?: ""
+            TeacherStudentExamScreen(
+                navController = navController,
+                examId = "demoExam", // يمكنك لاحقاً تمرير معرف حقيقي
+                studentId = studentId
+            )
+        }
 
     }
 }

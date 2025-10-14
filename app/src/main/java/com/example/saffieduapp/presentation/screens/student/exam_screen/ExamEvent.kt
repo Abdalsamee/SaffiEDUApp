@@ -19,6 +19,7 @@ sealed interface ExamEvent {
      */
     data class UpdateEssayAnswer(val questionId: String, val text: String) : ExamEvent
 
+
     /**
      * الانتقال للسؤال التالي
      */

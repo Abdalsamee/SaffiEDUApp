@@ -8,7 +8,7 @@ enum class QuestionType(val displayName: String) {
     MULTIPLE_CHOICE_SINGLE("اختيار من متعدد (إجابة واحدة)"),
     MULTIPLE_CHOICE_MULTIPLE("اختيار من متعدد (عدة إجابات)"),
     TRUE_FALSE("صح وخطأ"),
-    ESSAY("سؤال مقالي")
+    ESSAY("سؤال مقالي"),
 }
 
 data class Choice(

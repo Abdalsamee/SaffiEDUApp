@@ -1,5 +1,6 @@
 package com.example.saffieduapp.presentation.screens.student.exam_screen
 
+import android.util.Log
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -25,6 +26,7 @@ sealed class ExamUiEvent {
     data object TimeExpired : ExamUiEvent()
 }
 
+@Suppress("DUPLICATE_BRANCH_CONDITION_IN_WHEN")
 @HiltViewModel
 class ExamViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle
@@ -45,59 +47,172 @@ class ExamViewModel @Inject constructor(
     }
 
     /**
-     * TODO: تحميل بيانات الاختبار من Firebase
-     * هذه بيانات تجريبية ووهمية - سيتم استبدالها بمطور Firebase
+     * تحميل بيانات الاختبار من Firebase Firestore مع التصحيح لنوع الأسئلة
      */
     private fun loadExamData() {
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true) }
 
             try {
+                if (examId.isBlank()) {
+                    Log.e("ExamViewModel", "loadExamData: examId فارغ")
+                    _eventFlow.emit(ExamUiEvent.ShowToast("خطأ: معرف الاختبار فارغ"))
+                    _state.update { it.copy(isLoading = false) }
+                    return@launch
+                }
+
+                // جلب بيانات الاختبار
                 val examDoc = FirebaseFirestore.getInstance()
                     .collection("exams")
                     .document(examId)
                     .get()
                     .await()
 
-                val examData = examDoc.data ?: return@launch
+                if (!examDoc.exists()) {
+                    Log.e("ExamViewModel", "المستند غير موجود: examId=$examId")
+                    _eventFlow.emit(ExamUiEvent.ShowToast("خطأ: لم يتم العثور على بيانات الاختبار"))
+                    _state.update { it.copy(isLoading = false) }
+                    return@launch
+                }
 
-                // استخراج الأسئلة
-                val questions = (examData["questions"] as? List<Map<String, Any>>)?.map { q ->
-                    ExamQuestion(
-                        id = q["id"] as String,
-                        text = q["text"] as String,
-                        type = QuestionType.valueOf(q["type"] as String),
-                        points = (q["points"] as Long).toInt(),
-                        choices = (q["choices"] as? List<Map<String, Any>>)?.map { c ->
-                            Choice(
-                                id = c["id"] as String,
-                                text = c["text"] as String,
-                                isCorrect = c["isCorrect"] as Boolean
+                val examData = examDoc.data
+                Log.d("ExamDebug", "Exam Data: $examData")
+
+                // استخراج البيانات الأساسية
+                val examTitle = examData?.get("examTitle") as? String ?: "اختبار بدون عنوان"
+                val examDate = examData?.get("examDate") as? String ?: ""
+                val examStartTime = examData?.get("examStartTime") as? String ?: ""
+
+                // وقت الاختبار
+                val examTimeMinutes = when (val t = examData?.get("examTime")) {
+                    is Number -> t.toInt()
+                    is String -> t.toIntOrNull() ?: 60
+                    else -> 60
+                }
+
+                // قراءة الأسئلة بشكل صحيح
+                val rawQuestions = examData?.get("questions") as? List<Map<String, Any>> ?: emptyList()
+                Log.d("ExamDebug", "عدد الأسئلة: ${rawQuestions.size}")
+
+                val questions = rawQuestions.mapIndexed { index, questionMap ->
+                    try {
+                        // استخراج بيانات السؤال الأساسية
+                        val id = questionMap["id"]?.toString() ?: "q_$index"
+                        val text = questionMap["text"]?.toString() ?: "سؤال بدون نص"
+
+                        // 🔴 التصحيح الهام: تحويل نوع السؤال من Firestore إلى QuestionType
+                        val typeStr = (questionMap["type"] as? String) ?: "ESSAY"
+                        val type = convertToQuestionType(typeStr)
+
+                        // النقاط
+                        val points = when (val p = questionMap["points"]) {
+                            is Number -> p.toInt()
+                            is String -> p.toIntOrNull() ?: 1
+                            else -> 1
+                        }
+
+                        // معالجة الخيارات بناءً على نوع السؤال
+                        val choices = mutableListOf<Choice>()
+
+                        if (type == QuestionType.MULTIPLE_CHOICE_SINGLE ||
+                            type == QuestionType.MULTIPLE_CHOICE_MULTIPLE ||
+                            type == QuestionType.TRUE_FALSE) {
+
+                            val rawChoices = questionMap["choices"] as? List<Map<String, Any>> ?: emptyList()
+
+                            rawChoices.forEachIndexed { choiceIndex, choiceMap ->
+                                val choiceId = choiceMap["id"]?.toString() ?: "c_${index}_${choiceIndex}"
+                                val choiceText = choiceMap["text"]?.toString() ?: "خيار بدون نص"
+                                val isCorrect = when (val ic = choiceMap["isCorrect"]) {
+                                    is Boolean -> ic
+                                    is String -> ic.equals("true", ignoreCase = true)
+                                    is Number -> ic.toInt() != 0
+                                    else -> false
+                                }
+                                choices.add(Choice(id = choiceId, text = choiceText, isCorrect = isCorrect))
+                            }
+                        }
+
+                        // 🔴 معالجة TRUE_FALSE - إنشاء خيارات افتراضية إذا لم توجد
+                        if (type == QuestionType.TRUE_FALSE && choices.isEmpty()) {
+                            choices.addAll(
+                                listOf(
+                                    Choice(id = "true_$index", text = "صحيح", isCorrect = true),
+                                    Choice(id = "false_$index", text = "خطأ", isCorrect = false)
+                                )
                             )
-                        } ?: emptyList()
-                    )
-                } ?: emptyList()
+                        }
 
-                // ضبط الوقت المتبقي بالدقائق إلى ثواني
-                val examTimeMinutes = (examData["examTime"] as Long).toInt()
-                val remainingTimeInSeconds = examTimeMinutes * 60
+                        // معالجة الإجابة المقالية إذا كانت موجودة
+                        val essayAnswer = questionMap["essayAnswer"] as? Map<String, Any>
+                        val essayText = essayAnswer?.get("text") as? String ?: ""
 
+                        // إنشاء كائن السؤال
+                        ExamQuestion(
+                            id = id,
+                            text = text,
+                            type = type,
+                            points = points,
+                            choices = choices,
+                            essayText = essayText
+                        )
+                    } catch (e: Exception) {
+                        Log.e("ExamViewModel", "خطأ في معالجة السؤال $index: ${e.message}")
+                        e.printStackTrace()
+                        // سؤال افتراضي في حالة الخطأ
+                        ExamQuestion(
+                            id = "error_$index",
+                            text = "سؤال غير صالح: ${e.message}",
+                            type = QuestionType.ESSAY,
+                            points = 0,
+                            choices = emptyList()
+                        )
+                    }
+                }.filter { it.text != "سؤال غير صالح" } // تصفية الأسئلة الفاشلة
+
+                // تحديث الحالة
                 _state.update {
                     it.copy(
-                        examTitle = examData["examTitle"] as String,
+                        examId = examId,
+                        examTitle = examTitle,
+                        examDate = examDate,
+                        examStartTime = examStartTime,
                         totalQuestions = questions.size,
                         questions = questions,
-                        remainingTimeInSeconds = remainingTimeInSeconds,
+                        remainingTimeInSeconds = examTimeMinutes * 60,
                         isLoading = false
                     )
                 }
 
-                // بدء المؤقت
-                startTimer()
+                Log.d("ExamDebug", "تم تحميل ${questions.size} سؤال بنجاح")
+                Log.d("ExamDebug", "أنواع الأسئلة: ${questions.map { it.type }}")
+
+                if (questions.isEmpty()) {
+                    _eventFlow.emit(ExamUiEvent.ShowToast("لا توجد أسئلة في الاختبار"))
+                } else {
+                    startTimer()
+                }
 
             } catch (e: Exception) {
+                Log.e("ExamViewModel", "خطأ في تحميل بيانات الاختبار", e)
                 _eventFlow.emit(ExamUiEvent.ShowToast("فشل تحميل الاختبار: ${e.message}"))
                 _state.update { it.copy(isLoading = false) }
+            }
+        }
+    }
+
+    /**
+     * 🔴 دالة مساعدة لتحويل نوع السؤال من String إلى QuestionType
+     */
+    private fun convertToQuestionType(typeStr: String): QuestionType {
+        return when (typeStr.uppercase()) {
+            "MULTIPLE_CHOICE_SINGLE", "MULTIPLE_CHOICE" -> QuestionType.MULTIPLE_CHOICE_SINGLE
+            "MULTIPLE_CHOICE_MULTIPLE" -> QuestionType.MULTIPLE_CHOICE_MULTIPLE
+            "TRUE_FALSE", "TRUE_FALSE" -> QuestionType.TRUE_FALSE
+            "ESSAY" -> QuestionType.ESSAY
+            else -> {
+                Log.w("ExamViewModel", "نوع سؤال غير معروف: $typeStr, استخدام ESSAY كافتراضي")
+                QuestionType.ESSAY
             }
         }
     }
@@ -112,7 +227,6 @@ class ExamViewModel @Inject constructor(
                 delay(1000)
                 onEvent(ExamEvent.TickTimer)
             }
-            // انتهى الوقت
             _eventFlow.emit(ExamUiEvent.TimeExpired)
             submitExam()
         }
@@ -121,12 +235,9 @@ class ExamViewModel @Inject constructor(
     fun onEvent(event: ExamEvent) {
         when (event) {
             is ExamEvent.SelectSingleChoice -> selectSingleChoice(event.questionId, event.choiceId)
-            is ExamEvent.ToggleMultipleChoice -> toggleMultipleChoice(
-                event.questionId,
-                event.choiceId
-            )
-
+            is ExamEvent.ToggleMultipleChoice -> toggleMultipleChoice(event.questionId, event.choiceId)
             is ExamEvent.UpdateEssayAnswer -> updateEssayAnswer(event.questionId, event.text)
+            is ExamEvent.SelectSingleChoice -> updateTrueFalseAnswer(event.questionId, event.choiceId)
             is ExamEvent.NextQuestion -> nextQuestion()
             is ExamEvent.PreviousQuestion -> previousQuestion()
             is ExamEvent.GoToQuestion -> goToQuestion(event.index)
@@ -139,6 +250,7 @@ class ExamViewModel @Inject constructor(
         val newAnswers = _state.value.userAnswers.toMutableMap()
         newAnswers[questionId] = ExamAnswer.SingleChoice(choiceId)
         _state.update { it.copy(userAnswers = newAnswers) }
+        saveAnswersTemporarily()
     }
 
     private fun toggleMultipleChoice(questionId: String, choiceId: String) {
@@ -154,12 +266,21 @@ class ExamViewModel @Inject constructor(
         val newAnswers = _state.value.userAnswers.toMutableMap()
         newAnswers[questionId] = ExamAnswer.MultipleChoice(newIds)
         _state.update { it.copy(userAnswers = newAnswers) }
+        saveAnswersTemporarily()
     }
 
     private fun updateEssayAnswer(questionId: String, text: String) {
         val newAnswers = _state.value.userAnswers.toMutableMap()
         newAnswers[questionId] = ExamAnswer.Essay(text)
         _state.update { it.copy(userAnswers = newAnswers) }
+        saveAnswersTemporarily()
+    }
+
+    private fun updateTrueFalseAnswer(questionId: String, choiceId: String) {
+        val newAnswers = _state.value.userAnswers.toMutableMap()
+        newAnswers[questionId] = ExamAnswer.TrueFalse(choiceId)
+        _state.update { it.copy(userAnswers = newAnswers) }
+        saveAnswersTemporarily()
     }
 
     private fun nextQuestion() {
@@ -210,7 +331,6 @@ class ExamViewModel @Inject constructor(
             }
 
             try {
-
                 val userDoc = FirebaseFirestore.getInstance()
                     .collection("students")
                     .whereEqualTo("email", email)
@@ -235,7 +355,7 @@ class ExamViewModel @Inject constructor(
                     }
                 }
 
-                // حفظ الإجابات باستخدام studentId الذي تم الحصول عليه من البريد
+                // حفظ الإجابات النهائية
                 FirebaseFirestore.getInstance()
                     .collection("exam_submissions")
                     .document(_state.value.examId)
@@ -244,7 +364,9 @@ class ExamViewModel @Inject constructor(
                     .set(
                         mapOf(
                             "answers" to answersMap,
-                            "submittedAt" to System.currentTimeMillis()
+                            "submittedAt" to System.currentTimeMillis(),
+                            "studentId" to studentId,
+                            "examId" to _state.value.examId
                         )
                     )
                     .await()
@@ -285,23 +407,24 @@ class ExamViewModel @Inject constructor(
                 FirebaseFirestore.getInstance()
                     .collection("exam_submissions")
                     .document(_state.value.examId)
-                    .collection("drafts") // تخزين مؤقت
+                    .collection("drafts")
                     .document(studentId)
                     .set(
                         mapOf(
                             "answers" to answersMap,
-                            "savedAt" to System.currentTimeMillis()
+                            "savedAt" to System.currentTimeMillis(),
+                            "studentId" to studentId
                         )
                     ).await()
             } catch (_: Exception) {
-                // يمكن تجاهل الأخطاء هنا أو تسجيلها
+                // تجاهل الأخطاء في الحفظ المؤقت
             }
         }
     }
 
-
     override fun onCleared() {
         super.onCleared()
         timerJob?.cancel()
+        saveAnswersTemporarily()
     }
 }
