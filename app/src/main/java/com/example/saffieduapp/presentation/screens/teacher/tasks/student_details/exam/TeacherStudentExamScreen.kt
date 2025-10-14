@@ -2,37 +2,27 @@ package com.example.saffieduapp.presentation.screens.teacher.tasks.student_detai
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.platform.LocalLayoutDirection
-import androidx.compose.ui.unit.LayoutDirection
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
-import coil.compose.AsyncImage
 import com.example.saffieduapp.presentation.screens.student.components.CommonTopAppBar
 import com.example.saffieduapp.presentation.screens.teacher.tasks.student_details.exam.components.ExamEvaluationSection
 import com.example.saffieduapp.presentation.screens.teacher.tasks.student_details.exam.components.StudentHeaderRow
-import com.example.saffieduapp.ui.theme.AppPrimary
 import com.example.saffieduapp.ui.theme.SaffiEDUAppTheme
 
 @Composable
 fun TeacherStudentExamScreen(
     navController: NavController? = null,
-    // لاحقًا ستمرر القيم الحقيقية من الـ ViewModel
-    studentName: String = "يزن عادل ظهير",
-    studentImageUrl: String = "https://randomuser.me/api/portraits/men/60.jpg",
-    onSaveClick: () -> Unit = {}
+    viewModel: TeacherStudentExamViewModel = hiltViewModel()
 ) {
+    val state by viewModel.state.collectAsState()
+
     Scaffold(
         topBar = {
             CommonTopAppBar(
@@ -41,7 +31,18 @@ fun TeacherStudentExamScreen(
             )
         }
     ) { innerPadding ->
-
+        if (state.isLoading) {
+            // 🔹 أثناء التحميل
+            Box(
+                modifier = Modifier
+                    .padding(innerPadding)
+                    .fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator()
+            }
+        } else {
+            // 🔹 المحتوى الرئيسي
             Column(
                 modifier = Modifier
                     .padding(innerPadding)
@@ -50,30 +51,33 @@ fun TeacherStudentExamScreen(
                     .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-
-                // الصف المطلوب: صورة → بطاقة اسم → زر حفظ
+                // 🔹 الصف العلوي (صورة الطالب + الاسم + زر الحفظ)
                 StudentHeaderRow(
-                    studentName = studentName,
-                    studentImageUrl = studentImageUrl,
-                    onSaveClick = onSaveClick
+                    studentName = state.studentName,
+                    studentImageUrl = state.studentImageUrl,
+                    onSaveClick = viewModel::onSaveExamEvaluation
                 )
+
+                // 🔹 قسم التقييم (الدرجة، الإجابات، الوقت، الحالة)
                 ExamEvaluationSection(
-                    earnedScore = "15",
-                    totalScore = "20",
-                    onScoreChange = {},
-
+                    earnedScore = state.earnedScore,
+                    totalScore = state.totalScore,
+                    onScoreChange = viewModel::onScoreChange,
+                    answerStatus = state.answerStatus,
+                    totalTime = state.totalTime,
+                    examStatus = state.examStatus,
+                    onViewAnswersClick = viewModel::onViewAnswersClick
                 )
 
+                // 🔹 لاحقاً: سيتم هنا إضافة أقسام محاولات الغش والصور والفيديو
             }
         }
     }
-
-
-
+}
 
 @Preview(showBackground = true, showSystemUi = true, locale = "ar")
 @Composable
-private fun PreviewTeacherStudentExamScreen_HeaderOnly() {
+private fun PreviewTeacherStudentExamScreen() {
     SaffiEDUAppTheme {
         TeacherStudentExamScreen()
     }
