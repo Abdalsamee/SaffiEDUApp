@@ -2,23 +2,18 @@ package com.example.saffieduapp.presentation.screens.teacher.tasks.student_detai
 
 data class TeacherStudentExamState(
     val isLoading: Boolean = false,
-
-    // معلومات الطالب
     val studentName: String = "",
-    val studentAvatarUrl: String? = null,
+    val studentImage: String? = null,
 
-    // معلومات النتيجة/المحاولة
-    val earnedScore: String = "",       // مثال: "15 من 20"
-    val answersStatus: String = "",     // مثال: "مكتملة" / "غير مكتملة"
-    val totalAttemptTime: String = "",  // مثال: "45 دقيقة"
-    val overallStatus: String = "",     // مثال: "نشط" أو "مستبعد"
+    val earnedScore: String = "",
+    val totalScore: String = "",
+    val answerStatus: String = "",
+    val totalTime: String = "",
+    val examStatus: String = "",
 
-    // محاولات الغش
-    val cheatingLogs: List<String> = emptyList(), // مثال: ["10:05 ص - خرج من التطبيق (تنبيه)", "10:15 ص - أوقف الكاميرا"]
-
-    // الوسائط
-    val photoShots: List<String> = emptyList(),   // روابط صور المراقبة
-    val videoShots: List<String> = emptyList(),   // روابط فيديو المراقبة
+    val cheatingLogs: List<String> = emptyList(),
+    val imageUrls: List<String> = emptyList(),
+    val videoUrl: String? = null,
 
     val errorMessage: String? = null
 )
