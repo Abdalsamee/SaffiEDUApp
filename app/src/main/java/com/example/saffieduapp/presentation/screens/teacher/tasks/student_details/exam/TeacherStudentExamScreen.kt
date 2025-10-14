@@ -89,7 +89,9 @@ fun TeacherStudentExamScreen(
                             ExamStatus.IN_PROGRESS -> "قيد التقدم"
                             ExamStatus.EXCLUDED -> "مستبعد"
                         },
-                        onViewAnswersClick = viewModel::onViewAnswersClick
+                        onViewAnswersClick = {
+                            navController?.navigate("teacher_student_exam_answers_screen/${state.studentName}")
+                        }
                     )
 
                     // 🔹 قسم محاولات الغش
@@ -110,68 +112,3 @@ fun TeacherStudentExamScreen(
     }
 }
 
-@Preview(showBackground = true, showSystemUi = true, locale = "ar")
-@Composable
-private fun PreviewTeacherStudentExamScreen() {
-    SaffiEDUAppTheme {
-        TeacherStudentExamScreen_PreviewOnly()
-    }
-}
-
-@Composable
-private fun TeacherStudentExamScreen_PreviewOnly() {
-    val fakeState = TeacherStudentExamState(
-        isLoading = false,
-        studentName = "يزن عادل ظهير",
-        studentImageUrl = "https://randomuser.me/api/portraits/men/60.jpg",
-        earnedScore = 15,
-        totalScore = 20,
-        answerStatus = "مكتملة",
-        totalTimeMinutes = 45,
-        examStatus = ExamStatus.EXCLUDED,
-        cheatingLogs = listOf(
-            "10:05 ص → خرج من التطبيق (تنبيه)",
-            "10:15 ص → أوقف الكاميرا",
-            "10:20 ص → عودة للامتحان"
-        ),
-        imageUrls = listOf(
-            "https://picsum.photos/200/300",
-            "https://picsum.photos/200/301"
-        ),
-        videoUrl = "https://sample-videos.com/video123/mp4/720/big_buck_bunny_720p_1mb.mp4"
-    )
-
-    Scaffold(topBar = { CommonTopAppBar(title = "نظام المراقبة") }) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .padding(innerPadding)
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(20.dp)
-        ) {
-            StudentHeaderRow(
-                studentName = fakeState.studentName,
-                studentImageUrl = fakeState.studentImageUrl ?: "",
-                onSaveClick = {}
-            )
-
-            ExamEvaluationSection(
-                earnedScore = fakeState.earnedScore.toString(),
-                totalScore = fakeState.totalScore.toString(),
-                onScoreChange = {},
-                answerStatus = fakeState.answerStatus,
-                totalTime = "${fakeState.totalTimeMinutes} دقيقة",
-                examStatus = "مستبعد",
-                onViewAnswersClick = {}
-            )
-
-            CheatingLogsSection(logs = fakeState.cheatingLogs)
-
-            ExamMediaSection(
-                imageUrls = fakeState.imageUrls ?: emptyList(),
-                videoUrl = fakeState.videoUrl
-            )
-        }
-    }
-}

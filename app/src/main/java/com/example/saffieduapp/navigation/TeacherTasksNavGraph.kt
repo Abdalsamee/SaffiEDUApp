@@ -10,6 +10,7 @@ import com.example.saffieduapp.presentation.screens.teacher.tasks.TeacherTasksSc
 import com.example.saffieduapp.presentation.screens.teacher.tasks.details.TeacherTaskDetailsScreen
 import com.example.saffieduapp.presentation.screens.teacher.tasks.student_details.assignmnet.TeacherStudentAssignmentScreen
 import com.example.saffieduapp.presentation.screens.teacher.tasks.student_details.exam.TeacherStudentExamScreen
+import com.example.saffieduapp.presentation.screens.teacher.tasks.student_details.exam_answers.TeacherStudentExamAnswersScreen
 
 
 fun NavGraphBuilder.teacherTasksNavGraph(navController: NavHostController) {
@@ -47,6 +48,14 @@ fun NavGraphBuilder.teacherTasksNavGraph(navController: NavHostController) {
                 examId = "demoExam", // يمكنك لاحقاً تمرير معرف حقيقي
                 studentId = studentId
             )
+        }
+
+        composable(
+            route = Routes.TEACHER_STUDENT_EXAM_ANSWERS_SCREEN_WITH_ARGS,
+            arguments = listOf(navArgument("studentId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val studentId = backStackEntry.arguments?.getString("studentId") ?: ""
+            TeacherStudentExamAnswersScreen()
         }
 
     }

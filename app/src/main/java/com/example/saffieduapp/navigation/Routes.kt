@@ -58,5 +58,7 @@ object Routes {
     const val TEACHER_STUDENT_ASSIGNMENT_SCREEN = "teacher_student_assignment_screen"
     const val TEACHER_STUDENT_EXAM_SCREEN = "teacher_student_exam_screen"
     const val TEACHER_STUDENT_EXAM_ROUTE = "$TEACHER_STUDENT_EXAM_SCREEN/{studentId}"
+    const val TEACHER_STUDENT_EXAM_ANSWERS_SCREEN_WITH_ARGS =
+        "teacher_student_exam_answers_screen/{studentId}"
 
 }
