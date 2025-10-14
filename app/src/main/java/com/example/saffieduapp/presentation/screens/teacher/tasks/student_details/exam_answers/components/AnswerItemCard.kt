@@ -11,6 +11,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.saffieduapp.presentation.screens.teacher.tasks.student_details.exam_answers.StudentAnswer
+import com.example.saffieduapp.ui.theme.AppAlert
 import com.example.saffieduapp.ui.theme.AppPrimary
 
 @Composable
@@ -43,7 +44,7 @@ fun AnswerItemCard(
         Box {
             Button(
                 onClick = { expanded = true },
-                colors = ButtonDefaults.buttonColors(containerColor = AppPrimary),
+                colors = ButtonDefaults.buttonColors(containerColor = AppAlert),
                 shape = RoundedCornerShape(8.dp),
                 modifier = Modifier.width(90.dp).height(40.dp)
             ) {
