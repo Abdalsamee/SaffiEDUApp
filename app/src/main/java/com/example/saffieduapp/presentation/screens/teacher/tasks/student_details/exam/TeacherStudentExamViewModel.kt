@@ -13,14 +13,12 @@ class TeacherStudentExamViewModel : ViewModel() {
     val state: StateFlow<TeacherStudentExamState> = _state
 
     init {
-        // تحميل البيانات التجريبية
         loadExamData()
     }
 
     private fun loadExamData() {
         viewModelScope.launch {
             delay(1000) // محاكاة تحميل البيانات من Firebase
-
             _state.value = TeacherStudentExamState(
                 isLoading = false,
                 studentName = "يزن عادل ظهير",
@@ -45,21 +43,11 @@ class TeacherStudentExamViewModel : ViewModel() {
         }
     }
 
-    fun onSaveExamEvaluation() {
-        viewModelScope.launch {
-            // هنا مستقبلاً سنربط مع Firebase لتخزين التقييم
-        }
-    }
+    fun onSaveExamEvaluation() { /* لاحقاً: حفظ التقييم */ }
 
-    fun onViewAnswers() {
-        // هنا يمكن فتح صفحة الإجابات أو إظهار Dialog
-    }
+    fun onViewAnswersClick() { /* لاحقاً: عرض الإجابات */ }
 
-    fun onImageClick(url: String) {
-        // هنا يمكن فتح الصورة داخل Dialog مكبّرة
-    }
+    fun onImageClick(url: String) { /* لاحقاً: عرض الصورة داخل Dialog */ }
 
-    fun onVideoClick() {
-        // فتح الفيديو عبر Intent أو مشغل داخلي
-    }
+    fun onVideoClick() { /* لاحقاً: تشغيل الفيديو */ }
 }
