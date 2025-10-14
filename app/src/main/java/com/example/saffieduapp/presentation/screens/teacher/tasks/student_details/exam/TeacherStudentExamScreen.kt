@@ -18,6 +18,8 @@ import com.example.saffieduapp.ui.theme.SaffiEDUAppTheme
 @Composable
 fun TeacherStudentExamScreen(
     navController: NavController? = null,
+    examId: String = "",
+    studentId: String = "",
     viewModel: TeacherStudentExamViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()

@@ -69,7 +69,9 @@ fun TeacherTaskDetailsScreen(
                             score = student.score,
                             imageUrl = student.imageUrl,
                             onDetailsClick = {
-                                navController.navigate(Routes.TEACHER_STUDENT_ASSIGNMENT_SCREEN)
+
+                                navController.navigate("${Routes.TEACHER_STUDENT_EXAM_SCREEN}/${student.id}")
+                                //navController.navigate(Routes.TEACHER_STUDENT_ASSIGNMENT_SCREEN)
                             }
                         )
                     }
