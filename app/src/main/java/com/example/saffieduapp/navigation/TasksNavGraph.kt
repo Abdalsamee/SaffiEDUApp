@@ -9,7 +9,9 @@ import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import androidx.navigation.navigation
 import com.example.saffieduapp.presentation.screens.student.assignment_details.AssignmentDetailsScreen
+import com.example.saffieduapp.presentation.screens.student.assignment_result.StudentAssignmentResultScreen
 import com.example.saffieduapp.presentation.screens.student.exam_details.ExamDetailsScreen
+import com.example.saffieduapp.presentation.screens.student.exam_result.StudentExamResultScreen
 import com.example.saffieduapp.presentation.screens.student.exam_screen.ExamActivity
 import com.example.saffieduapp.presentation.screens.student.submit_assignment.SubmitAssignmentScreen
 import com.example.saffieduapp.presentation.screens.student.tasks.TasksScreen
@@ -66,5 +68,35 @@ fun NavGraphBuilder.tasksNavGraph(navController: NavController) {
         ) {
             SubmitAssignmentScreen(onNavigateUp = { navController.popBackStack() })
         }
+
+
+        composable(
+            route = "${Routes.STUDENT_ASSIGNMENT_RESULT_SCREEN}/{assignmentId}",
+            arguments = listOf(navArgument("assignmentId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val assignmentId = backStackEntry.arguments?.getString("assignmentId") ?: ""
+            StudentAssignmentResultScreen(
+                navController = navController,
+                assignmentId = assignmentId,
+                onNavigateUp = { navController.popBackStack() }
+            )
+        }
+
+        // شاشة نتيجة الاختبار
+        composable(
+            route = "${Routes.STUDENT_EXAM_RESULT_SCREEN}/{examId}",
+            arguments = listOf(navArgument("examId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val examId = backStackEntry.arguments?.getString("examId") ?: ""
+            StudentExamResultScreen(
+                navController = navController,
+                examId = examId,
+                onNavigateUp = { navController.popBackStack() }
+            )
+        }
+
+
+
+
     }
 }

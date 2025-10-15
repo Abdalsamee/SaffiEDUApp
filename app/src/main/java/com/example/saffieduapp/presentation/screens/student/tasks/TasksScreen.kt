@@ -66,17 +66,50 @@ fun TasksScreen(
                     AssignmentsList(
                         assignmentsByDate = state.assignmentsByDate,
                         onAssignmentClick = { assignmentId ->
-                            navController.navigate("${Routes.ASSIGNMENT_DETAILS_SCREEN}/$assignmentId")
+                            val assignment = viewModel.getAssignmentById(assignmentId)
+                            assignment?.let {
+                                when (it.status) {
+                                    AssignmentStatus.SUBMITTED -> {
+                                        navController.navigate("${Routes.SUBMIT_ASSIGNMENT_SCREEN}/$assignmentId")
+                                    }
+                                    AssignmentStatus.EXPIRED, AssignmentStatus.LATE -> {
+                                        navController.navigate("${Routes.ASSIGNMENT_DETAILS_SCREEN}/$assignmentId")
+                                    }
+                                    AssignmentStatus.PENDING -> {
+                                        navController.navigate("${Routes.ASSIGNMENT_DETAILS_SCREEN}/$assignmentId")
+                                    }
+                                }
+                            }
+
+
                         }
                     )
+
 
                 } else {
                     ExamsList(
                         examsByDate = state.examsByDate,
                         onExamClick = { examId ->
-                            navController.navigate("${Routes.EXAM_DETAILS_SCREEN}/$examId")
+                            val exam = viewModel.getExamById(examId)
+
+                            exam?.let {
+                                when (exam.status) {
+                                    ExamStatus.COMPLETED -> {
+                                        // ✅ الطالب أنهى الاختبار
+                                        // ننتقل إلى شاشة النتيجة (الشاشة نفسها تعرض "لم يتم التقييم بعد" إذا لم يكن هناك تقييم)
+                                        navController.navigate("${Routes.STUDENT_EXAM_RESULT_SCREEN}/$examId")
+                                    }
+
+                                    ExamStatus.IN_PROGRESS,
+                                    ExamStatus.NOT_COMPLETED -> {
+                                        // ⏳ لم يبدأ بعد أو قيد التقدم — نذهب لتفاصيل الاختبار
+                                        navController.navigate("${Routes.EXAM_DETAILS_SCREEN}/$examId")
+                                    }
+                                }
+                            }
                         }
                     )
+
                 }
             }
         }
