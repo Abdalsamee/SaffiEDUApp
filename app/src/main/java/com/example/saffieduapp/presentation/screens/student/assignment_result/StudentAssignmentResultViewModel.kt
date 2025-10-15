@@ -16,15 +16,17 @@ class StudentAssignmentResultViewModel @Inject constructor() : ViewModel() {
     private val _state = MutableStateFlow(StudentAssignmentResultState(isLoading = true))
     val state: StateFlow<StudentAssignmentResultState> = _state
 
-    init {
-        // محاكاة تحميل البيانات (لاحقًا سيتم استبدالها بـ Firebase)
-        loadResultData()
-    }
-
-    private fun loadResultData() {
+    /**
+     * 🔹 هذه الدالة تُستدعى عند التنقل إلى الواجهة مع معرف الواجب
+     * الهدف منها تحميل التقييم من Firebase لاحقاً بناءً على الـ assignmentId
+     */
+    fun loadResultData(assignmentId: String) {
         viewModelScope.launch {
-            delay(1000) // محاكاة تأخير الشبكة
+            _state.update { it.copy(isLoading = true) }
 
+            delay(1000) // محاكاة تأخير الشبكة (اختياري حالياً)
+
+            // 🔹 لاحقاً سيتم هنا استبدال البيانات الثابتة بقراءة من Firestore
             _state.update {
                 it.copy(
                     isLoading = false,

@@ -9,6 +9,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import androidx.navigation.navigation
 import com.example.saffieduapp.presentation.screens.student.assignment_details.AssignmentDetailsScreen
+import com.example.saffieduapp.presentation.screens.student.assignment_result.StudentAssignmentResultScreen
 import com.example.saffieduapp.presentation.screens.student.exam_details.ExamDetailsScreen
 import com.example.saffieduapp.presentation.screens.student.exam_screen.ExamActivity
 import com.example.saffieduapp.presentation.screens.student.submit_assignment.SubmitAssignmentScreen
@@ -75,9 +76,12 @@ fun NavGraphBuilder.tasksNavGraph(navController: NavController) {
             val assignmentId = backStackEntry.arguments?.getString("assignmentId") ?: ""
             StudentAssignmentResultScreen(
                 navController = navController,
-                assignmentId = assignmentId
+                assignmentId = assignmentId,
+                onNavigateUp = { navController.popBackStack() }
             )
         }
+
+
 
     }
 }

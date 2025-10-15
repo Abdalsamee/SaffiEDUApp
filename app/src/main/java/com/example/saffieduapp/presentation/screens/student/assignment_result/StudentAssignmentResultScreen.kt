@@ -1,12 +1,15 @@
 package com.example.saffieduapp.presentation.screens.student.assignment_result
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
+import androidx.compose.material3.MaterialTheme.shapes
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
@@ -20,10 +23,16 @@ import com.example.saffieduapp.ui.theme.SaffiEDUAppTheme
 
 @Composable
 fun StudentAssignmentResultScreen(
-    navController: NavController? = null,
+    navController: NavController,
+    assignmentId: String,
+    onNavigateUp: () -> Unit = { navController.popBackStack() },
     viewModel: StudentAssignmentResultViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
+
+    LaunchedEffect(assignmentId) {
+        viewModel.loadResultData(assignmentId)
+    }
 
     StudentAssignmentResultScreenContent(
         state = state,
@@ -68,14 +77,21 @@ private fun StudentAssignmentResultScreenContent(
                     )
                 }
 
-                Divider(thickness = 1.dp, color = Color.LightGray)
+                Divider(thickness = 1.dp, color = Color.Black)
 
-                // 🔹 بطاقة التقييم
-                Card(
-                    shape = MaterialTheme.shapes.medium,
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
-                    modifier = Modifier.fillMaxWidth()
+                // ✅ بطاقة التقييم - ظل + لون أبيض ثابت بدون overlay
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .shadow(
+                            elevation = 6.dp, // الظل
+                            shape = shapes.medium,
+                            clip = false
+                        )
+                        .background(
+                            color = Color.White, // اللون الأبيض النقي
+                            shape = shapes.medium
+                        )
                 ) {
                     Column(
                         modifier = Modifier
@@ -93,7 +109,10 @@ private fun StudentAssignmentResultScreenContent(
                             color = Color.Black,
                             fontSize = 18.sp
                         )
-                        Text(text = "التعليق:", fontWeight = FontWeight.Medium)
+                        Text(
+                            text = "التعليق:",
+                            fontWeight = FontWeight.Medium
+                        )
                         Text(
                             text = state.comment.ifEmpty { "لا يوجد تعليق" },
                             color = AppTextSecondary,
@@ -101,6 +120,7 @@ private fun StudentAssignmentResultScreenContent(
                         )
                     }
                 }
+
             }
         }
     }
@@ -114,13 +134,17 @@ private fun PreviewStudentAssignmentResultScreen() {
             state = StudentAssignmentResultState(
                 isLoading = false,
                 assignmentTitle = "واجب اللغة العربية",
-                studentName = "فتح عبد السميع النجار",
+                studentName = "عبد السميع النجار",
                 files = listOf(
                     "pdf.120211726 واجب اللغة العربية",
-                    "pdf.123 واجب اللغة العربية"
+                    "pdf.123 واجب اللغة العربية",
+                    "pdf.120211726 واجب اللغة العربية",
+                    "pdf.123 واجب اللغة العربية",
+                    "pdf.120211726 واجب اللغة العربية",
+
                 ),
                 grade = "10 / 10",
-                comment = "حل رائع جدًا 🌟"
+                comment = "حل رائع جدًا "
             ),
             onNavigateUp = {}
         )
