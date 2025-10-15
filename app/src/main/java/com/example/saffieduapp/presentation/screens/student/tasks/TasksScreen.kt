@@ -91,15 +91,25 @@ fun TasksScreen(
                         examsByDate = state.examsByDate,
                         onExamClick = { examId ->
                             val exam = viewModel.getExamById(examId)
+
                             exam?.let {
-                                if (it.status == ExamStatus.COMPLETED) {
-                                    navController.navigate("${Routes.STUDENT_EXAM_RESULT_SCREEN}/$examId")
-                                } else {
-                                    navController.navigate("${Routes.EXAM_DETAILS_SCREEN}/$examId")
+                                when (exam.status) {
+                                    ExamStatus.COMPLETED -> {
+                                        // ✅ الطالب أنهى الاختبار
+                                        // ننتقل إلى شاشة النتيجة (الشاشة نفسها تعرض "لم يتم التقييم بعد" إذا لم يكن هناك تقييم)
+                                        navController.navigate("${Routes.STUDENT_EXAM_RESULT_SCREEN}/$examId")
+                                    }
+
+                                    ExamStatus.IN_PROGRESS,
+                                    ExamStatus.NOT_COMPLETED -> {
+                                        // ⏳ لم يبدأ بعد أو قيد التقدم — نذهب لتفاصيل الاختبار
+                                        navController.navigate("${Routes.EXAM_DETAILS_SCREEN}/$examId")
+                                    }
                                 }
                             }
                         }
                     )
+
                 }
             }
         }
