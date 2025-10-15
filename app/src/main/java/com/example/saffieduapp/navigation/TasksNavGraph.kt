@@ -66,5 +66,18 @@ fun NavGraphBuilder.tasksNavGraph(navController: NavController) {
         ) {
             SubmitAssignmentScreen(onNavigateUp = { navController.popBackStack() })
         }
+
+
+        composable(
+            route = "${Routes.STUDENT_ASSIGNMENT_RESULT_SCREEN}/{assignmentId}",
+            arguments = listOf(navArgument("assignmentId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val assignmentId = backStackEntry.arguments?.getString("assignmentId") ?: ""
+            StudentAssignmentResultScreen(
+                navController = navController,
+                assignmentId = assignmentId
+            )
+        }
+
     }
 }
