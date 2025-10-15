@@ -14,6 +14,7 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import com.example.saffieduapp.presentation.screens.student.home.HomeScreen
+import com.example.saffieduapp.presentation.screens.student.profile.StudentProfileScreen
 
 // ترتيب التبويبات (من اليسار لليمين في الشريط السفلي)
 private val topLevelOrder = listOf(
@@ -114,5 +115,7 @@ fun MainNavGraph(
         )
         tasksNavGraph(navController)
 
+        composable(Routes.PROFILE_SCREEN)
+        { StudentProfileScreen() }
     }
 }
