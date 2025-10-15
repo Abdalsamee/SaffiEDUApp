@@ -12,7 +12,13 @@ data class ExamDetails(
     val endTime: String,
     val durationInMinutes: Int,
     val questionCount: Int,
-    val status: String // مثال: "متاح"
+    val status: String, // مثال: "متاح"
+
+    //اضافات جديدة لطاهر
+    val isCompleted: Boolean = false, // هل أنهى الطالب الاختبار
+    val isGraded: Boolean = false,    // هل تم تصحيحه من المعلم
+    val studentScore: Int? = null,    // درجة الطالب (اختياري)
+    val totalScore: Int? = null       // الدرجة الكاملة
 )
 
 data class ExamDetailsState(

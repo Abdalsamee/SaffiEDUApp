@@ -139,7 +139,7 @@ private fun TeacherStudentExamAnswersScreen_PreviewOnly() {
                     .height(50.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = AppPrimary)
             ) {
-                Text("حفظ", color = androidx.compose.ui.graphics.Color.White)
+                Text("حفظ", color =Color.White)
             }
         }
     }

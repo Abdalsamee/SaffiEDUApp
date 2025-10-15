@@ -214,4 +214,13 @@ class TasksViewModel @Inject constructor(
             formatDateForGrouping(Date(exam.time))
         }
     }
+
+    fun getAssignmentById(id: String): AssignmentItem? {
+        return state.value.assignmentsByDate.values.flatten().find { it.id == id }
+    }
+
+    fun getExamById(id: String): ExamItem? {
+        return state.value.examsByDate.values.flatten().find { it.id == id }
+    }
+
 }

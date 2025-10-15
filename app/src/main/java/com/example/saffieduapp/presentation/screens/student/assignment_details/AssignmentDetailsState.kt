@@ -10,7 +10,14 @@ data class AssignmentDetails(
     val teacherName: String,
     val dueDate: String,
     val remainingTime: String,
-    val isSubmitEnabled: Boolean // ← جديد
+    val isSubmitEnabled: Boolean, // ← جديد
+
+    // 🔹 جديدة لمطور Firebase:
+    val isSubmitted: Boolean = false, // هل الطالب سلّم الواجب
+    val isGraded: Boolean = false,    // هل تم تقييم الواجب
+    val studentScore: Int? = null,    // العلامة (قد تكون null قبل التصحيح)
+    val totalScore: Int? = null,      // العلامة الكاملة
+    val teacherComment: String? = null // تعليق المعلم
 )
 
 // ٢. تعريف الحالة الكاملة للشاشة
