@@ -13,6 +13,7 @@ import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import com.example.saffieduapp.presentation.screens.chat.ChatScreen
 import com.example.saffieduapp.presentation.screens.student.home.HomeScreen
 import com.example.saffieduapp.presentation.screens.student.profile.StudentProfileScreen
 
@@ -114,7 +115,10 @@ fun MainNavGraph(
             onFullscreenChange = onFullscreenChange
         )
         tasksNavGraph(navController)
+        composable(Routes.CHAT_SCREEN) {
 
+            ChatScreen(navController = navController)
+        }
         composable(Routes.PROFILE_SCREEN)
         { StudentProfileScreen() }
     }

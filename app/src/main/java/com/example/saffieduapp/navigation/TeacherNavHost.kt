@@ -36,8 +36,7 @@ fun TeacherNavHost(
             TeacherClassesScreen()
         }
         teacherTasksNavGraph(navController)
-        composable(Routes.TEACHER_CHAT_SCREEN) {
-
+        composable(Routes.CHAT_SCREEN) {
             ChatScreen(navController = navController)
         }
         composable(Routes.TEACHER_PROFILE_SCREEN) {
