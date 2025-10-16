@@ -8,12 +8,17 @@
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:458872558515:android:a17a5a9e387d9e5715b1c6",
+        "mobilesdk_app_id": "1:458872558515:android:3f7113cece77441915b1c6",
         "android_client_info": {
           "package_name": "com.example.saffieduapp"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "105776403170334506238",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyCzQjDxfHp4lEHsTQXbf7ChlnKaA08JS4s"
@@ -21,7 +26,12 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "105776403170334506238",
+              "client_type": 3
+            }
+          ]
         }
       }
     }

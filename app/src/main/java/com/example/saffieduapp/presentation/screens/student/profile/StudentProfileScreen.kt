@@ -2,66 +2,62 @@ package com.example.saffieduapp.presentation.screens.student.profile
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.example.saffieduapp.R
 import com.example.saffieduapp.presentation.screens.student.components.CommonTopAppBar
-import com.example.saffieduapp.presentation.screens.teacher.components.AppButton
+import com.example.saffieduapp.presentation.screens.student.profile.components.AcademicInfoCard
+import com.example.saffieduapp.presentation.screens.student.profile.components.ProfileInfoCard
+import com.example.saffieduapp.ui.theme.AppAlert
+import com.example.saffieduapp.ui.theme.AppPrimary
 import com.example.saffieduapp.ui.theme.SaffiEDUAppTheme
 
 @Composable
 fun StudentProfileScreen(
-    viewModel: StudentProfileViewModel = hiltViewModel()
+    viewModel: StudentProfileViewModel = androidx.hilt.navigation.compose.hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
 
     Scaffold(
         topBar = { CommonTopAppBar(title = "الملف الشخصي") }
     ) { innerPadding ->
-        when {
-            state.isLoading -> {
-                Box(
-                    modifier = Modifier
-                        .padding(innerPadding)
-                        .fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator()
-                }
-            }
 
-            state.errorMessage != null -> {
-                Box(
-                    modifier = Modifier
-                        .padding(innerPadding)
-                        .fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(text = state.errorMessage ?: "خطأ غير معروف", color = MaterialTheme.colorScheme.error)
-                }
+        if (state.isLoading) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator()
             }
-
-            else -> {
-                StudentProfileContent(
-                    state = state,
-                    onLogoutClick = viewModel::logout,
-                    modifier = Modifier.padding(innerPadding)
-                )
-            }
+        } else {
+            StudentProfileContent(
+                state = state,
+                onEditPhoto = { /* TODO: ربط تعديل الصورة لاحقًا */ },
+                onLogoutClick = viewModel::logout,
+                modifier = Modifier.padding(innerPadding)
+            )
         }
     }
 }
@@ -69,6 +65,7 @@ fun StudentProfileScreen(
 @Composable
 private fun StudentProfileContent(
     state: StudentProfileState,
+    onEditPhoto: () -> Unit,
     onLogoutClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -76,78 +73,163 @@ private fun StudentProfileContent(
         modifier = modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+            .padding(horizontal = 16.dp, vertical = 20.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // الصورة الشخصية
-        if (state.profileImageUrl != null) {
+
+        // 🔹 صورة الطالب مع أيقونة التعديل
+        Box(contentAlignment = Alignment.BottomCenter) {
             AsyncImage(
-                model = state.profileImageUrl,
-                contentDescription = "Profile",
+                model = state.profileImageUrl ?: R.drawable.user,
+                contentDescription = "Student Image",
+                placeholder = painterResource(R.drawable.secstudent),
+                error = painterResource(R.drawable.secstudent),
                 modifier = Modifier
-                    .size(110.dp)
+                    .size(120.dp)
                     .clip(CircleShape)
+                    .border(3.dp, Color.White, CircleShape)
             )
-        } else {
-            Image(
-                painter = painterResource(id = R.drawable.user),
-                contentDescription = "Default Image",
+
+            // دائرة القلم الزرقاء فوق الصورة
+            Box(
                 modifier = Modifier
-                    .size(110.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surfaceVariant)
-                    .padding(16.dp)
-            )
+                    .offset(y = 15.dp)
+                    .size(40.dp)
+                    .background(AppPrimary, CircleShape)
+                    .border(3.dp, Color.White, CircleShape)
+                    .padding(6.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Edit,
+                    contentDescription = "Edit Photo",
+                    tint = Color.White,
+                    modifier = Modifier
+                        .size(18.dp)
+                        .clickable { onEditPhoto() }
+                )
+            }
         }
-
-        Text(
-            text = state.fullName,
-            fontWeight = FontWeight.Bold,
-            fontSize = 20.sp
-        )
-        Text(text = state.email, fontSize = 15.sp)
-
-        Divider(thickness = 1.dp)
-
-        ProfileInfoRow(label = "رقم الجوال:", value = state.phoneNumber)
-        ProfileInfoRow(label = "الصف:", value = state.className)
-        ProfileInfoRow(label = "المعدل:", value = "${state.average}%")
 
         Spacer(modifier = Modifier.height(20.dp))
 
-        AppButton(text = "تسجيل الخروج", onClick = onLogoutClick)
-    }
-}
-
-@Composable
-private fun ProfileInfoRow(label: String, value: String) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 6.dp),
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        Text(text = label, fontWeight = FontWeight.Medium)
-        Text(text = value, fontWeight = FontWeight.Bold)
-    }
-}
-
-@Preview(showBackground = true, locale = "ar")
-@Composable
-private fun PreviewStudentProfileScreen() {
-    SaffiEDUAppTheme {
-        StudentProfileContent(
-            state = StudentProfileState(
-                isLoading = false,
-                fullName = "فرج النجار",
-                email = "faragstudent123@gmail.com",
-                phoneNumber = "1234567890",
-                className = "الثاني عشر",
-                average = "96",
-                profileImageUrl = null
-            ),
-            onLogoutClick = {}
+        // 🔹 الاسم والبريد الإلكتروني
+        Text(
+            text = "الطالب: ${state.fullName}",
+            fontWeight = FontWeight.Bold,
+            fontSize = 18.sp,
+            textAlign = TextAlign.Center
         )
+
+        Text(
+            text = state.email,
+            color = Color.Gray,
+            fontSize = 14.sp,
+            textAlign = TextAlign.Center
+        )
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // 🔸 عنوان القسم
+        Text(
+            text = "معلومات الحساب",
+            fontWeight = FontWeight.SemiBold,
+            fontSize = 16.sp,
+            modifier = Modifier.align(Alignment.Start)
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // 🔹 بطاقات المعلومات
+        ProfileInfoCard(
+            label = "الاسم الكامل:",
+            value = state.fullName,
+            icon = R.drawable.user
+        )
+        ProfileInfoCard(
+            label = "البريد الإلكتروني:",
+            value = state.email,
+            icon = R.drawable.email
+        )
+        ProfileInfoCard(
+            label = "رقم الهوية:",
+            value = state.phoneNumber,
+            icon = R.drawable.idcard
+        )
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // 🔸 عنوان القسم الثاني
+        Text(
+            text = "المعلومات الأكاديمية",
+            fontWeight = FontWeight.SemiBold,
+            fontSize = 16.sp,
+            modifier = Modifier.align(Alignment.Start)
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // 🔹 صف بطاقتين (المعدل والصف الدراسي)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            AcademicInfoCard(
+                icon = R.drawable.graduationcap,
+                label = "المعدل:",
+                value = "${state.average} %",
+                modifier = Modifier.weight(1f)
+            )
+            AcademicInfoCard(
+                icon = R.drawable.profclass,
+                label = "الصف:",
+                value = state.className,
+                modifier = Modifier.weight(1f)
+            )
+        }
+
+        Spacer(modifier = Modifier.weight(1f))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.Start // ✅ محاذاة إلى البداية
+        ){
+            // 🔹 زر تسجيل الخروج
+            Button(
+                onClick = onLogoutClick,
+                colors = ButtonDefaults.buttonColors(containerColor = AppAlert),
+                shape = RoundedCornerShape(10.dp),
+                modifier = Modifier
+                    .fillMaxWidth(0.5f)
+                    .height(48.dp)
+
+            ) {
+                Text(text = "تسجيل الخروج", fontWeight = FontWeight.SemiBold, color = Color.White)
+            }
+        }
+
+
+        Spacer(modifier = Modifier.weight(1f))
     }
 }
+
+
+//@Preview(showBackground = true, locale = "ar", showSystemUi = true)
+//@Composable
+//private fun PreviewStudentProfileScreen() {
+//    SaffiEDUAppTheme {
+//        StudentProfileContent(
+//            state = StudentProfileState(
+//                isLoading = false,
+//                fullName = "فرج النجار",
+//                email = "faragstudent123@gmail.com",
+//                phoneNumber = "1234567890",
+//                className = "الثاني عشر",
+//                average = "96",
+//                profileImageUrl = null
+//            ),
+//            onEditPhoto = {},
+//            onLogoutClick = {}
+//        )
+//
+//    }
+//}
