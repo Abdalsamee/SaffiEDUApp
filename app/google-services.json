@@ -1,37 +1,26 @@
 {
   "project_info": {
-    "project_number": "458872558515",
-    "firebase_url": "https://finalproject-ea1e8-default-rtdb.firebaseio.com",
-    "project_id": "finalproject-ea1e8",
-    "storage_bucket": "finalproject-ea1e8.firebasestorage.app"
+    "project_number": "636851294635",
+    "project_id": "finalproject-e000b",
+    "storage_bucket": "finalproject-e000b.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:458872558515:android:3f7113cece77441915b1c6",
+        "mobilesdk_app_id": "1:636851294635:android:e556c6eaf567f84b1642ee",
         "android_client_info": {
           "package_name": "com.example.saffieduapp"
         }
       },
-      "oauth_client": [
-        {
-          "client_id": "105776403170334506238",
-          "client_type": 3
-        }
-      ],
+      "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyCzQjDxfHp4lEHsTQXbf7ChlnKaA08JS4s"
+          "current_key": "AIzaSyCmYQDfKNKMTI4L5Pj2C1RfD4orAe66DfQ"
         }
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": [
-            {
-              "client_id": "105776403170334506238",
-              "client_type": 3
-            }
-          ]
+          "other_platform_oauth_client": []
         }
       }
     }
