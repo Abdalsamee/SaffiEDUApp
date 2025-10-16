@@ -40,7 +40,6 @@ object Routes {
     const val TEACHER_MAIN_SCREEN = "teacher_main_screen"
     const val TEACHER_HOME_SCREEN = "teacher_home_screen"
     const val TEACHER_CLASSES_SCREEN = "teacher_classes_screen"
-    const val TEACHER_CHAT_SCREEN = "teacher_chat_screen"
     const val TEACHER_PROFILE_SCREEN = "teacher_profile_screen"
 
 

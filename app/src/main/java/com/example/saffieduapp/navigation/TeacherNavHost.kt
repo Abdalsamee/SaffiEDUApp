@@ -9,11 +9,13 @@ import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import com.example.saffieduapp.presentation.screens.chat.ChatScreen
 import com.example.saffieduapp.presentation.screens.teacher.home.TeacherHomeScreen
 import com.example.saffieduapp.presentation.screens.teacher.add_alert.AddAlertScreen
 import com.example.saffieduapp.presentation.screens.teacher.add_assignment.AddAssignmentScreen
 import com.example.saffieduapp.presentation.screens.teacher.add_lesson.AddLessonScreen
 import com.example.saffieduapp.presentation.screens.teacher.calsses.TeacherClassesScreen
+import com.example.saffieduapp.presentation.screens.teacher.profile.TeacherProfileScreen
 
 @Composable
 fun TeacherNavHost(
@@ -30,17 +32,16 @@ fun TeacherNavHost(
             TeacherHomeScreen(navController = navController)
         }
         composable(Routes.TEACHER_CLASSES_SCREEN) {
-            // TODO: Replace with actual screen
+
             TeacherClassesScreen()
         }
         teacherTasksNavGraph(navController)
-        composable(Routes.TEACHER_CHAT_SCREEN) {
-
-            TeacherChatScreen(navController = navController)
+        composable(Routes.CHAT_SCREEN) {
+            ChatScreen(navController = navController)
         }
         composable(Routes.TEACHER_PROFILE_SCREEN) {
-            // TODO: Replace with actual screen
-             TeacherProfileScreen(navController = navController)
+
+             TeacherProfileScreen()
         }
 
         // Additional screens
@@ -56,26 +57,5 @@ fun TeacherNavHost(
 
         // Quiz creation navigation
         createQuizNavGraph(navController)
-    }
-}
-// Add these placeholder screens temporarily to prevent crashes
-
-@Composable
-fun TeacherChatScreen(navController: NavHostController) {
-    Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
-    ) {
-        Text("Teacher Chat Screen - Coming Soon")
-    }
-}
-
-@Composable
-fun TeacherProfileScreen(navController: NavHostController) {
-    Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
-    ) {
-        Text("Teacher Profile Screen - Coming Soon")
     }
 }
