@@ -31,9 +31,8 @@ sealed class ExamUiEvent {
 class ExamViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val firestore: FirebaseFirestore,
-    private val auth: FirebaseAuth) : ViewModel() {
-
-    private val examId: String = savedStateHandle.get<String>("examId") ?: ""
+    private val auth: FirebaseAuth
+) : ViewModel() {
 
     private val _state = MutableStateFlow(ExamState())
     val state = _state.asStateFlow()
@@ -43,20 +42,20 @@ class ExamViewModel @Inject constructor(
 
     private var timerJob: Job? = null
 
-    init {
-        loadExamData()
-    }
 
     /**
      * تحميل بيانات الاختبار من Firebase Firestore مع التصحيح لنوع الأسئلة
      */
-    private fun loadExamData() {
+    fun loadExam(examId: String) {
+        // احجز إذا تم استدعاؤها مرتين لنفس الـ id
+        if (_state.value.examId == examId && !_state.value.isLoading && _state.value.questions.isNotEmpty()) return
+
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true) }
 
             try {
                 if (examId.isBlank()) {
-                    Log.e("ExamViewModel", "loadExamData: examId فارغ")
+                    Log.e("ExamViewModel", "loadExam: examId فارغ")
                     _eventFlow.emit(ExamUiEvent.ShowToast("خطأ: معرف الاختبار فارغ"))
                     _state.update { it.copy(isLoading = false) }
                     return@launch
@@ -79,6 +78,7 @@ class ExamViewModel @Inject constructor(
                     else -> 60
                 }
 
+                // تحويل الأسئلة (نفس منطقك السابق)
                 val rawQuestions = examData["questions"] as? List<*> ?: emptyList<Any>()
 
                 val questions = rawQuestions.mapIndexed { index, item ->
@@ -108,7 +108,6 @@ class ExamViewModel @Inject constructor(
                         choices.add(Choice(id = cid, text = ctext, isCorrect = isCorrect))
                     }
 
-                    // إذا نوع TRUE_FALSE ولم توجد خيارات، أنشئ خيارات افتراضية
                     if (type == QuestionType.TRUE_FALSE && choices.isEmpty()) {
                         choices.add(Choice(id = "true_$index", text = "صح", isCorrect = true))
                         choices.add(Choice(id = "false_$index", text = "خطأ", isCorrect = false))
@@ -149,6 +148,7 @@ class ExamViewModel @Inject constructor(
                 } else {
                     startTimer()
                 }
+
             } catch (e: Exception) {
                 Log.e("ExamViewModel", "خطأ في تحميل بيانات الاختبار", e)
                 _eventFlow.emit(ExamUiEvent.ShowToast("فشل تحميل الاختبار: ${e.message}"))
