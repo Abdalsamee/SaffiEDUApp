@@ -14,7 +14,7 @@ import javax.inject.Inject
 @HiltViewModel
 class StudentProfileViewModel @Inject constructor() : ViewModel() {
 
-    private val _state = MutableStateFlow(StudentProfileState(message = "حدث خطأ أثناء تحديث الصورة في قاعدة البيانات ❌"))
+    private val _state = MutableStateFlow(StudentProfileState(message = null))
     val state: StateFlow<StudentProfileState> = _state
 
     private val auth = FirebaseAuth.getInstance()

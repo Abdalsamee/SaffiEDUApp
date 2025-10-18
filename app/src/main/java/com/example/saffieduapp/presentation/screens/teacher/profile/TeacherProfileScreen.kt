@@ -31,9 +31,12 @@ import com.example.saffieduapp.ui.theme.AppAlert
 import com.example.saffieduapp.ui.theme.AppPrimary
 import com.example.saffieduapp.ui.theme.SaffiEDUAppTheme
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.NavController
+import com.example.saffieduapp.navigation.Routes
 
 @Composable
 fun TeacherProfileScreen(
+    navController: NavController,
     viewModel: TeacherProfileViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
@@ -71,7 +74,14 @@ fun TeacherProfileScreen(
                 TeacherProfileContent(
                     state = state,
                     onEditPhoto = { /* تعديل الصورة لاحقًا */ },
-                    onLogoutClick = viewModel::logout,
+                    onLogoutClick = {
+                        viewModel.logout {
+                            // إعادة التوجيه إلى شاشة تسجيل الدخول مثلاً
+                            navController.navigate(Routes.LOGIN_SCREEN) {
+                                popUpTo(Routes.MAIN_GRAPH) { inclusive = true }
+                            }
+                        }
+                    },
                     modifier = Modifier.padding(innerPadding)
                 )
             }
