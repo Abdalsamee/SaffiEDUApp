@@ -108,12 +108,21 @@ fun QuizSummaryScreen(
                         questions = uiQuestions
                     )
 
+                    // في onClick الزر
+                    var isPublishing = true
                     viewModel.publishExam(
-                        examData = exam,
-                        onSuccess = { onPublish() },
-                        onError = { message -> println("خطأ: $message") }
+                        examState,
+                        onSuccess = {
+                            isPublishing = false
+                            Toast.makeText(context, "تم نشر الاختبار بنجاح", Toast.LENGTH_SHORT)
+                                .show()
+                            onPublish()
+                        },
+                        onError = { msg ->
+                            isPublishing = false
+                            Toast.makeText(context, "فشل النشر: $msg", Toast.LENGTH_LONG).show()
+                        }
                     )
-
                 },
                 modifier = Modifier
                     .fillMaxWidth()

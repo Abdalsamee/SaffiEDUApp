@@ -2,8 +2,11 @@ package com.example.saffieduapp.presentation.screens.teacher.quiz_summary
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.saffieduapp.data.FireBase.ChoiceDto
 import com.example.saffieduapp.data.FireBase.Exam
+import com.example.saffieduapp.data.FireBase.ExamDto
 import com.example.saffieduapp.data.FireBase.ExamRepository
+import com.example.saffieduapp.data.FireBase.QuestionDto
 import com.example.saffieduapp.presentation.screens.teacher.add_exam.AddExamState
 import com.example.saffieduapp.presentation.screens.teacher.add_question.QuestionData
 import com.google.firebase.firestore.FirebaseFirestore
@@ -16,9 +19,9 @@ import javax.inject.Inject
 
 @HiltViewModel
 class QuizSummaryViewModel @Inject constructor(
-    private val repository: ExamRepository,
-    private val firestore: FirebaseFirestore
+    private val repository: ExamRepository
 ) : ViewModel() {
+
     private val _questions = MutableStateFlow<List<QuestionData>>(emptyList())
     val questions = _questions.asStateFlow()
 
@@ -26,47 +29,46 @@ class QuizSummaryViewModel @Inject constructor(
         _questions.value = list
     }
 
-    // في ViewModel
     fun deleteQuestion(id: String) {
         _questions.update { it.filterNot { q -> q.id == id } }
     }
 
     fun publishExam(
-        examData: Exam,
+        examState: AddExamState,
         onSuccess: () -> Unit,
         onError: (String) -> Unit
     ) {
-        val firestoreData = hashMapOf(
-            "className" to examData.className,
-            "examTitle" to examData.examTitle,
-            "examType" to examData.examType,
-            "examDate" to examData.examDate,
-            "examStartTime" to examData.examStartTime,
-            "examTime" to examData.examTime,
-            "randomQuestions" to examData.randomQuestions,
-            "showResultsImmediately" to examData.showResultsImmediately,
-            "teacherId" to examData.teacherId,
-            "teacherName" to examData.teacherName,
-            "createdAt" to examData.createdAt,
-            "questions" to examData.questions.map { q ->
-                hashMapOf(
-                    "text" to q.text,
-                    "type" to q.type.name,
-                    "points" to q.points,
-                    "choices" to q.choices.map { choice ->
-                        hashMapOf(
-                            "text" to choice.text,
-                            "isCorrect" to choice.isCorrect
-                        )
-                    },
-                    "essayAnswer" to q.essayAnswer
-                )
-            }
+        val qList = _questions.value.map { q ->
+            QuestionDto(
+                id = q.id,
+                text = q.text,
+                type = q.type.name, // store enum name
+                points = q.points.toIntOrNull() ?: 0,
+                choices = q.choices.map { c ->
+                    ChoiceDto(id = c.id, text = c.text, isCorrect = c.isCorrect)
+                },
+                essayAnswer = q.essayAnswer
+            )
+        }
+
+        val examDto = ExamDto(
+            className = examState.selectedClass,
+            examTitle = examState.examTitle,
+            examType = examState.examType,
+            examDate = examState.examDate,
+            examStartTime = examState.examStartTime,
+            examTime = examState.examTime,
+            randomQuestions = examState.randomQuestions,
+            showResultsImmediately = examState.showResultsImmediately,
+            teacherId = examState.teacherId,
+            teacherName = examState.teacherName,
+            // createdAt left null -> repo will use serverTimestamp
+            questions = qList
         )
 
-        firestore.collection("exams")
-            .add(firestoreData)
-            .addOnSuccessListener { onSuccess() }
-            .addOnFailureListener { e -> onError(e.message ?: "حدث خطأ") }
+        viewModelScope.launch {
+            val (success, err) = repository.addExamWithQuestions(examDto)
+            if (success) onSuccess() else onError(err ?: "فشل في نشر الاختبار")
+        }
     }
 }
