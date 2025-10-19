@@ -12,5 +12,6 @@ data class StudentProfileState(
     val profileImageUrl: String? = null,
 
     // 🔹 لإدارة الحالة
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
+    val message: String?
 )

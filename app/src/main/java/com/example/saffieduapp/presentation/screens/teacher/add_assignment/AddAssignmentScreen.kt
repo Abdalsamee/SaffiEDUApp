@@ -1,6 +1,5 @@
 package com.example.saffieduapp.presentation.screens.teacher.add_assignment
 
-import android.R.attr.name
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest

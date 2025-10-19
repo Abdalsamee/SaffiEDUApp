@@ -19,57 +19,32 @@ import com.example.saffieduapp.navigation.MainNavGraph
 import com.example.saffieduapp.navigation.Routes
 
 @Composable
-fun MainAppScreen() {
-    val navController: NavHostController = rememberNavController()
+fun MainAppScreen(navController: NavHostController) {
     var isVideoFullscreen by remember { mutableStateOf(false) }
 
     val bottomNavItems = listOf(
-        BottomNavItem(
-            title = "الرئيسية",
-            route = Routes.HOME_SCREEN,
-            icon = painterResource(id = R.drawable.homenot),
-
-            ),
-        BottomNavItem(
-            title = "المواد",
-            route = Routes.SUBJECTS_SCREEN,
-            icon = painterResource(id = R.drawable.subject),
-
-            ),
-        BottomNavItem(
-            title = "المهام",
-            route = Routes.TASKS_NAV_GRAPH,
-            icon = painterResource(id = R.drawable.tasks),
-
-            ),
-        BottomNavItem(
-            title = "الدردشة",
-            route = Routes.CHAT_SCREEN,
-            icon = painterResource(id = R.drawable.chat),
-
-            ),
-        BottomNavItem(
-            title = "الملف الشخصي",
-            route = Routes.PROFILE_SCREEN,
-            icon = painterResource(id = R.drawable.user),
-
-            )
+        BottomNavItem("الرئيسية", Routes.HOME_SCREEN, painterResource(R.drawable.homenot)),
+        BottomNavItem("المواد", Routes.SUBJECTS_SCREEN, painterResource(R.drawable.subject)),
+        BottomNavItem("المهام", Routes.TASKS_NAV_GRAPH, painterResource(R.drawable.tasks)),
+        BottomNavItem("الدردشة", Routes.CHAT_SCREEN, painterResource(R.drawable.chat)),
+        BottomNavItem("الملف الشخصي", Routes.PROFILE_SCREEN, painterResource(R.drawable.user))
     )
 
     Scaffold(
         bottomBar = {
-            // إخفاء الـ BottomBar عند fullscreen
             if (!isVideoFullscreen) {
                 AppBottomNavigationBar(items = bottomNavItems, navController = navController)
             }
         }
     ) { innerPadding ->
-
         MainNavGraph(
             navController = navController,
             modifier = Modifier.padding(innerPadding),
-            onFullscreenChange = { fullscreen ->
-                isVideoFullscreen = fullscreen
+            onFullscreenChange = { fullscreen -> isVideoFullscreen = fullscreen },
+            onLogoutNavigate = {
+                navController.navigate(Routes.LOGIN_SCREEN) {
+                    popUpTo(Routes.AUTH_GRAPH) { inclusive = true }
+                }
             }
         )
     }

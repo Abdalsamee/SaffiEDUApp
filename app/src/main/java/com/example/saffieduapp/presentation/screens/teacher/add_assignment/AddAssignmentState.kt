@@ -10,5 +10,6 @@ data class AddAssignmentState(
     val selectedImageName: String? = null,
     val isSaving: Boolean = false,
     val teacherName: String = "",
-    val subjectName: String = ""
+    val subjectName: String = "",
+    val teacherId: String? = ""
 )

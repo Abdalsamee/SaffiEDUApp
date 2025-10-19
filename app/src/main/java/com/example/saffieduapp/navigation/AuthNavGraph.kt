@@ -11,16 +11,7 @@ import com.example.saffieduapp.presentation.screens.onboarding.OnboardingScreen
 import com.example.saffieduapp.presentation.screens.splash.SplashScreen
 import com.example.saffieduapp.presentation.screens.login.LoginViewModel
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.navigation.NavHostController
-import androidx.navigation.NavType
-import androidx.navigation.navArgument
 import com.example.saffieduapp.presentation.screens.resetpassword.PasswordRecoveryScreen
-import com.example.saffieduapp.presentation.screens.student.video_player.VideoPlayerScreen
-import com.example.saffieduapp.presentation.screens.teacher.TeacherMainScreen
-import com.example.saffieduapp.presentation.screens.teacher.add_alert.AddAlertScreen
-import com.example.saffieduapp.presentation.screens.teacher.add_assignment.AddAssignmentScreen
-import com.example.saffieduapp.presentation.screens.teacher.add_exam.AddExamScreen
-import com.example.saffieduapp.presentation.screens.teacher.add_lesson.AddLessonScreen
 
 @SuppressLint("ComposableDestinationInComposeScope")
 fun NavGraphBuilder.authNavGraph(navController: NavController) {
@@ -92,7 +83,6 @@ fun NavGraphBuilder.authNavGraph(navController: NavController) {
                 }
             )
         }
-
 
     }
 

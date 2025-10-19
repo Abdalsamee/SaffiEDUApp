@@ -41,7 +41,7 @@ class MainActivity : ComponentActivity() {
 
 
                     composable(route = Routes.MAIN_GRAPH) {
-                        MainAppScreen()
+                        MainAppScreen(navController)
                     }
 
                     // Define the teacher main screen here instead of teacherGraph

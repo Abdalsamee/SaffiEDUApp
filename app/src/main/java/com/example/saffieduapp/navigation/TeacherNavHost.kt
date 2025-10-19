@@ -20,7 +20,8 @@ import com.example.saffieduapp.presentation.screens.teacher.profile.TeacherProfi
 @Composable
 fun TeacherNavHost(
     navController: NavHostController,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onLogoutNavigate: () -> Unit // ✅ أضف هذا
 ) {
     NavHost(
         navController = navController,
@@ -40,8 +41,10 @@ fun TeacherNavHost(
             ChatScreen(navController = navController)
         }
         composable(Routes.TEACHER_PROFILE_SCREEN) {
-
-             TeacherProfileScreen()
+            TeacherProfileScreen(
+                navController = navController,
+                onLogoutNavigate = onLogoutNavigate // ✅ مررها للشاشة
+            )
         }
 
         // Additional screens

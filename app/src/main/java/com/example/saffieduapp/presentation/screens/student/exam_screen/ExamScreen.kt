@@ -21,8 +21,17 @@ import kotlinx.coroutines.flow.collectLatest
 fun ExamScreen(
     onNavigateUp: () -> Unit,
     onExamComplete: () -> Unit,
-    viewModel: ExamViewModel = hiltViewModel()
-) {
+    examId: String,
+    viewModel: ExamViewModel = hiltViewModel(),
+
+    ) {
+
+    // عندما يتغير الـ examId أو عند أول دخول، حمّل البيانات
+    LaunchedEffect(examId) {
+        if (examId.isNotBlank()) {
+            viewModel.loadExam(examId)
+        }
+    }
     val state by viewModel.state.collectAsState()
     val context = LocalContext.current
     var showSubmitDialog by remember { mutableStateOf(false) }
@@ -34,10 +43,12 @@ fun ExamScreen(
                 is ExamUiEvent.ShowToast -> {
                     Toast.makeText(context, event.message, Toast.LENGTH_SHORT).show()
                 }
+
                 is ExamUiEvent.ExamCompleted -> {
                     Toast.makeText(context, "تم تسليم الاختبار بنجاح", Toast.LENGTH_SHORT).show()
                     onExamComplete()
                 }
+
                 is ExamUiEvent.TimeExpired -> {
                     Toast.makeText(context, "انتهى وقت الاختبار", Toast.LENGTH_LONG).show()
                 }

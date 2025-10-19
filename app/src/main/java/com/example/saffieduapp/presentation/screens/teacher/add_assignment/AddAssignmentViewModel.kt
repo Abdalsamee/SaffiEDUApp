@@ -42,15 +42,19 @@ class AddAssignmentViewModel @Inject constructor(
             is AddAssignmentEvent.TitleChanged -> {
                 _state.update { it.copy(title = event.title) }
             }
+
             is AddAssignmentEvent.DescriptionChanged -> {
                 _state.update { it.copy(description = event.description) }
             }
+
             is AddAssignmentEvent.DateChanged -> {
                 _state.update { it.copy(dueDate = event.date) }
             }
+
             is AddAssignmentEvent.ClassSelected -> {
                 _state.update { it.copy(selectedClass = event.className) }
             }
+
             is AddAssignmentEvent.ImageSelected -> {
                 _state.update {
                     it.copy(
@@ -59,11 +63,13 @@ class AddAssignmentViewModel @Inject constructor(
                     )
                 }
             }
+
             is AddAssignmentEvent.SaveClicked -> {
                 saveAssignment()
             }
         }
     }
+
     // ← دالة جديدة لجلب بيانات المعلم بما فيها اسم المادة
     private fun fetchTeacherData() {
         val email = FirebaseAuth.getInstance().currentUser?.email
@@ -74,12 +80,14 @@ class AddAssignmentViewModel @Inject constructor(
                 if (!snapshot.isEmpty) {
                     val document = snapshot.documents[0]
                     val name = document.getString("fullName") ?: ""
-                    val subject = document.getString("subject") ?: "" // ← جلب اسم المادة
+                    val subject = document.getString("subject") ?: ""
+                    val teacherId = document.id  // ← جلب الـ ID الخاص بالمعلم
 
                     _state.update {
                         it.copy(
                             teacherName = name,
-                            subjectName = subject
+                            subjectName = subject,
+                            teacherId = teacherId  // ← تخزين الـ ID في الحالة
                         )
                     }
                 }
@@ -88,7 +96,8 @@ class AddAssignmentViewModel @Inject constructor(
                 _state.update {
                     it.copy(
                         teacherName = "اسم غير معروف",
-                        subjectName = "مادة غير معروفة"
+                        subjectName = "مادة غير معروفة",
+                        teacherId = null  // ← في حالة فشل الجلب
                     )
                 }
             }
@@ -96,6 +105,15 @@ class AddAssignmentViewModel @Inject constructor(
 
     private fun saveAssignment() {
         val currentState = state.value
+
+        // التحقق من وجود بيانات المعلم قبل الحفظ
+        if (currentState.teacherId.isNullOrEmpty()) {
+            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
+                _eventFlow.emit("جاري تحميل بيانات المعلم، يرجى المحاولة لاحقًا")
+            }
+            return
+        }
+
         if (currentState.title.isBlank() || currentState.description.isBlank() || currentState.selectedClass.isBlank()) {
             return
         }
@@ -103,7 +121,7 @@ class AddAssignmentViewModel @Inject constructor(
         _state.update { it.copy(isSaving = true) }
 
         val teacherName = currentState.teacherName
-        val subjectName = currentState.subjectName // ← الحصول على اسم المادة
+        val subjectName = currentState.subjectName
 
         kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
             val success = assigrepository.saveAssignment(
@@ -113,8 +131,9 @@ class AddAssignmentViewModel @Inject constructor(
                 className = currentState.selectedClass,
                 imageUri = currentState.selectedImageUri,
                 imageName = currentState.selectedImageName,
-                teacherName = currentState.teacherName,
-                subjectName = currentState.subjectName // ← إرسال اسم المادة
+                teacherName = teacherName,
+                subjectName = subjectName,
+                teacherId = currentState.teacherId
             )
 
             if (success) {

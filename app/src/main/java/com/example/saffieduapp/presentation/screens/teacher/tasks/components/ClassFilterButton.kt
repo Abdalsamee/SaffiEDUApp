@@ -26,21 +26,24 @@ import androidx.compose.ui.text.font.FontWeight
 import com.example.saffieduapp.ui.theme.AppPrimary
 import com.example.saffieduapp.ui.theme.AppTextSecondary
 import com.example.saffieduapp.R
+
 @Composable
 fun ClassFilterButton(
-    selectedClass: String,
-    onClassSelected: (String) -> Unit
+    selectedClass: String, onClassSelected: (String) -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
 
-    val classes = listOf("الصف الرابع", "الصف الخامس", "الصف السادس", "الصف السابع")
+    val classes = listOf(
+        "الصف الأول", "الصف الثاني",
+        "الصف الثالث", "الصف الرابع", "الصف الخامس",
+        "الصف السادس", "الصف السابع", "الصف الثامن",
+        "الصف التاسع", "الصف العاشر", "الصف الحادي عشر",
+        "الصف الثاني عشر",
+    )
 
     // شكل الزوايا (منحنية فقط من الأسفل)
     val bottomRoundedShape: Shape = RoundedCornerShape(
-        topStart = 0.dp,
-        topEnd = 0.dp,
-        bottomStart = 16.dp,
-        bottomEnd = 16.dp
+        topStart = 0.dp, topEnd = 0.dp, bottomStart = 16.dp, bottomEnd = 16.dp
     )
 
     // 🔹 نستخدم Surface لإضافة الظل (elevation)
@@ -52,8 +55,7 @@ fun ClassFilterButton(
         modifier = Modifier
             .fillMaxWidth(0.40f)
             .wrapContentHeight()
-            .clickable { expanded = true }
-    ) {
+            .clickable { expanded = true }) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -85,19 +87,16 @@ fun ClassFilterButton(
                 .padding(vertical = 4.dp)
         ) {
             classes.forEach { className ->
-                DropdownMenuItem(
-                    text = {
-                        Text(
-                            text = className,
-                            color = if (className == selectedClass) AppPrimary else AppTextSecondary,
-                            fontSize = 15.sp
-                        )
-                    },
-                    onClick = {
-                        expanded = false
-                        onClassSelected(className)
-                    }
-                )
+                DropdownMenuItem(text = {
+                    Text(
+                        text = className,
+                        color = if (className == selectedClass) AppPrimary else AppTextSecondary,
+                        fontSize = 15.sp
+                    )
+                }, onClick = {
+                    expanded = false
+                    onClassSelected(className)
+                })
             }
         }
     }

@@ -33,11 +33,12 @@ import com.example.saffieduapp.navigation.TeacherNavHost
 import com.example.saffieduapp.presentation.components.AppBottomNavigationBar
 import com.example.saffieduapp.presentation.screens.teacher.home.component.ExpandableFab
 import com.example.saffieduapp.presentation.screens.teacher.home.component.FabActionItem
+
 @Composable
 fun TeacherMainScreen(
     navController: NavHostController,
 
-) {
+    ) {
 
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
@@ -58,8 +59,10 @@ fun TeacherMainScreen(
             Routes.TEACHER_TASKS_GRAPH,
             painterResource(id = R.drawable.tasks)
         ),
-        BottomNavItem("الدردشة", Routes.CHAT_SCREEN,
-            painterResource(id = R.drawable.chat)),
+        BottomNavItem(
+            "الدردشة", Routes.CHAT_SCREEN,
+            painterResource(id = R.drawable.chat)
+        ),
         BottomNavItem(
             "الملف الشخصي",
             Routes.TEACHER_PROFILE_SCREEN,
@@ -120,10 +123,15 @@ fun TeacherMainScreen(
                 AppBottomNavigationBar(items = bottomNavItems, navController = navController)
             },
 
-        ) { innerPadding ->
+            ) { innerPadding ->
             TeacherNavHost(
-                navController = navController ,
-                modifier = Modifier.padding(innerPadding)
+                navController = navController,
+                modifier = Modifier.padding(innerPadding),
+                onLogoutNavigate = {
+                    navController.navigate(Routes.AUTH_GRAPH) {
+                        popUpTo(0) { inclusive = true }
+                    }
+                }
             )
         }
 

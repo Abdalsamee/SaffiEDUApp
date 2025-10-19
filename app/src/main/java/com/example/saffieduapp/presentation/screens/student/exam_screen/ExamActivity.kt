@@ -274,7 +274,8 @@ class ExamActivity : ComponentActivity() {
                     showExitDialog = true
                 }
             },
-            onExamComplete = { finishExam() }
+            onExamComplete = { finishExam() },
+            examId = examId // متغير الذي حصلت عليه من Intent
         )
 
         // Overlay للمسح أثناء الامتحان
