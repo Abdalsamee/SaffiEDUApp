@@ -32,12 +32,15 @@ import com.example.saffieduapp.ui.theme.AppPrimary
 import com.example.saffieduapp.ui.theme.SaffiEDUAppTheme
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import androidx.navigation.NavHostController
 import com.example.saffieduapp.navigation.Routes
 
 @Composable
 fun TeacherProfileScreen(
-    navController: NavController,
-    viewModel: TeacherProfileViewModel = hiltViewModel()
+    navController: NavHostController,
+    viewModel: TeacherProfileViewModel = hiltViewModel(),
+    onLogoutNavigate: () -> Unit // ✅ أضف هذا
+
 ) {
     val state by viewModel.state.collectAsState()
 
@@ -56,6 +59,7 @@ fun TeacherProfileScreen(
                     CircularProgressIndicator()
                 }
             }
+
             state.error != null -> {
                 Box(
                     modifier = Modifier
@@ -70,15 +74,16 @@ fun TeacherProfileScreen(
                     )
                 }
             }
+
             else -> {
                 TeacherProfileContent(
                     state = state,
                     onEditPhoto = { /* تعديل الصورة لاحقًا */ },
                     onLogoutClick = {
                         viewModel.logout {
-                            // إعادة التوجيه إلى شاشة تسجيل الدخول مثلاً
-                            navController.navigate(Routes.LOGIN_SCREEN) {
-                                popUpTo(Routes.MAIN_GRAPH) { inclusive = true }
+                            // ✅ استخدم graph وليس شاشة مباشرة
+                            navController.navigate(Routes.AUTH_GRAPH) {
+                                popUpTo(0) { inclusive = true } // امسح كل شيء وارجع لشاشة الدخول
                             }
                         }
                     },
@@ -220,7 +225,7 @@ private fun TeacherProfileContent(
             horizontalArrangement = Arrangement.Start
         ) {
             Button(
-                onClick = onLogoutClick,
+                onClick = onLogoutClick,// ← تعود إلى شاشة تسجيل الدخول
                 colors = ButtonDefaults.buttonColors(containerColor = AppAlert),
                 shape = RoundedCornerShape(10.dp),
                 modifier = Modifier
@@ -236,4 +241,3 @@ private fun TeacherProfileContent(
         }
     }
 }
-

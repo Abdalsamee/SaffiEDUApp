@@ -83,14 +83,14 @@ class TeacherProfileViewModel @Inject constructor() : ViewModel() {
         }
     }
 
-    /**
-     * 🚪 تسجيل الخروج (وهمي أيضًا)
-     */
-    /**
-     * تسجيل الخروج
-     */
-    fun logout(onLogoutSuccess: () -> Unit) {
-        auth.signOut()
-        onLogoutSuccess()
+    fun logout(onComplete: () -> Unit) {
+        // نفّذ sign out
+        FirebaseAuth.getInstance().signOut()
+
+        // أي تنظيف محلي آخر هنا (مثال: مسح pref أو datastore)...
+        // ثم استدعي callback على الـ main thread
+        viewModelScope.launch {
+            onComplete()
+        }
     }
 }
