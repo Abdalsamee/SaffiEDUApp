@@ -16,5 +16,6 @@ data class TeacherTaskItem(
     val date: String,
     val time: String,
     val isActive: Boolean,
-    val type: TaskType
+    val type: TaskType,
+    val title: String?
 )
