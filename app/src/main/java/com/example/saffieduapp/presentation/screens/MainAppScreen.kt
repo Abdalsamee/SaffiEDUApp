@@ -19,7 +19,8 @@ import com.example.saffieduapp.navigation.MainNavGraph
 import com.example.saffieduapp.navigation.Routes
 
 @Composable
-fun MainAppScreen(navController: NavHostController) {
+fun MainAppScreen() {
+    val navController = rememberNavController()
     var isVideoFullscreen by remember { mutableStateOf(false) }
 
     val bottomNavItems = listOf(

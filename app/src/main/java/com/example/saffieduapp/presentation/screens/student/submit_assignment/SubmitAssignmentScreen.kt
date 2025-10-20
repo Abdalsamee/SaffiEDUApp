@@ -2,6 +2,7 @@ package com.example.saffieduapp.presentation.screens.student.submit_assignment
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -16,6 +17,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.saffieduapp.R
@@ -32,15 +34,12 @@ fun SubmitAssignmentScreen(
 ) {
     val state by viewModel.state.collectAsState()
 
-    // ١. مشغل لاختيار الملفات (يسمح باختيار أنواع متعددة)
     val filePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenMultipleDocuments(),
-        onResult = { uris ->
-            uris?.let { viewModel.addFiles(it) }
-        }
+        onResult = { uris -> uris?.let { viewModel.addFiles(it) } }
     )
 
-    // ٢. ديالوج النجاح
+    // ✅ ديالوج النجاح
     if (state.submissionSuccess) {
         SuccessDialog(
             submitDate = state.submissionTime,
@@ -51,78 +50,161 @@ fun SubmitAssignmentScreen(
         )
     }
 
-
     Scaffold(
         topBar = {
             CommonTopAppBar(
-                title = state.subjectName,
+                title = state.assignmentTitle.ifEmpty { "تسليم الواجب" },
                 onNavigateUp = onNavigateUp
             )
         }
     ) { innerPadding ->
-        Column(
+
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
                 .padding(16.dp)
         ) {
-            // ٣. صندوق اختيار الملفات
-            FilePicker(
-                onClick = {
-                    // إطلاق منتقي الملفات للسماح باختيار الصور والملفات
-                    filePickerLauncher.launch(arrayOf("image/*", "application/pdf", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"))
-                }
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // ٤. قائمة الملفات التي تم اختيارها
-            LazyColumn(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+            // المحتوى الرئيسي
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(bottom = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                items(state.submittedFiles) { file ->
-                    SubmittedFileItem(
-                        file = file,
-                        onRemoveClick = { viewModel.removeFile(file) }
-                    )
+                // ✅ اختيار الملفات فقط إذا لم يتم التسليم أو في وضع التعديل
+                if (!state.alreadySubmitted || state.isEditingSubmission) {
+                    FilePicker {
+                        filePickerLauncher.launch(
+                            arrayOf(
+                                "image/*",
+                                "application/pdf",
+                                "application/msword",
+                                "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                            )
+                        )
+                    }
+                }
+
+                // ✅ عرض الملفات المختارة
+                LazyColumn(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(state.submittedFiles) { file ->
+                        SubmittedFileItem(
+                            file = file,
+                            onRemoveClick = {
+                                if (state.isEditingSubmission) viewModel.removeFile(file)
+                            }
+                        )
+                    }
+                }
+
+                NotesSection()
+
+                // ✅ الأزرار
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    when {
+                        !state.alreadySubmitted -> {
+                            Button(
+                                onClick = { viewModel.submitAssignment() },
+                                modifier = Modifier.weight(1f),
+                                enabled = state.submittedFiles.isNotEmpty() && !state.isSubmitting
+                            ) {
+                                if (state.isSubmitting) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(20.dp),
+                                        color = Color.White,
+                                        strokeWidth = 2.dp
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("جاري التسليم...")
+                                } else {
+                                    Text("تسليم", color = Color.White)
+                                }
+                            }
+                        }
+
+                        state.alreadySubmitted && !state.isEditingSubmission -> {
+                            Button(
+                                onClick = { viewModel.toggleEditMode() },
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text("عرض التسليم")
+                            }
+                        }
+
+                        state.isEditingSubmission -> {
+                            Button(
+                                onClick = { viewModel.resubmitAssignment() },
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                if (state.isSubmitting) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(20.dp),
+                                        color = Color.White,
+                                        strokeWidth = 2.dp
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("جارٍ التعديل...")
+                                } else {
+                                    Text("تعديل التسليم")
+                                }
+                            }
+                        }
+                    }
+
+                    Button(
+                        onClick = { viewModel.clearAllFiles() },
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = AppAlert,
+                            contentColor = Color.White
+                        ),
+                        enabled = state.isEditingSubmission && !state.isSubmitting
+                    ) {
+                        Text("حذف")
+                    }
                 }
             }
 
-            // ٥. الملاحظات
-            NotesSection()
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // ٦. أزرار الإجراءات
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
-            ) { // زر التسليم
-                Button(
-                    onClick = { viewModel.submitAssignment() },
-                    modifier = Modifier.weight(1f),
-                    enabled = state.submittedFiles.isNotEmpty() && !state.isSubmitting
+            // ✅ طبقة تحميل شفافة أثناء الرفع (Overlay)
+            if (state.isSubmitting) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.4f)),
+                    contentAlignment = Alignment.Center
                 ) {
-                    if (state.isSubmitting) {
-                        CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.White)
-                    } else {
-                        Text("تسليم", color = Color.White)
+                    Card(
+                        modifier = Modifier
+                            .width(220.dp)
+                            .height(140.dp),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color.White)
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(16.dp),
+                            verticalArrangement = Arrangement.Center,
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            CircularProgressIndicator()
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Text(
+                                text = "جاري رفع الملفات...",
+                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
+                            )
+                        }
                     }
                 }
-                // زر الحذف
-                Button(
-                    onClick = { viewModel.clearAllFiles() },
-                    modifier = Modifier.weight(1f),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = AppAlert,        // لون الخلفية
-                        contentColor = Color.White         // لون النص والأيقونات
-                    )
-                ) {
-                    Text("حذف")
-                }
-
-
             }
         }
     }
@@ -144,6 +226,7 @@ private fun FilePicker(onClick: () -> Unit) {
                 contentDescription = "Add File",
                 tint = Color.Gray
             )
+            Spacer(modifier = Modifier.height(8.dp))
             Text(text = "اختر الملف من جهازك", color = Color.Gray)
         }
     }
@@ -151,15 +234,22 @@ private fun FilePicker(onClick: () -> Unit) {
 
 @Composable
 private fun SubmittedFileItem(file: SubmittedFile, onRemoveClick: () -> Unit) {
-    Row(
+    Card(
         modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
+        shape = RoundedCornerShape(10.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFFF8F8F8))
     ) {
-        Text(text = file.name, modifier = Modifier.weight(1f))
-        IconButton(onClick = onRemoveClick) {
-            Icon(Icons.Default.Close, contentDescription = "Remove File")
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(file.name, modifier = Modifier.weight(1f))
+            IconButton(onClick = onRemoveClick) {
+                Icon(Icons.Default.Close, contentDescription = "Remove File", tint = Color.Gray)
+            }
         }
     }
 }
-

@@ -9,7 +9,6 @@ data class SubmittedFile(
     val size: Long
 )
 
-// ٢. تعريف الحالة الكاملة للشاشة
 data class SubmitAssignmentState(
     val isLoading: Boolean = true,
     val assignmentTitle: String = "",
@@ -17,5 +16,7 @@ data class SubmitAssignmentState(
     val submittedFiles: List<SubmittedFile> = emptyList(),
     val isSubmitting: Boolean = false,
     val submissionSuccess: Boolean = false,
-    val submissionTime: Long? = null, // إضافة لحفظ وقت التسليم
+    val submissionTime: Long? = null,
+    val alreadySubmitted: Boolean = false,
+    val isEditingSubmission: Boolean = false
 )
