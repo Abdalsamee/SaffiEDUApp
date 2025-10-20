@@ -32,15 +32,11 @@ fun SubmitAssignmentScreen(
 ) {
     val state by viewModel.state.collectAsState()
 
-    // ١. مشغل لاختيار الملفات (يسمح باختيار أنواع متعددة)
     val filePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenMultipleDocuments(),
-        onResult = { uris ->
-            uris?.let { viewModel.addFiles(it) }
-        }
+        onResult = { uris -> uris?.let { viewModel.addFiles(it) } }
     )
 
-    // ٢. ديالوج النجاح
     if (state.submissionSuccess) {
         SuccessDialog(
             submitDate = state.submissionTime,
@@ -51,13 +47,9 @@ fun SubmitAssignmentScreen(
         )
     }
 
-
     Scaffold(
         topBar = {
-            CommonTopAppBar(
-                title = state.subjectName,
-                onNavigateUp = onNavigateUp
-            )
+            CommonTopAppBar(title = state.assignmentTitle, onNavigateUp = onNavigateUp)
         }
     ) { innerPadding ->
         Column(
@@ -66,17 +58,22 @@ fun SubmitAssignmentScreen(
                 .padding(innerPadding)
                 .padding(16.dp)
         ) {
-            // ٣. صندوق اختيار الملفات
-            FilePicker(
-                onClick = {
-                    // إطلاق منتقي الملفات للسماح باختيار الصور والملفات
-                    filePickerLauncher.launch(arrayOf("image/*", "application/pdf", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"))
+
+            if (!state.alreadySubmitted || state.isEditingSubmission) {
+                FilePicker {
+                    filePickerLauncher.launch(
+                        arrayOf(
+                            "image/*",
+                            "application/pdf",
+                            "application/msword",
+                            "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                        )
+                    )
                 }
-            )
+            }
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // ٤. قائمة الملفات التي تم اختيارها
             LazyColumn(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -84,45 +81,63 @@ fun SubmitAssignmentScreen(
                 items(state.submittedFiles) { file ->
                     SubmittedFileItem(
                         file = file,
-                        onRemoveClick = { viewModel.removeFile(file) }
+                        onRemoveClick = { if (state.isEditingSubmission) viewModel.removeFile(file) }
                     )
                 }
             }
 
-            // ٥. الملاحظات
+            Spacer(modifier = Modifier.height(16.dp))
             NotesSection()
-
             Spacer(modifier = Modifier.height(16.dp))
 
-            // ٦. أزرار الإجراءات
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(16.dp)
-            ) { // زر التسليم
-                Button(
-                    onClick = { viewModel.submitAssignment() },
-                    modifier = Modifier.weight(1f),
-                    enabled = state.submittedFiles.isNotEmpty() && !state.isSubmitting
-                ) {
-                    if (state.isSubmitting) {
-                        CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.White)
-                    } else {
-                        Text("تسليم", color = Color.White)
+            ) {
+                when {
+                    !state.alreadySubmitted -> {
+                        Button(
+                            onClick = { viewModel.submitAssignment() },
+                            modifier = Modifier.weight(1f),
+                            enabled = state.submittedFiles.isNotEmpty() && !state.isSubmitting
+                        ) {
+                            if (state.isSubmitting) CircularProgressIndicator(
+                                modifier = Modifier.size(24.dp),
+                                color = Color.White
+                            ) else Text("تسليم")
+                        }
+                    }
+
+                    state.alreadySubmitted && !state.isEditingSubmission -> {
+                        Button(
+                            onClick = { viewModel.toggleEditMode() },
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text("عرض التسليم")
+                        }
+                    }
+
+                    state.isEditingSubmission -> {
+                        Button(
+                            onClick = { viewModel.resubmitAssignment() },
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text("تعديل التسليم")
+                        }
                     }
                 }
-                // زر الحذف
+
                 Button(
                     onClick = { viewModel.clearAllFiles() },
                     modifier = Modifier.weight(1f),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = AppAlert,        // لون الخلفية
-                        contentColor = Color.White         // لون النص والأيقونات
-                    )
+                        containerColor = AppAlert,
+                        contentColor = Color.White
+                    ),
+                    enabled = state.isEditingSubmission
                 ) {
                     Text("حذف")
                 }
-
-
             }
         }
     }
@@ -141,10 +156,10 @@ private fun FilePicker(onClick: () -> Unit) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Icon(
                 painter = painterResource(id = R.drawable.plusfile),
-                contentDescription = "Add File",
+                contentDescription = null,
                 tint = Color.Gray
             )
-            Text(text = "اختر الملف من جهازك", color = Color.Gray)
+            Text("اختر الملف من جهازك", color = Color.Gray)
         }
     }
 }
@@ -156,10 +171,9 @@ private fun SubmittedFileItem(file: SubmittedFile, onRemoveClick: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Text(text = file.name, modifier = Modifier.weight(1f))
+        Text(file.name, modifier = Modifier.weight(1f))
         IconButton(onClick = onRemoveClick) {
-            Icon(Icons.Default.Close, contentDescription = "Remove File")
+            Icon(Icons.Default.Close, contentDescription = "Remove")
         }
     }
 }
-

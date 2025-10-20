@@ -12,7 +12,7 @@ import javax.inject.Inject
 data class StudentAssignmentSubmission(
     val studentId: String,
     val assignmentId: String,
-    val submittedFiles: List<String>, // روابط الملفات في Storage
+    val submittedFiles: List<String>,
     val submissionTime: Long = System.currentTimeMillis(),
     val isSubmitted: Boolean = true,
     val notes: String? = null
@@ -44,7 +44,7 @@ class SubmissionRepository @Inject constructor(
                 ref.downloadUrl.await().toString()
             }
 
-            // حفظ حالة التسليم في Firestore
+            // حفظ في Firestore
             val submission = StudentAssignmentSubmission(
                 studentId = studentId,
                 assignmentId = assignmentId,
@@ -53,7 +53,7 @@ class SubmissionRepository @Inject constructor(
             )
 
             firestore.collection("assignment_submissions")
-                .document("$assignmentId-$studentId") // كل طالب لكل واجب مستند منفصل
+                .document("$assignmentId-$studentId")
                 .set(submission)
                 .await()
 

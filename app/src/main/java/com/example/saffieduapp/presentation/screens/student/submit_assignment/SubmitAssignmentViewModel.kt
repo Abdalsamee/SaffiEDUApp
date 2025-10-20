@@ -1,5 +1,6 @@
 package com.example.saffieduapp.presentation.screens.student.submit_assignment
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.net.Uri
 import android.provider.OpenableColumns
@@ -11,7 +12,6 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
@@ -25,7 +25,7 @@ class SubmitAssignmentViewModel @Inject constructor(
     private val submissionRepository: SubmissionRepository,
     private val auth: FirebaseAuth,
     savedStateHandle: SavedStateHandle,
-    private val firestore : FirebaseFirestore
+    private val firestore: FirebaseFirestore
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(SubmitAssignmentState())
@@ -34,113 +34,122 @@ class SubmitAssignmentViewModel @Inject constructor(
     private val assignmentId = savedStateHandle.get<String>("assignmentId") ?: ""
 
     init {
-        val assignmentId = savedStateHandle.get<String>("assignmentId")
-        if (assignmentId != null) {
-            loadAssignmentDetails(assignmentId)
+        val id = savedStateHandle.get<String>("assignmentId")
+        if (id != null) loadAssignmentDetails(id)
+    }
+
+    // تحميل تفاصيل الواجب والتحقق إن كان الطالب سلّمه من قبل
+    private fun loadAssignmentDetails(id: String) {
+        viewModelScope.launch {
+            _state.update { it.copy(isLoading = true) }
+
+            val studentEmail = auth.currentUser?.email ?: return@launch
+            val studentDoc = firestore.collection("students")
+                .whereEqualTo("email", studentEmail)
+                .get()
+                .await()
+
+            val studentId = studentDoc.documents.firstOrNull()?.id ?: return@launch
+
+            val submissionDoc = firestore.collection("assignment_submissions")
+                .document("$id-$studentId")
+                .get()
+                .await()
+
+            if (submissionDoc.exists()) {
+                val fileUrls = submissionDoc.get("submittedFiles") as? List<String> ?: emptyList()
+                val submittedFiles = fileUrls.mapIndexed { index, url ->
+                    SubmittedFile(Uri.parse(url), "ملف ${index + 1}", 0L)
+                }
+
+                _state.update {
+                    it.copy(
+                        isLoading = false,
+                        alreadySubmitted = true,
+                        submittedFiles = submittedFiles,
+                        assignmentTitle = "تم تسليم الواجب",
+                        subjectName = "عرض التسليم"
+                    )
+                }
+            } else {
+                _state.update {
+                    it.copy(
+                        isLoading = false,
+                        alreadySubmitted = false,
+                        assignmentTitle = "النحو والصرف",
+                        subjectName = "اللغة العربية"
+                    )
+                }
+            }
         }
     }
 
+    // تسليم جديد
     fun submitAssignment(notes: String? = null) {
         viewModelScope.launch {
             val files = state.value.submittedFiles
 
-            // جلب studentId بناءً على البريد الإلكتروني
             val doc = firestore.collection("students")
                 .whereEqualTo("email", auth.currentUser?.email)
                 .get()
                 .await()
+            val studentId = doc.documents.firstOrNull()?.id ?: return@launch
 
-            val studentId = doc.documents.firstOrNull()?.id
-
-            if (studentId == null) {
-                // لم يتم العثور على الطالب
-                _state.update { it.copy(isSubmitting = false, submissionSuccess = false) }
-                return@launch
-            }
-
-            // تفعيل مؤشر التحميل
             _state.update { it.copy(isSubmitting = true) }
 
             val success = submissionRepository.submitAssignment(
-                studentId = studentId,
-                assignmentId = assignmentId,
-                files = files.map { it.uri },
-                context = context,
-                notes = notes
+                studentId, assignmentId, files.map { it.uri }, context, notes
             )
-            // تسجيل وقت التسليم عند النجاح
-            val currentTime = if (success) System.currentTimeMillis() else null
 
-            // تحديث الحالة بعد التسليم
-            _state.update { it.copy(isSubmitting = false, submissionSuccess = success, submissionTime = currentTime) }
+            _state.update {
+                it.copy(
+                    isSubmitting = false,
+                    submissionSuccess = success,
+                    alreadySubmitted = success,
+                    submissionTime = System.currentTimeMillis()
+                )
+            }
         }
     }
 
-
-    private fun loadAssignmentDetails(id: String) {
-        // بيانات وهمية مؤقتة
-        _state.value = SubmitAssignmentState(
-            isLoading = false,
-            assignmentTitle = "النحو والصرف",
-            subjectName = "اللغة العربية"
-        )
+    // إعادة تسليم
+    fun resubmitAssignment() {
+        submitAssignment()
     }
 
-    // --- ٢. إضافة منطق كامل لإدارة الملفات ---
+    fun toggleEditMode() {
+        _state.update { it.copy(isEditingSubmission = !it.isEditingSubmission) }
+    }
 
-    /**
-     * دالة لإضافة قائمة من الملفات التي تم اختيارها.
-     */
     fun addFiles(uris: List<Uri>) {
         val newFiles = uris.mapNotNull { getSubmittedFileFromUri(it) }
-        _state.update { currentState ->
-            currentState.copy(
-                submittedFiles = currentState.submittedFiles + newFiles
-            )
+        _state.update {
+            it.copy(submittedFiles = it.submittedFiles + newFiles)
         }
     }
 
-    /**
-     * دالة لإزالة ملف محدد من القائمة.
-     */
     fun removeFile(file: SubmittedFile) {
-        _state.update { currentState ->
-            currentState.copy(
-                submittedFiles = currentState.submittedFiles.filter { it.uri != file.uri }
-            )
+        _state.update {
+            it.copy(submittedFiles = it.submittedFiles.filter { f -> f.uri != file.uri })
         }
     }
 
-    /**
-     * دالة لمسح كل الملفات المختارة.
-     */
     fun clearAllFiles() {
         _state.update { it.copy(submittedFiles = emptyList()) }
     }
 
-    /**
-     * دالة لإعادة تعيين حالة النجاح بعد إغلاق الديالوج.
-     */
     fun resetSubmissionStatus() {
         _state.update { it.copy(submissionSuccess = false) }
     }
 
-    /**
-     * دالة مساعدة لجلب اسم وحجم الملف من الـ Uri.
-     */
+    @SuppressLint("Range")
     private fun getSubmittedFileFromUri(uri: Uri): SubmittedFile? {
         return context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
             if (cursor.moveToFirst()) {
-                val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
-                val sizeIndex = cursor.getColumnIndex(OpenableColumns.SIZE)
-
-                val name = cursor.getString(nameIndex)
-                val size = cursor.getLong(sizeIndex)
-
+                val name = cursor.getString(cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME))
+                val size = cursor.getLong(cursor.getColumnIndex(OpenableColumns.SIZE))
                 SubmittedFile(uri, name, size)
-            } else {
-                null
-            }
+            } else null
         }
     }
 }
