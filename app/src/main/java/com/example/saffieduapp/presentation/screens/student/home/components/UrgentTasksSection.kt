@@ -29,7 +29,7 @@ fun UrgentTasksSection(
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp),
             horizontalArrangement = Arrangement.SpaceBetween
-        ){
+        ) {
             Text(
                 text = "المهام المستعجلة",
                 fontSize = 16.sp,
@@ -46,7 +46,7 @@ fun UrgentTasksSection(
             )
         }   // هنا ضع عرض قائمة المهام كالمعتاد
         tasks.forEach { task ->
-            UrgentTaskItem(task = task, onClick = { onTaskClick(task.id) })
+            UrgentTaskCard(task = task, onClick = { onTaskClick(task.id) })
         }
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -85,9 +85,4 @@ fun UrgentTasksSection(
         }
 
     }
-}
-
-@Composable
-fun UrgentTaskItem(task: UrgentTask, onClick: () -> Unit) {
-    TODO("Not yet implemented")
 }

@@ -53,14 +53,12 @@ fun HomeScreen(
     // إعادة اختيار تب الصفحة الرئيسية
     LaunchedEffect(Unit) {
         val entry = navController.getBackStackEntry(Routes.HOME_SCREEN)
-        entry.savedStateHandle
-            .getStateFlow("tab_reselected_tick", 0L)
-            .collectLatest { tick ->
-                if (tick != 0L) {
-                    listState.animateScrollToItem(0)
-                    viewModel.refresh()
-                }
+        entry.savedStateHandle.getStateFlow("tab_reselected_tick", 0L).collectLatest { tick ->
+            if (tick != 0L) {
+                listState.animateScrollToItem(0)
+                viewModel.refresh()
             }
+        }
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -74,42 +72,35 @@ fun HomeScreen(
         ) {
             item {
                 SearchBar(
-                    query = state.searchQuery,
-                    onQueryChanged = viewModel::onSearchQueryChanged
+                    query = state.searchQuery, onQueryChanged = viewModel::onSearchQueryChanged
                 )
             }
             item {
-                UrgentTasksSection(
-                    tasks = state.urgentTasks,
-                    onTaskClick = { taskId ->
-                        Toast.makeText(context, "Clicked Task ID: $taskId", Toast.LENGTH_SHORT).show()
-                    },
-                    onMoreClick = {
-                        // ✅ التنقل إلى شاشة المهام
-                        navController.navigate(Routes.TASKS_SCREEN)
-                    }
-                )
+                // عرض فقط أول عنصرين من الواجبات
+                UrgentTasksSection(tasks = state.urgentTasks.take(2), onTaskClick = { examId ->
+                    navController.navigate(Routes.EXAM_DETAILS_SCREEN + "/$examId")
+                }, onMoreClick = {
+                    // عند الضغط على "عرض المزيد" انتقل إلى شاشة المهام الكاملة
+                    navController.navigate(Routes.TASKS_SCREEN)
+                })
             }
+
 
             item {
                 EnrolledSubjectsSection(
-                    subjects = state.enrolledSubjects,
-                    onSubjectClick = { subjectId ->
+                    subjects = state.enrolledSubjects, onSubjectClick = { subjectId ->
                         navController.navigate(Routes.SUBJECT_DETAILS_SCREEN + "/$subjectId")
-                    },
-                    onMoreClick = onNavigateToSubjects
+                    }, onMoreClick = onNavigateToSubjects
                 )
             }
 
             item {
                 FeaturedLessonsSection(
-                    lessons = state.featuredLessons,
-                    onFeaturedLessonClick = { lesson ->
+                    lessons = state.featuredLessons, onFeaturedLessonClick = { lesson ->
                         navController.navigateToVideoScreen(
                             videoUrl = lesson.videoUrl
                         )
-                    }
-                )
+                    })
             }
         }
 
@@ -129,8 +120,7 @@ fun HomeScreen(
 
         if (state.isLoading && !state.isRefreshing) {
             Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
+                modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center
             ) {
                 CircularProgressIndicator(color = AppPrimary)
             }

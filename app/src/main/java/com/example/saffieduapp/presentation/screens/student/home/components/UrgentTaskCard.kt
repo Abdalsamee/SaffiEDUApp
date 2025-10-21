@@ -47,7 +47,7 @@ fun UrgentTaskCard(
         ) {
             AsyncImage(
                 model = task.imageUrl,
-                contentDescription = task.title,
+                contentDescription = null,
                 modifier = Modifier
                     .size(80.dp)
                     .clip(RoundedCornerShape(8.dp)),
@@ -60,13 +60,13 @@ fun UrgentTaskCard(
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = task.title,
+                    text = task.examType,
                     fontSize = 16.sp,
                     color = Color.Black,
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = task.subject,
+                    text = task.subjectName,
                     fontSize = 14.sp,
                     color = AppTextPrimary
                 )
@@ -78,13 +78,13 @@ fun UrgentTaskCard(
 
                     ) {
                     Text(
-                        text = "تاريخ الانتهاء: ${task.dueDate}",
+                        text = "تاريخ الانتهاء: ${task.endDate}",
                         fontSize = 10.sp,
                         color = AppTextSecondary
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "يبدأ الساعة ${task.startTime}",
+                        text = "يبدأ الساعة ${task.examStartTime}",
                         fontSize = 10.sp,
                         color = AppTextSecondary,
                         fontWeight = FontWeight.SemiBold

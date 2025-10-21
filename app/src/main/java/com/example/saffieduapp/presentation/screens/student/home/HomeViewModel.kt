@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.saffieduapp.data.FireBase.WorkManager.AlertScheduler
 import com.example.saffieduapp.domain.model.FeaturedLesson
 import com.example.saffieduapp.domain.model.Subject
+import com.example.saffieduapp.domain.model.UrgentTask
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -20,8 +21,7 @@ import java.util.Locale
 import javax.inject.Inject
 
 data class StdData(
-    val fullName: String = "",
-    val grade: String = ""
+    val fullName: String = "", val grade: String = ""
 )
 
 @HiltViewModel
@@ -45,10 +45,9 @@ class HomeViewModel @Inject constructor(
             val currentUserEmail = auth.currentUser?.email
             if (currentUserEmail != null) {
                 try {
-                    val querySnapshot = firestore.collection("students")
-                        .whereEqualTo("email", currentUserEmail)
-                        .get()
-                        .await()
+                    val querySnapshot =
+                        firestore.collection("students").whereEqualTo("email", currentUserEmail)
+                            .get().await()
 
                     if (!querySnapshot.isEmpty) {
                         val userData = querySnapshot.documents[0].toObject(StdData::class.java)
@@ -64,6 +63,7 @@ class HomeViewModel @Inject constructor(
 
                             // تحميل المواد للصف المناسب
                             loadSubjects()
+                            loadExams()
 
                             // استدعاء التنبيهات لكل مادة بعد تحميلها
                             _state.value.enrolledSubjects.forEach { subject ->
@@ -101,6 +101,8 @@ class HomeViewModel @Inject constructor(
                 withTimeout(5000) {
                     loadSubjects()
                     loadInitialData()
+                    loadExams()
+
                 }
             } catch (_: Exception) {
             } finally {
@@ -114,10 +116,9 @@ class HomeViewModel @Inject constructor(
             val studentGrade = _state.value.studentGrade
             if (studentGrade.isBlank()) return
 
-            val querySnapshot = firestore.collection("lessons")
-                .whereEqualTo("className", studentGrade)
-                .get()
-                .await()
+            val querySnapshot =
+                firestore.collection("lessons").whereEqualTo("className", studentGrade).get()
+                    .await()
 
             val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.ENGLISH)
 
@@ -128,7 +129,8 @@ class HomeViewModel @Inject constructor(
                 val viewers = doc.getLong("viewersCount")?.toInt() ?: 0
                 val imageUrl = doc.getString("imageUrl") ?: ""
                 val publicationDateStr = doc.getString("publicationDate") ?: return@mapNotNull null
-                val videoUrl = doc.getString("videoUrl") ?: return@mapNotNull null // ✅ فقط الدروس التي تحتوي فيديو
+                val videoUrl = doc.getString("videoUrl")
+                    ?: return@mapNotNull null // ✅ فقط الدروس التي تحتوي فيديو
 
                 val publicationDate = try {
                     dateFormat.parse(publicationDateStr)
@@ -143,8 +145,8 @@ class HomeViewModel @Inject constructor(
                     duration = duration,
                     progress = viewers,
                     imageUrl = imageUrl,
-                    publicationDate = publicationDateStr, // نتركها String
-                    videoUrl = videoUrl // رابط الفيديو
+                    publicationDate = publicationDateStr,
+                    videoUrl = videoUrl
                 )
             }
                 .sortedByDescending { dateFormat.parse(it.publicationDate) } // ترتيب تنازلي حسب تاريخ النشر
@@ -164,10 +166,8 @@ class HomeViewModel @Inject constructor(
             val grade = _state.value.studentGrade
             if (grade.isBlank()) return
 
-            val querySnapshot = firestore.collection("subjects")
-                .whereEqualTo("className", grade)
-                .get()
-                .await()
+            val querySnapshot =
+                firestore.collection("subjects").whereEqualTo("className", grade).get().await()
 
             val subjectsList = querySnapshot.documents.map { doc ->
                 val subjectName = doc.getString("subjectName") ?: "غير معروف"
@@ -192,11 +192,45 @@ class HomeViewModel @Inject constructor(
             }
 
             _state.value = _state.value.copy(
-                enrolledSubjects = subjectsList,
-                isLoading = false
+                enrolledSubjects = subjectsList, isLoading = false
             )
         } catch (_: Exception) {
             _state.value = _state.value.copy(isLoading = false)
+        }
+    }
+
+    private suspend fun loadExams() {
+
+        try {
+            val studentGrade = _state.value.studentGrade
+            if (studentGrade.isBlank()) return
+
+            val querySnapshot =
+                firestore.collection("exams").whereEqualTo("className", studentGrade).get().await()
+
+            val examsList = querySnapshot.documents.mapNotNull { doc ->
+                val examType = doc.getString("examType") ?: "غير محدد"
+                val examDate = doc.getString("examDate") ?: ""
+                val examStartTime = doc.getString("examStartTime") ?: ""
+                val subjectName = doc.getString("subjectName") ?: "غير محدد"
+
+                UrgentTask(
+                    id = doc.id,
+                    examType = examType,
+                    endDate = examDate,
+                    examStartTime = examStartTime,
+                    subjectName = subjectName,
+                    imageUrl = null
+                )
+            }
+
+            _state.value = _state.value.copy(
+                urgentTasks = examsList.distinctBy { it.id }
+            )
+
+        } catch (e: Exception) {
+            // معالجة الأخطاء
+            println("Error loading exams: ${e.message}")
         }
     }
 
@@ -226,10 +260,8 @@ class HomeViewModel @Inject constructor(
     }
 
     private fun listenForAlerts(currentSubjectId: String, currentClassId: String) {
-        firestore.collection("alerts")
-            .whereEqualTo("subjectId", currentSubjectId)
-            .whereEqualTo("targetClass", currentClassId)
-            .addSnapshotListener { snapshot, e ->
+        firestore.collection("alerts").whereEqualTo("subjectId", currentSubjectId)
+            .whereEqualTo("targetClass", currentClassId).addSnapshotListener { snapshot, e ->
                 if (e != null || snapshot == null) return@addSnapshotListener
 
                 for (doc in snapshot.documents) {
@@ -256,10 +288,8 @@ class HomeViewModel @Inject constructor(
     }
 
     private fun listenForNewLessons(studentGrade: String) {
-        firestore.collection("lessons")
-            .whereEqualTo("className", studentGrade)
-            .whereEqualTo("notifyStudents", true)
-            .addSnapshotListener { snapshot, e ->
+        firestore.collection("lessons").whereEqualTo("className", studentGrade)
+            .whereEqualTo("notifyStudents", true).addSnapshotListener { snapshot, e ->
                 if (e != null || snapshot == null) return@addSnapshotListener
 
                 snapshot.documents.forEach { doc ->

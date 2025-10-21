@@ -1,10 +1,10 @@
 package com.example.saffieduapp.domain.model
 
 data class UrgentTask(
-    val id: String,
-    val title: String,
-    val subject: String,
-    val dueDate: String,
-    val startTime: String,
-    val imageUrl: String
+    val id: String = "",
+    val examType: String = "",
+    val endDate: String = "",
+    val examStartTime: String = "",
+    val subjectName: String = "",
+    val imageUrl: String?
 )
