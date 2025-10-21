@@ -31,14 +31,14 @@ import com.example.saffieduapp.ui.theme.AppPrimary
 
 @Composable
 fun AddQuestionScreen(
-    navController: NavController, // ✅ أضف هذا
+    navController: NavController,
     onNavigateUp: () -> Unit,
     viewModel: AddQuestionViewModel = hiltViewModel(),
     onNavigateToSummary: (List<QuestionData>) -> Unit
 ) {
     val state by viewModel.state.collectAsState()
     AddQuestionScreenContent(
-        navController = navController, // ✅ مرره للأسفل
+        navController = navController,
         state = state,
         onNavigateUp = onNavigateUp,
         onEvent = viewModel::onEvent,
@@ -66,7 +66,7 @@ private fun AddQuestionScreenContent(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-        ){
+        ) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -101,7 +101,7 @@ private fun AddQuestionScreenContent(
                         fontWeight = FontWeight.Normal,
                         fontSize = 18.sp,
                         color = Color.Black,
-                        modifier = Modifier.padding(top=20.dp)
+                        modifier = Modifier.padding(top = 20.dp)
                     )
                     PointsDropdown(
                         selectedPoints = state.currentQuestionPoints,
@@ -111,7 +111,7 @@ private fun AddQuestionScreenContent(
                     )
                 }
                 AddLessonTextField(
-                    title = null ,
+                    title = null,
                     value = state.currentQuestionText,
                     onValueChange = { onEvent(AddQuestionEvent.QuestionTextChanged(it)) },
                     placeholder = "ادخل نص السؤال",
@@ -126,7 +126,8 @@ private fun AddQuestionScreenContent(
                 )
                 Spacer(modifier = Modifier.weight(1f)) // لدفع الأزرار لأسفل
                 Row(
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier
+                        .fillMaxWidth()
                         .padding(bottom = 20.dp),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
@@ -136,21 +137,30 @@ private fun AddQuestionScreenContent(
                         modifier = Modifier.fillMaxWidth(0.4f),
                         shape = RoundedCornerShape(12.dp)
                     ) {
-                        Text("سؤال جديد", color = Color.White
-                            , fontSize = 18.sp,
+                        Text(
+                            "سؤال جديد", color = Color.White, fontSize = 18.sp,
                             fontWeight = FontWeight.SemiBold
                         )
                     }
                     Button(
                         onClick = {
+                            onEvent(AddQuestionEvent.AddNewQuestionClicked)
+
+                            // 2. بعد أن أصبحت القائمة محدّثة في الـ ViewModel، قم بالانتقال
                             navController.currentBackStackEntry
                                 ?.savedStateHandle
                                 ?.set("questions", state.createdQuestions)
+
                             navController.navigate(Routes.QUIZ_SUMMARY_SCREEN)
-                        },                        modifier = Modifier.fillMaxWidth(0.7f),
+                        }, modifier = Modifier.fillMaxWidth(0.7f),
                         shape = RoundedCornerShape(12.dp)
                     ) {
-                        Text("حفظ ونشر", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+                        Text(
+                            "حفظ ونشر",
+                            color = Color.White,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
                     }
                 }
 
@@ -174,8 +184,8 @@ private fun AddQuestionScreenContent(
                 )
             }
         }
-    }}
-
+    }
+}
 
 
 //@Preview(showBackground = true, locale = "ar")

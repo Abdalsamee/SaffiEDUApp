@@ -29,7 +29,7 @@ fun UrgentTasksSection(
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp),
             horizontalArrangement = Arrangement.SpaceBetween
-        ){
+        ) {
             Text(
                 text = "المهام المستعجلة",
                 fontSize = 16.sp,
@@ -42,16 +42,11 @@ fun UrgentTasksSection(
                 fontSize = 16.sp,
                 fontStyle = androidx.compose.ui.text.font.FontStyle.Normal,
                 color = Color.Black,
-                modifier = Modifier.clickable { onMoreClick() }
-            )
-        }   // هنا ضع عرض قائمة المهام كالمعتاد
-        tasks.forEach { task ->
-            UrgentTaskItem(task = task, onClick = { onTaskClick(task.id) })
+                modifier = Modifier.clickable { onMoreClick() })
         }
 
+
         Spacer(modifier = Modifier.height(16.dp))
-
-
 
 
         if (tasks.isEmpty()) {
@@ -63,9 +58,7 @@ fun UrgentTasksSection(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = "لا توجد مهام مستعجلة حالياً",
-                    fontSize = 14.sp,
-                    color = Color.Gray
+                    text = "لا توجد مهام مستعجلة حالياً", fontSize = 14.sp, color = Color.Gray
                 )
             }
         } else {
@@ -74,20 +67,14 @@ fun UrgentTasksSection(
                 modifier = Modifier.padding(horizontal = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                tasks.take(3).forEach { task ->
+                // ملاحظة: بما أنك تستدعيها في HomeScreen بـ take(2)، يمكن إزالة take(3) هنا
+                tasks.forEach { task -> // تم تغييرها من tasks.take(3)
                     UrgentTaskCard(
                         task = task,
                         modifier = Modifier.fillMaxWidth(),
-                        onClick = { onTaskClick(task.id) }
-                    )
+                        onClick = { onTaskClick(task.id) })
                 }
             }
         }
-
     }
-}
-
-@Composable
-fun UrgentTaskItem(task: UrgentTask, onClick: () -> Unit) {
-    TODO("Not yet implemented")
 }
