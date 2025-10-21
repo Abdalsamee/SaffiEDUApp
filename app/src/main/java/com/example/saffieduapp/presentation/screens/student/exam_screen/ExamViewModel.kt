@@ -191,7 +191,7 @@ class ExamViewModel @Inject constructor(
             is ExamEvent.SelectSingleChoice -> selectSingleChoice(event.questionId, event.choiceId)
             is ExamEvent.ToggleMultipleChoice -> toggleMultipleChoice(event.questionId, event.choiceId)
             is ExamEvent.UpdateEssayAnswer -> updateEssayAnswer(event.questionId, event.text)
-            is ExamEvent.SelectSingleChoice -> updateTrueFalseAnswer(event.questionId, event.choiceId)
+            //is ExamEvent.SelectSingleChoice -> updateTrueFalseAnswer(event.questionId, event.choiceId)
             is ExamEvent.NextQuestion -> nextQuestion()
             is ExamEvent.PreviousQuestion -> previousQuestion()
             is ExamEvent.GoToQuestion -> goToQuestion(event.index)
