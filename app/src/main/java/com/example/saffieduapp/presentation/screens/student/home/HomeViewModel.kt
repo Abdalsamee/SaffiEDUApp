@@ -225,8 +225,7 @@ class HomeViewModel @Inject constructor(
             }
 
             _state.value = _state.value.copy(
-                urgentTasks = examsList.distinctBy { it.id }
-            )
+                urgentTasks = examsList.distinctBy { it.id })
 
         } catch (e: Exception) {
             // معالجة الأخطاء
