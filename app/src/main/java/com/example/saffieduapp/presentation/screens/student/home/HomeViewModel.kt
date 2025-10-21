@@ -210,11 +210,10 @@ class HomeViewModel @Inject constructor(
             val todayDateString = dateFormat.format(Date()) // ⬅️ تاريخ اليوم بصيغة 'YYYY-MM-DD'
 
             // 2. تغيير الاستعلام ليقارن بتاريخ اليوم
-            val querySnapshot = firestore.collection("exams")
-                .whereEqualTo("className", studentGrade)
-                // ✅ الفلتر الجديد: عرض الاختبارات التي تاريخ انتهائها (examDate) هو اليوم
-                .whereEqualTo("examDate", todayDateString)
-                .get().await()
+            val querySnapshot =
+                firestore.collection("exams").whereEqualTo("className", studentGrade)
+                    // ✅ الفلتر الجديد: عرض الاختبارات التي تاريخ انتهائها (examDate) هو اليوم
+                    .whereEqualTo("examDate", todayDateString).get().await()
 
             val examsList = querySnapshot.documents.mapNotNull { doc ->
                 val examType = doc.getString("examType") ?: "غير محدد"
@@ -225,7 +224,6 @@ class HomeViewModel @Inject constructor(
                 UrgentTask(
                     id = doc.id,
                     examType = examType,
-                    // يمكنك تغيير هذا العرض ليعكس أنه اليوم، لكن البيانات تظل كما هي
                     endDate = examDate,
                     examStartTime = examStartTime,
                     subjectName = subjectName,
