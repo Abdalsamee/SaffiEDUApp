@@ -61,14 +61,10 @@ class TeacherHomeViewModel @Inject constructor(
 
     private suspend fun getTeacherClasses(teacherId: String): List<String> {
         return try {
-            val teacherDoc = firestore.collection("teachers")
-                .document(teacherId)
-                .get()
-                .await()
+            val teacherDoc = firestore.collection("teachers").document(teacherId).get().await()
 
             // افترض أن الصفوف مخزنة كقائمة في حقل "classes"
-            val classes = teacherDoc.get("className") as? List<String>
-                ?: emptyList()
+            val classes = teacherDoc.get("className") as? List<String> ?: emptyList()
 
             classes
         } catch (e: Exception) {
@@ -82,10 +78,9 @@ class TeacherHomeViewModel @Inject constructor(
             val currentUserEmail = auth.currentUser?.email
             if (currentUserEmail != null) {
                 try {
-                    val querySnapshot = firestore.collection("teachers")
-                        .whereEqualTo("email", currentUserEmail)
-                        .get()
-                        .await()
+                    val querySnapshot =
+                        firestore.collection("teachers").whereEqualTo("email", currentUserEmail)
+                            .get().await()
 
                     if (!querySnapshot.isEmpty) {
                         val doc = querySnapshot.documents[0]
@@ -96,10 +91,9 @@ class TeacherHomeViewModel @Inject constructor(
                         val teacherClasses = teacherData?.classes ?: emptyList()
 
                         // تحقق من وجود أي مادة للمستخدم في كوليكشن subjects
-                        val subjectsSnapshot = firestore.collection("subjects")
-                            .whereEqualTo("teacherId", teacherId)
-                            .get()
-                            .await()
+                        val subjectsSnapshot =
+                            firestore.collection("subjects").whereEqualTo("teacherId", teacherId)
+                                .get().await()
 
                         val hasAnySubject = !subjectsSnapshot.isEmpty
 
@@ -125,10 +119,7 @@ class TeacherHomeViewModel @Inject constructor(
     // **HELPER FUNCTION: Fetch Student Name**
     private suspend fun getStudentName(studentId: String): String {
         return try {
-            val studentDoc = firestore.collection("students")
-                .document(studentId)
-                .get()
-                .await()
+            val studentDoc = firestore.collection("students").document(studentId).get().await()
             studentDoc.getString("fullName") ?: "طالب مجهول ($studentId)"
         } catch (e: Exception) {
             "خطأ في جلب اسم الطالب ($studentId)"
@@ -138,10 +129,8 @@ class TeacherHomeViewModel @Inject constructor(
     // **HELPER FUNCTION: Fetch Assignment Title**
     private suspend fun getAssignmentTitle(assignmentId: String): String {
         return try {
-            val assignmentDoc = firestore.collection("assignments")
-                .document(assignmentId)
-                .get()
-                .await()
+            val assignmentDoc =
+                firestore.collection("assignments").document(assignmentId).get().await()
             assignmentDoc.getString("title") ?: "واجب (ID: $assignmentId)"
         } catch (e: Exception) {
             "خطأ في جلب عنوان الواجب ($assignmentId)"
@@ -151,10 +140,7 @@ class TeacherHomeViewModel @Inject constructor(
     // **HELPER FUNCTION: Fetch Exam Title**
     private suspend fun getExamTitle(examId: String): String {
         return try {
-            val examDoc = firestore.collection("exams")
-                .document(examId)
-                .get()
-                .await()
+            val examDoc = firestore.collection("exams").document(examId).get().await()
             examDoc.getString("examTitle") ?: "اختبار (ID: $examId)"
         } catch (e: Exception) {
             "خطأ في جلب عنوان الاختبار ($examId)"
@@ -173,8 +159,7 @@ class TeacherHomeViewModel @Inject constructor(
                 // يجب تطبيق الفلترة هنا: .whereIn("className", teacherClasses)
                 .orderBy("submissionTime", com.google.firebase.firestore.Query.Direction.DESCENDING)
                 .limit(3) // جلب آخر 3 واجبات
-                .get()
-                .await()
+                .get().await()
 
             for (doc in assignmentsSnapshot.documents) {
                 val studentId = doc.getString("studentId") ?: continue
@@ -205,8 +190,7 @@ class TeacherHomeViewModel @Inject constructor(
                 // يجب تطبيق الفلترة هنا: .whereIn("className", teacherClasses)
                 .orderBy("submittedAt", com.google.firebase.firestore.Query.Direction.DESCENDING)
                 .limit(3) // جلب آخر 3 اختبارات
-                .get()
-                .await()
+                .get().await()
 
             for (doc in examsSnapshot.documents) {
                 val studentId = doc.getString("studentId") ?: continue
@@ -248,6 +232,86 @@ class TeacherHomeViewModel @Inject constructor(
         return if (hours < 1) "قبل دقائق" else "قبل ${hours.toInt()} ساعة"
     }
 
+    // ... (TeacherHomeViewModel code before loadInitialData)
+
+    /**
+     * دالة مساعدة لتحويل اسم الصف العربي إلى رقم لغرض الفلترة/التحقق
+     */
+    private fun mapClassNameToNumber(className: String): Int {
+        return when (className) {
+            "الصف الأول" -> 1
+            "الصف الثاني" -> 2
+            "الصف الثالث" -> 3
+            "الصف الرابع" -> 4
+            "الصف الخامس" -> 5
+            "الصف السادس" -> 6
+            "الصف السابع" -> 7
+            "الصف الثامن" -> 8
+            "الصف التاسع" -> 9
+            "الصف العاشر" -> 10
+            "الصف الحادي عشر" -> 11
+            "الصف الثاني عشر" -> 12
+            else -> 99 // رقم كبير للصفوف غير المعروفة
+        }
+    }
+
+    /**
+     * تجلب الصفوف التي يدرسها المعلم (من الصف الأول للخامس) مع بيانات المادة وصور الطلاب.
+     */
+    private suspend fun getTeacherClassDetails(teacherId: String): List<TeacherClass> {
+        val teacherClassesDetails = mutableListOf<TeacherClass>()
+
+        try {
+            // 1. جلب المواد التي يدرسها المعلم
+            val subjectsSnapshot =
+                firestore.collection("subjects").whereEqualTo("teacherId", teacherId).get().await()
+
+            for (subjectDoc in subjectsSnapshot.documents) {
+                val className = subjectDoc.getString("className") ?: continue
+                val subjectName = subjectDoc.getString("subjectName") ?: continue
+                val subjectImage =
+                    subjectDoc.getString("subjectImageUrl") ?: "" // افترض وجود حقل للصورة
+
+                // 2. فلترة الصفوف لتكون من الأول للخامس
+                val classNumber = mapClassNameToNumber(className)
+                if (classNumber !in 1..5) continue
+
+                // 3. جلب الطلاب لهذا الصف
+                val studentsSnapshot = firestore.collection("students").whereEqualTo(
+                    "grade", className
+                ) // يجب أن يكون حقل grade في students يطابق className
+                    .get().await()
+
+                val studentCount = studentsSnapshot.size()
+                val studentImages = studentsSnapshot.documents.take(3) // جلب صور أول 3 طلاب
+                    .mapNotNull { it.getString("profileImageUrl") }
+                    // ⚠️ ملاحظة: لقطة الشاشة للطالب image_3542fa.png تُظهر الحقل "profileImageUrl"
+                    // لكن قد تحتاج لتعديل مسار التخزين هنا إذا كان مختلفًا عن المتوقع.
+                    .toList()
+
+                // 4. بناء كائن TeacherClass
+                teacherClassesDetails.add(
+                    TeacherClass(
+                        classId = subjectDoc.id, // يمكن استخدام ID المادة كـ ClassID مؤقت
+                        className = className,
+                        subjectName = subjectName,
+                        subjectImageUrl = subjectImage,
+                        studentCount = studentCount,
+                        studentImages = studentImages
+                    )
+                )
+            }
+        } catch (e: Exception) {
+            println("خطأ في جلب تفاصيل صفوف المعلم: ${e.message}")
+            return emptyList()
+        }
+
+        return teacherClassesDetails
+    }
+
+// ... (Rest of TeacherHomeViewModel code)
+
+    // 💡 تعديل دالة loadInitialData لاستخدام الدالة الجديدة
     private fun loadInitialData(
         teacherName: String,
         teacherSubject: String,
@@ -261,9 +325,14 @@ class TeacherHomeViewModel @Inject constructor(
                 TopStudent("st3", "علي أحمد", "", 3, 95, "10/10", "8/10")
             )
 
-            // ⚠️ الاستدعاء الجديد هنا
-            val fetchedUpdates =
-                getLatestStudentUpdates(teacherClasses) // استدعاء لجلب البيانات من Firestore
+            // ⚠️ الاستدعاء الجديد هنا لجلب بيانات الصفوف بالتفصيل
+            val fetchedTeacherClasses = if (idTeach != null) {
+                getTeacherClassDetails(idTeach!!)
+            } else {
+                emptyList()
+            }
+
+            val fetchedUpdates = getLatestStudentUpdates(teacherClasses)
 
             delay(500)
 
@@ -272,13 +341,14 @@ class TeacherHomeViewModel @Inject constructor(
                 teacherName = teacherName,
                 teacherSub = teacherSubject,
                 profileImageUrl = "",
-                // 🔄 استخدام البيانات المجلوبة بدلاً من allUpdates.take(3)
                 studentUpdates = fetchedUpdates,
-                teacherClasses = classesList,
-                availableClassesForFilter = teacherClasses.ifEmpty {
+                // 🔄 استخدام بيانات الصفوف المجلوبة هنا بدلاً من classesList الثابتة
+                teacherClasses = fetchedTeacherClasses,
+                availableClassesForFilter = fetchedTeacherClasses.map { it.className }.ifEmpty {
                     listOf("الصف السادس", "الصف السابع", "الصف الثامن")
                 },
-                selectedClassFilter = teacherClasses.firstOrNull() ?: "الصف السادس",
+                selectedClassFilter = fetchedTeacherClasses.firstOrNull()?.className
+                    ?: "الصف السادس",
                 topStudents = topStudentsList,
                 showActivateButton = !isActivated
             )
@@ -303,12 +373,10 @@ class TeacherHomeViewModel @Inject constructor(
                 // 🔹 تفعيل المادة لكل صف
                 for (className in teacherClasses) {
                     // تحقق إذا كانت المادة مفعلة بالفعل لهذا الصف
-                    val existingSubjects = firestore.collection("subjects")
-                        .whereEqualTo("teacherId", teacherId)
-                        .whereEqualTo("subjectName", subjectName)
-                        .whereEqualTo("className", className)
-                        .get()
-                        .await()
+                    val existingSubjects =
+                        firestore.collection("subjects").whereEqualTo("teacherId", teacherId)
+                            .whereEqualTo("subjectName", subjectName)
+                            .whereEqualTo("className", className).get().await()
 
                     if (existingSubjects.isEmpty) {
                         // 🔹 إضافة المادة للصف الحالي
@@ -322,10 +390,7 @@ class TeacherHomeViewModel @Inject constructor(
                         )
 
                         val docId = UUID.randomUUID().toString()
-                        firestore.collection("subjects")
-                            .document(docId)
-                            .set(subjectData)
-                            .await()
+                        firestore.collection("subjects").document(docId).set(subjectData).await()
 
                         println("✅ تم تفعيل المادة $subjectName للصف $className")
                     } else {
@@ -334,10 +399,8 @@ class TeacherHomeViewModel @Inject constructor(
                 }
 
                 // 🔹 تحديث حالة المعلم
-                firestore.collection("teachers")
-                    .document(teacherId)
-                    .update("isSubjectActivated", true)
-                    .await()
+                firestore.collection("teachers").document(teacherId)
+                    .update("isSubjectActivated", true).await()
 
                 prefs.setSubjectActivated(true)
                 _state.value = _state.value.copy(showActivateButton = false)
@@ -382,4 +445,5 @@ class TeacherHomeViewModel @Inject constructor(
             "غير معروف"
         }
     }
+
 }
