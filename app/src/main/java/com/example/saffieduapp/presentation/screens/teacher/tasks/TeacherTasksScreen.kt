@@ -1,5 +1,7 @@
 package com.example.saffieduapp.presentation.screens.teacher.tasks
 
+import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -20,6 +22,7 @@ import com.example.saffieduapp.presentation.screens.teacher.tasks.components.Tea
 import com.example.saffieduapp.ui.theme.AppPrimary
 import com.example.saffieduapp.ui.theme.AppTextSecondary
 
+@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun TeacherTasksScreen(
     navController: NavController,
@@ -94,8 +97,7 @@ fun TeacherTasksScreen(
                             time = task.time,
                             isActive = task.isActive,
                             onDetailsClick = {
-                                navController.navigate("${Routes.TEACHER_TASK_DETAILS_SCREEN}/${task.id}")
-                            },
+                                navController.navigate("${Routes.TEACHER_TASK_DETAILS_SCREEN}/${task.id}/${task.type.name}")                            },
                             onDeleteClick = {
                                 viewModel.deleteTask(
                                     taskId = task.id,
