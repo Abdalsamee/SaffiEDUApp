@@ -189,7 +189,11 @@ class ExamViewModel @Inject constructor(
     fun onEvent(event: ExamEvent) {
         when (event) {
             is ExamEvent.SelectSingleChoice -> selectSingleChoice(event.questionId, event.choiceId)
-            is ExamEvent.ToggleMultipleChoice -> toggleMultipleChoice(event.questionId, event.choiceId)
+            is ExamEvent.ToggleMultipleChoice -> toggleMultipleChoice(
+                event.questionId,
+                event.choiceId
+            )
+
             is ExamEvent.UpdateEssayAnswer -> updateEssayAnswer(event.questionId, event.text)
             //is ExamEvent.SelectSingleChoice -> updateTrueFalseAnswer(event.questionId, event.choiceId)
             is ExamEvent.NextQuestion -> nextQuestion()
@@ -285,7 +289,7 @@ class ExamViewModel @Inject constructor(
             }
 
             try {
-                    val userDoc = firestore
+                val userDoc = firestore
                     .collection("students")
                     .whereEqualTo("email", email)
                     .get()
@@ -309,12 +313,12 @@ class ExamViewModel @Inject constructor(
                     }
                 }
 
+                val submissionDocId = "${_state.value.examId}_$studentId"
+
                 // حفظ الإجابات النهائية
-                     firestore
+                firestore
                     .collection("exam_submissions")
-                    .document(_state.value.examId)
-                    .collection("submissions")
-                    .document(studentId)
+                    .document(submissionDocId) // استخدام تركيبة examId_studentId كـ ID للتسليم
                     .set(
                         mapOf(
                             "answers" to answersMap,
@@ -358,16 +362,18 @@ class ExamViewModel @Inject constructor(
                     }
                 }
 
+                val draftDocId = "${_state.value.examId}_${studentId}_draft"
+
                 FirebaseFirestore.getInstance()
-                    .collection("exam_submissions")
-                    .document(_state.value.examId)
-                    .collection("drafts")
-                    .document(studentId)
+                    .collection("draft")
+                    .document(draftDocId)
                     .set(
                         mapOf(
                             "answers" to answersMap,
                             "savedAt" to System.currentTimeMillis(),
-                            "studentId" to studentId
+                            "studentId" to studentId,
+                            "examId" to _state.value.examId, // إضافة examId لتسهيل الاستعلام
+                            "isDraft" to true // حقل إضافي للتمييز
                         )
                     ).await()
             } catch (_: Exception) {
