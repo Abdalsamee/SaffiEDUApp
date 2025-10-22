@@ -67,21 +67,21 @@ class TeacherTasksViewModel : ViewModel() {
         }
 
         query.get().addOnSuccessListener { snapshot ->
-                val assignments = snapshot.documents.map { doc ->
-                    TeacherTaskItem(
-                        id = doc.id,
-                        subject = doc.getString("subjectName") ?: "",
-                        date = doc.getString("dueDate") ?: "",
-                        time = doc.getString("dueTime") ?: "23:59",
-                        isActive = true,
-                        type = TaskType.ASSIGNMENT,
-                        title = doc.getString("title")
-                    )
-                }
-                _state.value = _state.value.copy(assignments = assignments, isLoading = false)
-            }.addOnFailureListener {
-                _state.value = _state.value.copy(isLoading = false)
+            val assignments = snapshot.documents.map { doc ->
+                TeacherTaskItem(
+                    id = doc.id,
+                    subject = doc.getString("subjectName") ?: "",
+                    date = doc.getString("dueDate") ?: "",
+                    time = doc.getString("dueTime") ?: "23:59",
+                    isActive = true,
+                    type = TaskType.ASSIGNMENT,
+                    title = doc.getString("title")
+                )
             }
+            _state.value = _state.value.copy(assignments = assignments, isLoading = false)
+        }.addOnFailureListener {
+            _state.value = _state.value.copy(isLoading = false)
+        }
     }
 
     // تحميل الاختبارات الخاصة بالمعلم حسب الصف
@@ -95,20 +95,46 @@ class TeacherTasksViewModel : ViewModel() {
         }
 
         query.get().addOnSuccessListener { snapshot ->
-                val exams = snapshot.documents.map { doc ->
-                    TeacherTaskItem(
-                        id = doc.id,
-                        subject = doc.getString("subjectName") ?: "",
-                        date = doc.getString("examDate") ?: "",
-                        time = doc.getString("examStartTime") ?: "",
-                        isActive = true,
-                        type = TaskType.EXAM,
-                        title = doc.getString("title")
-                    )
+            val exams = snapshot.documents.map { doc ->
+                TeacherTaskItem(
+                    id = doc.id,
+                    subject = doc.getString("subjectName") ?: "",
+                    date = doc.getString("examDate") ?: "",
+                    time = doc.getString("examStartTime") ?: "",
+                    isActive = true,
+                    type = TaskType.EXAM,
+                    title = doc.getString("title")
+                )
+            }
+            _state.value = _state.value.copy(exams = exams, isLoading = false)
+        }.addOnFailureListener {
+            _state.value = _state.value.copy(isLoading = false)
+        }
+    }
+
+    fun deleteTask(taskId: String, taskType: TaskType) {
+        // تحديد اسم المجموعة بناءً على نوع المهمة
+        val collectionName = when (taskType) {
+            TaskType.ASSIGNMENT -> "assignments"
+            TaskType.EXAM -> "exams"
+        }
+
+        _state.value = _state.value.copy(isLoading = true) // عرض مؤشر التحميل
+
+        db.collection(collectionName).document(taskId).delete()
+            .addOnSuccessListener {
+                // بعد الحذف بنجاح، قم بإعادة تحميل المهام المتبقية
+                teacherId?.let { id ->
+                    // لا نحتاج لإعادة جلب معرف المعلم، فقط إعادة تحميل المهام باستخدام الصف المحدد
+                    loadAssignments(id, _state.value.selectedClass)
+                    loadExams(id, _state.value.selectedClass)
                 }
-                _state.value = _state.value.copy(exams = exams, isLoading = false)
-            }.addOnFailureListener {
+            }
+            .addOnFailureListener { e ->
+                // يمكنك هنا إضافة منطق لعرض رسالة خطأ للمستخدم
                 _state.value = _state.value.copy(isLoading = false)
+                // يمكن استخدام Log.e أو أي نظام Logging
+                println("Error deleting task: $e")
             }
     }
 

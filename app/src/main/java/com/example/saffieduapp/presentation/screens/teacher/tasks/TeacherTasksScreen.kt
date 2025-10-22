@@ -95,9 +95,13 @@ fun TeacherTasksScreen(
                             isActive = task.isActive,
                             onDetailsClick = {
                                 navController.navigate("${Routes.TEACHER_TASK_DETAILS_SCREEN}/${task.id}")
+                            },
+                            onDeleteClick = {
+                                viewModel.deleteTask(
+                                    taskId = task.id,
+                                    taskType = task.type
+                                )
                             }
-                            ,
-                            onDeleteClick = { /* delete task later */ }
                         )
                     }
                 }
