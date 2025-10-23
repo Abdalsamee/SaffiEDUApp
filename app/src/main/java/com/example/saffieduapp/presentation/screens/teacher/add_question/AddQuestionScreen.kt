@@ -19,6 +19,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.saffieduapp.navigation.Routes
 import com.example.saffieduapp.presentation.screens.student.components.CommonTopAppBar
@@ -42,7 +43,8 @@ fun AddQuestionScreen(
         state = state,
         onNavigateUp = onNavigateUp,
         onEvent = viewModel::onEvent,
-        onNavigateToSummary = onNavigateToSummary
+        onNavigateToSummary = onNavigateToSummary,
+        viewModel = viewModel
     )
 }
 
@@ -53,7 +55,9 @@ private fun AddQuestionScreenContent(
     onNavigateUp: () -> Unit,
     onEvent: (AddQuestionEvent) -> Unit,
     onNavigateToSummary: (List<QuestionData>) -> Unit,
-    navController: NavController
+    navController: NavController,
+    // **استقبال ViewModel لتنفيذ عملية الحفظ المتزامن**
+    viewModel: AddQuestionViewModel // يجب إضافة هذا المعامل
 ) {
     Scaffold(
         topBar = {
@@ -133,8 +137,7 @@ private fun AddQuestionScreenContent(
                 ) {
 
                     Button(
-                        onClick = { onEvent(AddQuestionEvent.AddNewQuestionClicked) },
-                        modifier = Modifier.fillMaxWidth(0.4f),
+                        onClick = { onEvent(AddQuestionEvent.AddNewQuestionClicked) },                        modifier = Modifier.fillMaxWidth(0.4f),
                         shape = RoundedCornerShape(12.dp)
                     ) {
                         Text(
@@ -144,15 +147,20 @@ private fun AddQuestionScreenContent(
                     }
                     Button(
                         onClick = {
-                            onEvent(AddQuestionEvent.AddNewQuestionClicked)
+                            // **التعديل هنا:** استخدم الدالة المتزامنة للحفظ والتحديث
+                            viewModel.saveCurrentQuestionAndResetSync()
 
-                            // 2. بعد أن أصبحت القائمة محدّثة في الـ ViewModel، قم بالانتقال
+                            // القائمة الآن محدّثة بالكامل في الـ ViewModel
+                            val updatedQuestions = viewModel.getCreatedQuestions()
+
+                            // 2. تمرير القائمة المحدّثة والانتقال
                             navController.currentBackStackEntry
                                 ?.savedStateHandle
-                                ?.set("questions", state.createdQuestions)
+                                ?.set("questions", updatedQuestions)
 
                             navController.navigate(Routes.QUIZ_SUMMARY_SCREEN)
-                        }, modifier = Modifier.fillMaxWidth(0.7f),
+                        },
+                        modifier = Modifier.fillMaxWidth(0.7f),
                         shape = RoundedCornerShape(12.dp)
                     ) {
                         Text(
