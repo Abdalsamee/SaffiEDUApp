@@ -36,25 +36,21 @@ fun StudentExamResultScreen(
     }
 
     StudentExamResultScreenContent(
-        state = state,
-        onNavigateUp = onNavigateUp
+        state = state, onNavigateUp = onNavigateUp
     )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun StudentExamResultScreenContent(
-    state: StudentExamResultState,
-    onNavigateUp: () -> Unit
+    state: StudentExamResultState, onNavigateUp: () -> Unit
 ) {
     Scaffold(
         topBar = {
             CommonTopAppBar(
-                title = "النتيجة",
-                onNavigateUp = onNavigateUp
+                title = "النتيجة", onNavigateUp = onNavigateUp
             )
-        }
-    ) { innerPadding ->
+        }) { innerPadding ->
         if (state.isLoading) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator()
@@ -75,8 +71,7 @@ private fun StudentExamResultScreenContent(
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(Color(0xFFD3E5FF), RoundedCornerShape(12.dp))
-                        .padding(vertical = 16.dp),
-                    contentAlignment = Alignment.Center
+                        .padding(vertical = 16.dp), contentAlignment = Alignment.Center
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
@@ -97,15 +92,15 @@ private fun StudentExamResultScreenContent(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
+                val shouldShowScore = state.isGraded && state.showResultsImmediately
                 // ✅ تحقق من حالة التقييم
-                if (!state.isGraded) {
+                if (shouldShowScore) {
                     // 🔸 في حال لم يتم التقييم بعد
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
                             .background(Color(0xFFFFF3CD), RoundedCornerShape(12.dp))
-                            .padding(24.dp),
-                        contentAlignment = Alignment.Center
+                            .padding(24.dp), contentAlignment = Alignment.Center
                     ) {
                         Text(
                             text = "لم يتم تقييم الاختبار بعد، ستظهر نتيجتك هنا عند الانتهاء من التصحيح.",
@@ -156,9 +151,7 @@ private fun PreviewStudentExamResult_NotGraded() {
                 totalScore = "15",
                 earnedScore = "7",
                 isGraded = false
-            ),
-            onNavigateUp = {}
-        )
+            ), onNavigateUp = {})
     }
 }
 

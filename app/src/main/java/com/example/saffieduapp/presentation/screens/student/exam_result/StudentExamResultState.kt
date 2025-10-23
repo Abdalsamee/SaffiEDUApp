@@ -14,6 +14,9 @@ data class StudentExamResultState(
     // 🔹 هل تم التقييم من قبل المعلم
     val isGraded: Boolean = false,
 
+    // هل تسمح بإظهار النتيجة فوراً
+    val showResultsImmediately: Boolean = false,
+
     // 🔹 في حال حدوث خطأ
     val errorMessage: String? = null
 )
