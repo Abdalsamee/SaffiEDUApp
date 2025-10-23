@@ -145,8 +145,6 @@ private fun AddQuestionScreenContent(
                         modifier = Modifier.fillMaxWidth(0.4f),
                         shape = RoundedCornerShape(12.dp)
                     ) {
-                        // التعديل 5: تغيير نص الزر
-                        //  if (state.isEditing) "حفظ التعديل" else "سؤال جديد", // <---
                         Text(
                             "سؤال جديد",
                             color = Color.White,

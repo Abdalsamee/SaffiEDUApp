@@ -2,6 +2,7 @@ package com.example.saffieduapp.navigation
 
 import android.annotation.SuppressLint
 import android.widget.Toast
+import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
@@ -57,17 +58,22 @@ fun NavGraphBuilder.createQuizNavGraph(navController: NavController) {
 
         // الوجهة الثالثة: ملخص الأسئلة
         composable(Routes.QUIZ_SUMMARY_SCREEN) { backStackEntry ->
-            // جلب examState من شاشة AddExamScreen
-            val examState =
-                navController.getBackStackEntry(Routes.ADD_EXAM_SCREEN).savedStateHandle.get<AddExamState>(
-                    "examState"
-                ) ?: AddExamState()
+            // ✅ الحل هنا: استخدم remember لحفظ النتيجة
+            val (examState, questions) = remember {
+                // نقوم بالقراءة داخل remember لضمان حدوثها مرة واحدة فقط
+                val exam =
+                    navController.getBackStackEntry(Routes.ADD_EXAM_SCREEN).savedStateHandle.get<AddExamState>(
+                            "examState"
+                        ) ?: AddExamState()
 
-            // جلب الأسئلة من شاشة AddQuestionScreen
-            val questions =
-                navController.getBackStackEntry(Routes.ADD_QUESTION_SCREEN).savedStateHandle.get<List<QuestionData>>(
-                    "questions"
-                ) ?: emptyList()
+                val qst =
+                    navController.getBackStackEntry(Routes.ADD_QUESTION_SCREEN).savedStateHandle.get<List<QuestionData>>(
+                            "questions"
+                        ) ?: emptyList()
+
+                // قم بإرجاع القيم كـ Pair أو كائنات Immutable
+                exam to qst
+            }
 
             QuizSummaryScreen(
                 examState = examState,
