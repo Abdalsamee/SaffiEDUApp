@@ -106,6 +106,10 @@ class AddQuestionViewModel @Inject constructor() : ViewModel() {
             val currentState = state.value
             val isEditMode = currentState.isEditing
 
+            if (!validateQuestion(currentState)) {
+                return@launch
+            }
+
             // تحويل الحالة الحالية إلى QuestionData
             val questionData = QuestionData(
                 id = currentState.questionBeingEditedId ?: java.util.UUID.randomUUID()
@@ -156,9 +160,14 @@ class AddQuestionViewModel @Inject constructor() : ViewModel() {
         return _state.value.createdQuestions
     }
 
-    fun saveCurrentQuestionAndResetSync(): QuestionData {
+    fun saveCurrentQuestionAndResetSync(): QuestionData? {
         val currentState = state.value
+
+        if (!validateQuestion(currentState)) {
+            return null // إرجاع قيمة فارغة إذا كان التحقق خاطئًا
+        }
         val questionData = QuestionData(
+            id = currentState.questionBeingEditedId ?: java.util.UUID.randomUUID().toString(),
             text = currentState.currentQuestionText,
             type = currentState.currentQuestionType,
             points = currentState.currentQuestionPoints,
@@ -203,5 +212,63 @@ class AddQuestionViewModel @Inject constructor() : ViewModel() {
                 currentEssayAnswer = questionData.essayAnswer
             )
         }
+    }
+
+    // **دالة مساعدة للتحقق من صحة المدخلات**
+    private fun validateQuestion(currentState: AddQuestionState): Boolean {
+        if (currentState.currentQuestionText.isBlank()) {
+            viewModelScope.launch {
+                _eventFlow.emit(AddQuestionUiEvent.ShowToast("نص السؤال لا يمكن أن يكون فارغًا."))
+            }
+            return false
+        }
+        if (currentState.currentQuestionPoints.isBlank()) {
+            viewModelScope.launch {
+                _eventFlow.emit(AddQuestionUiEvent.ShowToast("يجب تحديد عدد النقاط للسؤال."))
+            }
+            return false
+        }
+
+        when (currentState.currentQuestionType) {
+            QuestionType.MULTIPLE_CHOICE_SINGLE, QuestionType.MULTIPLE_CHOICE_MULTIPLE -> {
+                // يجب أن تحتوي الخيارات على نص وتحديد إجابة صحيحة واحدة على الأقل
+                val hasEmptyChoice = currentState.currentChoices.any { it.text.isBlank() }
+                if (hasEmptyChoice) {
+                    viewModelScope.launch {
+                        _eventFlow.emit(AddQuestionUiEvent.ShowToast("لا يمكن ترك خيار إجابة فارغًا."))
+                    }
+                    return false
+                }
+                val hasCorrectChoice = currentState.currentChoices.any { it.isCorrect }
+                if (!hasCorrectChoice) {
+                    viewModelScope.launch {
+                        _eventFlow.emit(AddQuestionUiEvent.ShowToast("يجب تحديد إجابة صحيحة واحدة على الأقل."))
+                    }
+                    return false
+                }
+            }
+
+            QuestionType.TRUE_FALSE -> {
+                // في "صح وخطأ"، يجب تحديد واحدة على أنها الإجابة الصحيحة
+                val hasCorrectChoice = currentState.currentChoices.any { it.isCorrect }
+                if (!hasCorrectChoice) {
+                    viewModelScope.launch {
+                        _eventFlow.emit(AddQuestionUiEvent.ShowToast("يجب تحديد 'صح' أو 'خطأ' كإجابة صحيحة."))
+                    }
+                    return false
+                }
+            }
+
+            QuestionType.ESSAY -> {
+                // يجب أن تكون الإجابة المقالية غير فارغة (للمقارنة لاحقًا)
+                if (currentState.currentEssayAnswer.isBlank()) {
+                    viewModelScope.launch {
+                        _eventFlow.emit(AddQuestionUiEvent.ShowToast("يجب كتابة الإجابة المقالية النموذجية."))
+                    }
+                    return false
+                }
+            }
+        }
+        return true
     }
 }
