@@ -45,12 +45,14 @@ class AddQuestionViewModel @Inject constructor() : ViewModel() {
         _state.update { currentState ->
             val newChoices = when (type) {
                 QuestionType.TRUE_FALSE -> listOf(Choice(text = "صح"), Choice(text = "خطأ"))
-                QuestionType.MULTIPLE_CHOICE_SINGLE, QuestionType.MULTIPLE_CHOICE_MULTIPLE -> listOf(Choice(), Choice())
+                QuestionType.MULTIPLE_CHOICE_SINGLE, QuestionType.MULTIPLE_CHOICE_MULTIPLE -> listOf(
+                    Choice(), Choice()
+                )
+
                 QuestionType.ESSAY -> emptyList()
             }
             currentState.copy(
-                currentQuestionType = type,
-                currentChoices = newChoices.toMutableStateList()
+                currentQuestionType = type, currentChoices = newChoices.toMutableStateList()
             )
         }
     }
@@ -87,9 +89,11 @@ class AddQuestionViewModel @Inject constructor() : ViewModel() {
                     QuestionType.MULTIPLE_CHOICE_SINGLE, QuestionType.TRUE_FALSE -> {
                         choice.copy(isCorrect = choice.id == choiceId)
                     }
+
                     QuestionType.MULTIPLE_CHOICE_MULTIPLE -> {
                         if (choice.id == choiceId) choice.copy(isCorrect = !choice.isCorrect) else choice
                     }
+
                     else -> choice
                 }
             }
@@ -100,9 +104,12 @@ class AddQuestionViewModel @Inject constructor() : ViewModel() {
     private fun saveCurrentQuestionAndReset() {
         viewModelScope.launch {
             val currentState = state.value
+            val isEditMode = currentState.isEditing
 
             // تحويل الحالة الحالية إلى QuestionData
             val questionData = QuestionData(
+                id = currentState.questionBeingEditedId ?: java.util.UUID.randomUUID()
+                    .toString(), // **استخدم المعرف القديم في وضع التعديل**
                 text = currentState.currentQuestionText,
                 type = currentState.currentQuestionType,
                 points = currentState.currentQuestionPoints,
@@ -110,23 +117,41 @@ class AddQuestionViewModel @Inject constructor() : ViewModel() {
                 essayAnswer = currentState.currentEssayAnswer
             )
 
+            // 3. تحديث قائمة createdQuestions بناءً على وضع الإضافة أو التعديل
+            val newQuestionsList = if (isEditMode) {
+                // وضع التعديل: استبدل السؤال القديم بالسؤال الجديد (المحدث)
+                currentState.createdQuestions.map { q ->
+                    if (q.id == questionData.id) questionData else q
+                }
+            } else {
+                // وضع الإضافة: أضف السؤال الجديد إلى القائمة
+                currentState.createdQuestions + questionData
+            }
             // تحديث الحالة مع إضافة السؤال إلى القائمة وإعادة تهيئة الحقول
             _state.update {
                 it.copy(
                     currentQuestionText = "",
                     currentQuestionPoints = "",
                     currentChoices = when (currentState.currentQuestionType) {
-                        QuestionType.TRUE_FALSE -> mutableStateListOf(Choice(text = "صح"), Choice(text = "خطأ"))
-                        QuestionType.MULTIPLE_CHOICE_SINGLE,
-                        QuestionType.MULTIPLE_CHOICE_MULTIPLE -> mutableStateListOf(Choice(), Choice())
+                        QuestionType.TRUE_FALSE -> mutableStateListOf(
+                            Choice(text = "صح"), Choice(text = "خطأ")
+                        )
+
+                        QuestionType.MULTIPLE_CHOICE_SINGLE, QuestionType.MULTIPLE_CHOICE_MULTIPLE -> mutableStateListOf(
+                            Choice(), Choice()
+                        )
+
                         QuestionType.ESSAY -> mutableStateListOf()
                     },
                     currentEssayAnswer = "",
-                    createdQuestions = it.createdQuestions + questionData
+                    createdQuestions = newQuestionsList, // <--- استخدم القائمة المحدثة
+                    isEditing = false, // <--- مهم: الخروج من وضع التعديل
+                    questionBeingEditedId = null
                 )
             }
         }
     }
+
     fun getCreatedQuestions(): List<QuestionData> {
         return _state.value.createdQuestions
     }
@@ -146,15 +171,37 @@ class AddQuestionViewModel @Inject constructor() : ViewModel() {
                 currentQuestionText = "",
                 currentQuestionPoints = "",
                 currentChoices = when (currentState.currentQuestionType) {
-                    QuestionType.TRUE_FALSE -> mutableStateListOf(Choice(text = "صح"), Choice(text = "خطأ"))
-                    QuestionType.MULTIPLE_CHOICE_SINGLE,
-                    QuestionType.MULTIPLE_CHOICE_MULTIPLE -> mutableStateListOf(Choice(), Choice())
+                    QuestionType.TRUE_FALSE -> mutableStateListOf(
+                        Choice(text = "صح"), Choice(text = "خطأ")
+                    )
+
+                    QuestionType.MULTIPLE_CHOICE_SINGLE, QuestionType.MULTIPLE_CHOICE_MULTIPLE -> mutableStateListOf(
+                        Choice(), Choice()
+                    )
+
                     QuestionType.ESSAY -> mutableStateListOf()
                 },
                 currentEssayAnswer = "",
-                createdQuestions = it.createdQuestions + questionData
+                createdQuestions = it.createdQuestions + questionData,
+                isEditing = false, // <--- مهم: الخروج من وضع التعديل
+                questionBeingEditedId = null
             )
         }
         return questionData
+    }
+
+    // دالة تهيئة لعملية التعديل
+    fun setQuestionForEditing(questionData: QuestionData) {
+        _state.update {
+            it.copy(
+                isEditing = true,
+                questionBeingEditedId = questionData.id,
+                currentQuestionText = questionData.text,
+                currentQuestionType = questionData.type,
+                currentQuestionPoints = questionData.points,
+                currentChoices = questionData.choices.toMutableStateList(),
+                currentEssayAnswer = questionData.essayAnswer
+            )
+        }
     }
 }

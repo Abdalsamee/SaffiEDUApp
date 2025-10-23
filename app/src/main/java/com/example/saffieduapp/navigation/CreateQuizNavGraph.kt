@@ -18,8 +18,7 @@ import com.example.saffieduapp.presentation.screens.teacher.quiz_summary.QuizSum
 @SuppressLint("StateFlowValueCalledInComposition")
 fun NavGraphBuilder.createQuizNavGraph(navController: NavController) {
     navigation(
-        startDestination = Routes.ADD_EXAM_SCREEN,
-        route = Routes.CREATE_QUIZ_GRAPH
+        startDestination = Routes.ADD_EXAM_SCREEN, route = Routes.CREATE_QUIZ_GRAPH
     ) {
         // الوجهة الأولى: إعدادات الاختبار
         composable(Routes.ADD_EXAM_SCREEN) {
@@ -28,42 +27,47 @@ fun NavGraphBuilder.createQuizNavGraph(navController: NavController) {
                 onNavigateToNext = { examState ->
                     // نحفظ examState في BackStackEntry الحالي
                     navController.currentBackStackEntry?.savedStateHandle?.set(
-                        "examState",
-                        examState
+                        "examState", examState
                     )
                     navController.navigate(Routes.ADD_QUESTION_SCREEN)
-                }
-            )
+                })
         }
 
         // الوجهة الثانية: إضافة الأسئلة
-        composable(Routes.ADD_QUESTION_SCREEN) {
+        composable(Routes.ADD_QUESTION_SCREEN) { backStackEntry ->
+            // ✅ التعديل هنا: جلب QuestionData من الـ SavedStateHandle الخاص بـ *Previous* BackStackEntry
+            //    لأن QuizSummaryScreen (السابقة) هي من قامت بتخزين البيانات.
+            val questionToEdit =
+                navController.previousBackStackEntry?.savedStateHandle?.get<QuestionData>("questionToEdit")
+
+            // ✅ يجب إزالة المفتاح بعد استخدامه لتجنب التعديل مرة أخرى إذا انتقلنا لـ ADD_QUESTION_SCREEN بطريقة عادية
+            navController.previousBackStackEntry?.savedStateHandle?.remove<QuestionData>("questionToEdit")
             AddQuestionScreen(
-                navController = navController, // ✅ أضف هذا
+                navController = navController,
+                questionToEdit = questionToEdit, // تمرير السؤال إلى الشاشة للتعديل
                 onNavigateUp = { navController.popBackStack() },
                 onNavigateToSummary = { questions ->
                     // احفظ الأسئلة في SavedStateHandle للـ QuizSummaryScreen
                     navController.previousBackStackEntry?.savedStateHandle?.set(
-                        "questions",
-                        questions
+                        "questions", questions
                     )
                     navController.navigate(Routes.QUIZ_SUMMARY_SCREEN)
-                }
-            )
+                })
         }
 
         // الوجهة الثالثة: ملخص الأسئلة
-        // الوجهة الثالثة: ملخص الأسئلة
         composable(Routes.QUIZ_SUMMARY_SCREEN) { backStackEntry ->
             // جلب examState من شاشة AddExamScreen
-            val examState = navController.getBackStackEntry(Routes.ADD_EXAM_SCREEN)
-                .savedStateHandle
-                .get<AddExamState>("examState") ?: AddExamState()
+            val examState =
+                navController.getBackStackEntry(Routes.ADD_EXAM_SCREEN).savedStateHandle.get<AddExamState>(
+                    "examState"
+                ) ?: AddExamState()
 
             // جلب الأسئلة من شاشة AddQuestionScreen
-            val questions = navController.getBackStackEntry(Routes.ADD_QUESTION_SCREEN)
-                .savedStateHandle
-                .get<List<QuestionData>>("questions") ?: emptyList()
+            val questions =
+                navController.getBackStackEntry(Routes.ADD_QUESTION_SCREEN).savedStateHandle.get<List<QuestionData>>(
+                    "questions"
+                ) ?: emptyList()
 
             QuizSummaryScreen(
                 examState = examState,
@@ -74,8 +78,16 @@ fun NavGraphBuilder.createQuizNavGraph(navController: NavController) {
                     navController.navigate(Routes.TEACHER_HOME_SCREEN) {
                         popUpTo(Routes.TEACHER_HOME_SCREEN) { inclusive = true }
                     }
-                }
-            )
+                },
+                onEditQuestion = { questionData ->
+                    // 1. **التعديل هنا:** احفظ QuestionData في SavedStateHandle الخاص بالـ Back Stack Entry الحالي.
+                    //    هذا الـ SavedStateHandle هو ما ستستخدمه شاشة ADD_QUESTION_SCREEN لجلب البيانات منه.
+                    navController.currentBackStackEntry?.savedStateHandle?.set(
+                        "questionToEdit", questionData
+                    )
+                    // 2. انتقل إلى شاشة إضافة الأسئلة لتعديل السؤال المحفوظ
+                    navController.navigate(Routes.ADD_QUESTION_SCREEN)
+                })
         }
     }
 }

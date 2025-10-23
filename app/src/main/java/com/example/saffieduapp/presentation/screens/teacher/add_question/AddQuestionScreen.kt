@@ -34,10 +34,18 @@ import com.example.saffieduapp.ui.theme.AppPrimary
 fun AddQuestionScreen(
     navController: NavController,
     onNavigateUp: () -> Unit,
+    questionToEdit: QuestionData? = null,
     viewModel: AddQuestionViewModel = hiltViewModel(),
     onNavigateToSummary: (List<QuestionData>) -> Unit
 ) {
     val state by viewModel.state.collectAsState()
+
+    androidx.compose.runtime.LaunchedEffect(questionToEdit) {
+        if (questionToEdit != null) {
+            viewModel.setQuestionForEditing(questionToEdit)
+        }
+    }
+
     AddQuestionScreenContent(
         navController = navController,
         state = state,
@@ -61,15 +69,14 @@ private fun AddQuestionScreenContent(
 ) {
     Scaffold(
         topBar = {
+            // التعديل 4: تغيير العنوان بناءً على حالة التعديل
             CommonTopAppBar(
-                title = "إضافة أسئلة",
+                title = if (state.isEditing) "تعديل السؤال" else "إضافة أسئلة", // <---
                 onNavigateUp = onNavigateUp
             )
-        }
-    ) { innerPadding ->
+        }) { innerPadding ->
         Box(
-            modifier = Modifier
-                .fillMaxSize()
+            modifier = Modifier.fillMaxSize()
         ) {
             Column(
                 modifier = Modifier
@@ -89,11 +96,9 @@ private fun AddQuestionScreenContent(
                         color = Color.Black
                     )
                     QuestionTypeDropdown(
-                        selectedType = state.currentQuestionType,
-                        onTypeSelected = { newType ->
+                        selectedType = state.currentQuestionType, onTypeSelected = { newType ->
                             onEvent(AddQuestionEvent.QuestionTypeChanged(newType))
-                        }
-                    )
+                        })
                 }
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -111,8 +116,7 @@ private fun AddQuestionScreenContent(
                         selectedPoints = state.currentQuestionPoints,
                         onPointsSelected = { newPoints ->
                             onEvent(AddQuestionEvent.PointsChanged(newPoints))
-                        }
-                    )
+                        })
                 }
                 AddLessonTextField(
                     title = null,
@@ -137,11 +141,16 @@ private fun AddQuestionScreenContent(
                 ) {
 
                     Button(
-                        onClick = { onEvent(AddQuestionEvent.AddNewQuestionClicked) },                        modifier = Modifier.fillMaxWidth(0.4f),
+                        onClick = { onEvent(AddQuestionEvent.AddNewQuestionClicked) },
+                        modifier = Modifier.fillMaxWidth(0.4f),
                         shape = RoundedCornerShape(12.dp)
                     ) {
+                        // التعديل 5: تغيير نص الزر
+                        //  if (state.isEditing) "حفظ التعديل" else "سؤال جديد", // <---
                         Text(
-                            "سؤال جديد", color = Color.White, fontSize = 18.sp,
+                            "سؤال جديد",
+                            color = Color.White,
+                            fontSize = 18.sp,
                             fontWeight = FontWeight.SemiBold
                         )
                     }
@@ -154,14 +163,12 @@ private fun AddQuestionScreenContent(
                             val updatedQuestions = viewModel.getCreatedQuestions()
 
                             // 2. تمرير القائمة المحدّثة والانتقال
-                            navController.currentBackStackEntry
-                                ?.savedStateHandle
-                                ?.set("questions", updatedQuestions)
+                            navController.currentBackStackEntry?.savedStateHandle?.set(
+                                "questions", updatedQuestions
+                            )
 
                             navController.navigate(Routes.QUIZ_SUMMARY_SCREEN)
-                        },
-                        modifier = Modifier.fillMaxWidth(0.7f),
-                        shape = RoundedCornerShape(12.dp)
+                        }, modifier = Modifier.fillMaxWidth(0.7f), shape = RoundedCornerShape(12.dp)
                     ) {
                         Text(
                             "حفظ ونشر",

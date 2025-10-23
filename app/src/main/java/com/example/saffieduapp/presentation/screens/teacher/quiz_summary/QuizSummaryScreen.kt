@@ -23,6 +23,7 @@ import com.example.saffieduapp.presentation.screens.teacher.quiz_summary.compone
 fun QuizSummaryScreen(
     onNavigateUp: () -> Unit,
     onPublish: () -> Unit,
+    onEditQuestion: (QuestionData) -> Unit,
     examState: AddExamState,
     questions: List<QuestionData>,
     viewModel: QuizSummaryViewModel = hiltViewModel()
@@ -79,8 +80,9 @@ fun QuizSummaryScreen(
                 items(uiQuestions) { question -> // ← استبدال القائمة الوهمية
                     QuestionSummaryItem(
                         questionText = question.text,
-                        onEditClick = { /* TODO: Navigate to edit question */ },
-                        onDeleteClick = {
+                        onEditClick = {
+                            onEditQuestion(question) // <--- 2. استخدم الدالة الجديدة ومرّر السؤال
+                        }, onDeleteClick = {
                             questionToDelete = question
                             showDeleteConfirmationDialog = true
                         })
