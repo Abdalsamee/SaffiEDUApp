@@ -131,8 +131,9 @@ class TasksViewModel @Inject constructor(
             try {
                 val studentClass = assignmentRepository.getStudentClass(studentId)
                 if (studentClass != null) {
-                    val exams = getExamsByClass(studentClass)
-                    val examsByDate = groupExamsByDate(exams) // ✅ استخدام الدالة المحسنة
+                    // ✅ Pass studentId to the next function
+                    val exams = getExamsByClass(studentClass, studentId)
+                    val examsByDate = groupExamsByDate(exams)
 
                     _state.update {
                         it.copy(
@@ -154,28 +155,42 @@ class TasksViewModel @Inject constructor(
         }
     }
 
-    private suspend fun getExamsByClass(studentClass: String): List<ExamItem> {
+    private suspend fun getExamsByClass(
+        studentClass: String,
+        studentId: String
+    ): List<ExamItem> { // ✅ Added studentId
         return try {
             val snapshot = db.collection("exams")
                 .whereEqualTo("className", studentClass)
                 .get()
                 .await()
 
-            snapshot.documents.map { doc ->
-                ExamItem(
+            // We must now process each document one by one to check its submission status
+            val examItems = mutableListOf<ExamItem>()
+
+            for (doc in snapshot.documents) {
+                // ✅ For each exam, check if this specific student has submitted it
+                val hasSubmitted = hasStudentSubmittedExam(doc.id, studentId)
+
+                val item = ExamItem(
                     id = doc.id,
                     title = doc.getString("examTitle") ?: "بدون عنوان",
                     subjectName = doc.getString("examType") ?: "عام",
                     imageUrl = "",
                     time = parseExamDateTime(doc),
-                    status = determineExamStatus(doc)
+                    // ✅ Pass the submission status to determine the final status
+                    status = determineExamStatus(doc, hasSubmitted)
                 )
+                examItems.add(item)
             }
+            examItems // Return the list of items with correct statuses
+
         } catch (e: Exception) {
             e.printStackTrace()
             emptyList()
         }
     }
+
     private fun parseExamDateTime(doc: DocumentSnapshot): Long {
         return try {
             // قراءة التاريخ والوقت من Firebase
@@ -193,21 +208,36 @@ class TasksViewModel @Inject constructor(
         }
     }
 
-    private fun determineExamStatus(doc: DocumentSnapshot): ExamStatus {
+    private fun determineExamStatus(doc: DocumentSnapshot, hasSubmitted: Boolean): ExamStatus {
+        // 1. إذا كان الطالب قد سلّم، فالحالة "مكتمل" دائماً
+        if (hasSubmitted) {
+            return ExamStatus.COMPLETED
+        }
+
+        // 2. إذا لم يسلّم الطالب، نتحقق من الوقت
         return try {
-            val examTime = parseExamDateTime(doc)
+            val examStartTime = parseExamDateTime(doc)
             val currentTime = System.currentTimeMillis()
-            val examDuration = (doc.getString("examTime")?.toIntOrNull() ?: 60) * 60 * 1000 // تحويل الدقائق إلى مللي ثانية
+            val examDurationMillis = (doc.getString("examTime")?.toIntOrNull()
+                ?: 60) * 60 * 1000 // مدة الاختبار بالمللي ثانية
+            val examEndTime = examStartTime + examDurationMillis
 
             when {
-                currentTime < examTime -> ExamStatus.NOT_COMPLETED
-                currentTime > examTime + examDuration -> ExamStatus.COMPLETED
-                else -> ExamStatus.IN_PROGRESS
+                // الاختبار لم يبدأ بعد (في المستقبل)
+                currentTime < examStartTime -> ExamStatus.NOT_COMPLETED
+
+                // الاختبار متاح الآن (ولم يسلّمه الطالب)
+                currentTime in examStartTime..examEndTime -> ExamStatus.IN_PROGRESS
+
+                // انتهى وقت الاختبار (ولم يسلّمه الطالب)
+                // ✅ هذا هو التغيير الذي طلبته
+                else -> ExamStatus.COMPLETED // <-- تم تغييرها من NOT_COMPLETED
             }
         } catch (e: Exception) {
             ExamStatus.NOT_COMPLETED
         }
     }
+
     private fun groupExamsByDate(exams: List<ExamItem>): Map<String, List<ExamItem>> {
         return exams.groupBy { exam ->
             // استخدام وقت الاختبار الفعلي بدلاً من الوقت الحالي
@@ -221,6 +251,23 @@ class TasksViewModel @Inject constructor(
 
     fun getExamById(id: String): ExamItem? {
         return state.value.examsByDate.values.flatten().find { it.id == id }
+    }
+
+    private suspend fun hasStudentSubmittedExam(examId: String, studentId: String): Boolean {
+        return try {
+            val submissionQuery = db.collection("exam_submissions")
+                .whereEqualTo("examId", examId)
+                .whereEqualTo("studentId", studentId)
+                .limit(1) // We only care if at least one submission exists
+                .get()
+                .await()
+
+            // If the query is NOT empty, it means a submission exists.
+            !submissionQuery.isEmpty
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false // Assume no submission on error
+        }
     }
 
 }
