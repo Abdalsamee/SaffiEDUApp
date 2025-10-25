@@ -63,13 +63,13 @@ fun NavGraphBuilder.createQuizNavGraph(navController: NavController) {
                 // نقوم بالقراءة داخل remember لضمان حدوثها مرة واحدة فقط
                 val exam =
                     navController.getBackStackEntry(Routes.ADD_EXAM_SCREEN).savedStateHandle.get<AddExamState>(
-                            "examState"
-                        ) ?: AddExamState()
+                        "examState"
+                    ) ?: AddExamState()
 
                 val qst =
                     navController.getBackStackEntry(Routes.ADD_QUESTION_SCREEN).savedStateHandle.get<List<QuestionData>>(
-                            "questions"
-                        ) ?: emptyList()
+                        "questions"
+                    ) ?: emptyList()
 
                 // قم بإرجاع القيم كـ Pair أو كائنات Immutable
                 exam to qst
