@@ -26,10 +26,6 @@ class TeacherProfileViewModel @Inject constructor() : ViewModel() {
         loadTeacherProfile()
     }
 
-    /**
-     * 🧩 تحميل بيانات وهمية بدلًا من Firestore
-     * تحاكي العملية الحقيقية لعرض شاشة المعلم أثناء التطوير أو بدون اتصال Firebase.
-     */
     private fun loadTeacherProfile() {
         val currentUser = auth.currentUser
         if (currentUser == null) {
@@ -53,13 +49,25 @@ class TeacherProfileViewModel @Inject constructor() : ViewModel() {
                 .addOnSuccessListener { snapshot ->
                     val doc = snapshot.documents.firstOrNull()
                     if (doc != null) {
+
+                        // ✅ 1. احصل على مصفوفة الصفوف (List) من المستند
+                        // تأكد أن اسم الحقل "classes" صحيح
+                        val classesList = doc.get("className") as? List<*>
+
                         _state.update {
                             it.copy(
                                 isLoading = false,
                                 fullName = doc.getString("fullName") ?: "",
                                 email = email,
+
+                                // ✅ 2. اسحب رقم الهوية من مُعرّف المستند
+                                nationalId = doc.id,
+
                                 subject = doc.getString("subject") ?: "",
-                                classesCount = doc.getLong("classesCount")?.toInt() ?: 0,
+
+                                // ✅ 3. احسب عدد الصفوف بناءً على حجم المصفوفة
+                                classesCount = classesList?.size ?: 0,
+
                                 profileImageUrl = doc.getString("profileImageUrl")
                             )
                         }

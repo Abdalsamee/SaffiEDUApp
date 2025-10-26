@@ -39,7 +39,7 @@ fun VideoPlayerScreen(
 
     // تحميل الفيديو من رابط Storage
     // ✅ قراءة URL من SavedStateHandle
-    LaunchedEffect(Unit) {
+ /*   LaunchedEffect(Unit) {
         val videoUrl =
             navController.previousBackStackEntry?.savedStateHandle?.get<String>("videoUrl")
         if (!videoUrl.isNullOrEmpty()) {
@@ -47,7 +47,7 @@ fun VideoPlayerScreen(
         } else {
             Toast.makeText(context,"لا يوجد فيديو للتشغيل" , Toast.LENGTH_SHORT).show()
         }
-    }
+    }*/
 
     LaunchedEffect(state.isFullscreen) {
         val activity = context as? Activity ?: return@LaunchedEffect

@@ -9,7 +9,6 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import java.util.UUID
@@ -31,23 +30,6 @@ class TeacherHomeViewModel @Inject constructor(
 
     private val _state = MutableStateFlow(TeacherHomeState())
     val state = _state.asStateFlow()
-
-    private val allUpdates = listOf(
-        StudentUpdate("1", "محمد محمود", "", "حل واجب الرياضيات", "قبل ساعة"),
-        StudentUpdate("2", "علي أحمد", "", "حل اختبار الفيزياء", "قبل ساعتين"),
-        StudentUpdate("3", "سارة خالد", "", "سلمت مشروع الكيمياء", "قبل 3 ساعات"),
-        StudentUpdate("4", "فاطمة علي", "", "حل واجب الأحياء", "قبل 5 ساعات"),
-        StudentUpdate("5", "أحمد ياسر", "", "أجاب على سؤال النقاش", "قبل 6 ساعات"),
-        StudentUpdate("6", "خالد وليد", "", "أنهى درس الكسور", "قبل 8 ساعات")
-    )
-
-    private val classesList = listOf(
-        TeacherClass("c1", "الصف الأول", "رياضيات", "", 30, listOf("", "", "")),
-        TeacherClass("c2", "الصف الثاني", "رياضيات", "", 24, listOf("", "", "")),
-        TeacherClass("c3", "الصف الثالث", "", "", 15, listOf("", "", "")),
-        TeacherClass("c4", "الصف الرابع", "", "", 12, listOf("", "", "")),
-        TeacherClass("c5", "الصف الخامس", "", "", 20, listOf("", "", ""))
-    )
 
     private var currentPage = 0
     private var idTeach: String? = null // لتخزين رقم هوية المعلم
@@ -413,20 +395,6 @@ class TeacherHomeViewModel @Inject constructor(
 
     fun onClassFilterSelected(className: String) {
         _state.value = _state.value.copy(selectedClassFilter = className)
-    }
-
-    fun loadNextUpdates() {
-        if (_state.value.isLoading || currentPage * 3 >= allUpdates.size) return
-        viewModelScope.launch {
-            val startIndex = currentPage * 3
-            val endIndex = (startIndex + 3).coerceAtMost(allUpdates.size)
-            val newUpdates = allUpdates.subList(startIndex, endIndex)
-
-            _state.value = _state.value.copy(
-                studentUpdates = _state.value.studentUpdates + newUpdates
-            )
-            currentPage++
-        }
     }
 
     fun onSearchQueryChanged(query: String) {

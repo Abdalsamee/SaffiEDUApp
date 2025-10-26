@@ -38,9 +38,7 @@ class StudentProfileViewModel @Inject constructor() : ViewModel() {
 
         _state.update { it.copy(isLoading = true) }
 
-        db.collection("students")
-            .whereEqualTo("email", email)
-            .get()
+        db.collection("students").whereEqualTo("email", email).get()
             .addOnSuccessListener { snapshot ->
                 val doc = snapshot.documents.firstOrNull()
                 if (doc != null) {
@@ -51,23 +49,21 @@ class StudentProfileViewModel @Inject constructor() : ViewModel() {
                             email = email,
                             className = doc.getString("grade") ?: "",
                             average = doc.getString("average") ?: "",
-                            profileImageUrl = doc.getString("profileImageUrl")
+                            profileImageUrl = doc.getString("profileImageUrl"),
+                            phoneNumber = doc.id
                         )
                     }
                 } else {
                     _state.update {
                         it.copy(
-                            isLoading = false,
-                            errorMessage = "لم يتم العثور على بيانات الطالب"
+                            isLoading = false, errorMessage = "لم يتم العثور على بيانات الطالب"
                         )
                     }
                 }
-            }
-            .addOnFailureListener {
+            }.addOnFailureListener {
                 _state.update {
                     it.copy(
-                        isLoading = false,
-                        errorMessage = "حدث خطأ أثناء تحميل البيانات"
+                        isLoading = false, errorMessage = "حدث خطأ أثناء تحميل البيانات"
                     )
                 }
             }
@@ -93,12 +89,9 @@ class StudentProfileViewModel @Inject constructor() : ViewModel() {
 
         val storageRef = storage.reference.child("profile_images/${user.uid}.jpg")
 
-        storageRef.putFile(imageUri)
-            .addOnSuccessListener {
+        storageRef.putFile(imageUri).addOnSuccessListener {
                 storageRef.downloadUrl.addOnSuccessListener { downloadUrl ->
-                    db.collection("students")
-                        .whereEqualTo("email", email)
-                        .get()
+                    db.collection("students").whereEqualTo("email", email).get()
                         .addOnSuccessListener { snapshot ->
                             val doc = snapshot.documents.firstOrNull()
                             if (doc != null) {
@@ -112,8 +105,7 @@ class StudentProfileViewModel @Inject constructor() : ViewModel() {
                                                 message = "تم تحديث الصورة بنجاح ✅"
                                             )
                                         }
-                                    }
-                                    .addOnFailureListener {
+                                    }.addOnFailureListener {
                                         _state.update {
                                             it.copy(
                                                 isLoading = false,
@@ -124,8 +116,7 @@ class StudentProfileViewModel @Inject constructor() : ViewModel() {
                             }
                         }
                 }
-            }
-            .addOnFailureListener {
+            }.addOnFailureListener {
                 _state.update {
                     it.copy(isLoading = false, message = "فشل في رفع الصورة ❌")
                 }

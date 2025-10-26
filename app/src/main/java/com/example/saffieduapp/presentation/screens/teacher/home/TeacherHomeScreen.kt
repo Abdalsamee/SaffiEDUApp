@@ -11,6 +11,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.example.saffieduapp.navigation.Routes
 import com.example.saffieduapp.presentation.screens.student.home.components.HomeTopSection
 import com.example.saffieduapp.presentation.screens.student.home.components.SearchBar
 import com.example.saffieduapp.presentation.screens.teacher.home.component.TeacherClassesSection
@@ -20,8 +21,7 @@ import com.example.saffieduapp.ui.theme.AppPrimary
 
 @Composable
 fun TeacherHomeScreen(
-    viewModel: TeacherHomeViewModel = hiltViewModel(),
-    navController: NavController
+    viewModel: TeacherHomeViewModel = hiltViewModel(), navController: NavController
 ) {
     val state by viewModel.state.collectAsState()
 
@@ -31,13 +31,11 @@ fun TeacherHomeScreen(
 
         // ٢. المحتوى القابل للتمرير (الطبقة السفلية)
         LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(top = 130.dp)
+            modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(top = 130.dp)
         ) {
             item {
                 SearchBar(
-                    query = state.searchQuery,
-                    onQueryChanged = viewModel::onSearchQueryChanged
+                    query = state.searchQuery, onQueryChanged = viewModel::onSearchQueryChanged
                 )
             }
 
@@ -46,8 +44,7 @@ fun TeacherHomeScreen(
                     updates = state.studentUpdates,
                     onUpdateClick = { /* TODO */ },
                     onMoreClick = { /* TODO */ },
-                    onLoadMore = { /* viewModel.loadNextUpdates() */ }
-                )
+                    onLoadMore = { /* viewModel.loadNextUpdates() */ })
             }
             item {
                 TeacherClassesSection(
@@ -57,9 +54,8 @@ fun TeacherHomeScreen(
                         // TODO: Handle click on a specific class
                     },
                     onMoreClick = {
-                        // TODO: Handle click on "More"
-                    }
-                )
+                        navController.navigate(Routes.TEACHER_CLASSES_SCREEN)
+                    })
             }
 
 
@@ -71,8 +67,7 @@ fun TeacherHomeScreen(
                     onClassSelected = viewModel::onClassFilterSelected,
                     onMoreClick = {
                         // TODO: Handle click on "More"
-                    }
-                )
+                    })
             }
         }
 
@@ -81,14 +76,12 @@ fun TeacherHomeScreen(
             studentSubject = state.teacherSub.removePrefix("مدرس ").trim(),
             profileImageUrl = state.profileImageUrl,
             showActivateButton = state.showActivateButton,
-            onActivateClick = { viewModel.activateSubject() }
-        )
+            onActivateClick = { viewModel.activateSubject() })
 
 
         if (state.isLoading) {
             Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
+                modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center
             ) {
                 CircularProgressIndicator(color = AppPrimary)
             }

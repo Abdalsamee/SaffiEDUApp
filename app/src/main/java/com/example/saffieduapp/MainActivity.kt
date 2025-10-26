@@ -30,24 +30,35 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+
         setContent {
             SaffiEDUAppTheme {
                 val navController = rememberNavController()
                 NavHost(
-                    navController = navController,
-                    startDestination = Routes.AUTH_GRAPH
+                    navController = navController, startDestination = Routes.AUTH_GRAPH
                 ) {
                     authNavGraph(navController)
 
 
                     composable(route = Routes.MAIN_GRAPH) {
-                        MainAppScreen()
+                        MainAppScreen(
+                            // ✅ هنا نمرر المنطق الصحيح
+                            onLogoutNavigate = {
+                                navController.navigate(Routes.AUTH_GRAPH) {
+                                    popUpTo(navController.graph.id) { inclusive = true }
+                                }
+                            })
                     }
 
 
                     // Define the teacher main screen here instead of teacherGraph
                     composable(route = Routes.TEACHER_GRAPH) {
-                        TeacherMainScreen(navController = rememberNavController())
+                        TeacherMainScreen(
+                            onLogoutNavigate = {
+                                navController.navigate(Routes.AUTH_GRAPH) {
+                                    popUpTo(navController.graph.id) { inclusive = true }
+                                }
+                            })
                     }
                 }
             }

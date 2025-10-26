@@ -15,6 +15,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -34,10 +35,31 @@ import com.example.saffieduapp.ui.theme.AppPrimary
 fun AddQuestionScreen(
     navController: NavController,
     onNavigateUp: () -> Unit,
+    questionToEdit: QuestionData? = null,
     viewModel: AddQuestionViewModel = hiltViewModel(),
     onNavigateToSummary: (List<QuestionData>) -> Unit
 ) {
     val state by viewModel.state.collectAsState()
+    val context = LocalContext.current
+    // 💡 الاستماع إلى تدفق الأحداث
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        viewModel.eventFlow.collect { event ->
+            when (event) {
+                is AddQuestionUiEvent.ShowToast -> {
+                    android.widget.Toast.makeText(
+                        context, event.message, android.widget.Toast.LENGTH_LONG
+                    ).show()
+                }
+            }
+        }
+    }
+
+    androidx.compose.runtime.LaunchedEffect(questionToEdit) {
+        if (questionToEdit != null) {
+            viewModel.setQuestionForEditing(questionToEdit)
+        }
+    }
+
     AddQuestionScreenContent(
         navController = navController,
         state = state,
@@ -61,15 +83,14 @@ private fun AddQuestionScreenContent(
 ) {
     Scaffold(
         topBar = {
+            // التعديل 4: تغيير العنوان بناءً على حالة التعديل
             CommonTopAppBar(
-                title = "إضافة أسئلة",
+                title = if (state.isEditing) "تعديل السؤال" else "إضافة أسئلة", // <---
                 onNavigateUp = onNavigateUp
             )
-        }
-    ) { innerPadding ->
+        }) { innerPadding ->
         Box(
-            modifier = Modifier
-                .fillMaxSize()
+            modifier = Modifier.fillMaxSize()
         ) {
             Column(
                 modifier = Modifier
@@ -89,11 +110,9 @@ private fun AddQuestionScreenContent(
                         color = Color.Black
                     )
                     QuestionTypeDropdown(
-                        selectedType = state.currentQuestionType,
-                        onTypeSelected = { newType ->
+                        selectedType = state.currentQuestionType, onTypeSelected = { newType ->
                             onEvent(AddQuestionEvent.QuestionTypeChanged(newType))
-                        }
-                    )
+                        })
                 }
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -111,8 +130,7 @@ private fun AddQuestionScreenContent(
                         selectedPoints = state.currentQuestionPoints,
                         onPointsSelected = { newPoints ->
                             onEvent(AddQuestionEvent.PointsChanged(newPoints))
-                        }
-                    )
+                        })
                 }
                 AddLessonTextField(
                     title = null,
@@ -137,31 +155,34 @@ private fun AddQuestionScreenContent(
                 ) {
 
                     Button(
-                        onClick = { onEvent(AddQuestionEvent.AddNewQuestionClicked) },                        modifier = Modifier.fillMaxWidth(0.4f),
+                        onClick = { onEvent(AddQuestionEvent.AddNewQuestionClicked) },
+                        modifier = Modifier.fillMaxWidth(0.4f),
                         shape = RoundedCornerShape(12.dp)
                     ) {
                         Text(
-                            "سؤال جديد", color = Color.White, fontSize = 18.sp,
+                            "سؤال جديد",
+                            color = Color.White,
+                            fontSize = 18.sp,
                             fontWeight = FontWeight.SemiBold
                         )
                     }
                     Button(
                         onClick = {
                             // **التعديل هنا:** استخدم الدالة المتزامنة للحفظ والتحديث
-                            viewModel.saveCurrentQuestionAndResetSync()
+                            val savedQuestion = viewModel.saveCurrentQuestionAndResetSync()
 
-                            // القائمة الآن محدّثة بالكامل في الـ ViewModel
-                            val updatedQuestions = viewModel.getCreatedQuestions()
+                            // 🛑 إذا كانت القيمة فارغة، هذا يعني أن التحقق فشل وقد تم عرض رسالة تنبيه
+                            if (savedQuestion != null) {
+                                // القائمة الآن محدّثة بالكامل في الـ ViewModel
+                                val updatedQuestions = viewModel.getCreatedQuestions()
 
-                            // 2. تمرير القائمة المحدّثة والانتقال
-                            navController.currentBackStackEntry
-                                ?.savedStateHandle
-                                ?.set("questions", updatedQuestions)
-
-                            navController.navigate(Routes.QUIZ_SUMMARY_SCREEN)
-                        },
-                        modifier = Modifier.fillMaxWidth(0.7f),
-                        shape = RoundedCornerShape(12.dp)
+                                // 2. تمرير القائمة المحدّثة والانتقال
+                                navController.currentBackStackEntry?.savedStateHandle?.set(
+                                    "questions", updatedQuestions
+                                )
+                                navController.navigate(Routes.QUIZ_SUMMARY_SCREEN)
+                            }
+                        }, modifier = Modifier.fillMaxWidth(0.7f), shape = RoundedCornerShape(12.dp)
                     ) {
                         Text(
                             "حفظ ونشر",

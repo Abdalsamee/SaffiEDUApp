@@ -190,12 +190,12 @@ class ExamViewModel @Inject constructor(
         when (event) {
             is ExamEvent.SelectSingleChoice -> selectSingleChoice(event.questionId, event.choiceId)
             is ExamEvent.ToggleMultipleChoice -> toggleMultipleChoice(
-                event.questionId,
-                event.choiceId
+                event.questionId, event.choiceId
             )
 
             is ExamEvent.UpdateEssayAnswer -> updateEssayAnswer(event.questionId, event.text)
-            //is ExamEvent.SelectSingleChoice -> updateTrueFalseAnswer(event.questionId, event.choiceId)
+            // is ExamEvent.SelectSingleChoice -> updateTrueFalseAnswer(event.questionId, event.choiceId)
+            // 👆 🔴 تم حذف السطر الذي يشير إلى الدالة المحذوفة
             is ExamEvent.NextQuestion -> nextQuestion()
             is ExamEvent.PreviousQuestion -> previousQuestion()
             is ExamEvent.GoToQuestion -> goToQuestion(event.index)
@@ -230,13 +230,6 @@ class ExamViewModel @Inject constructor(
     private fun updateEssayAnswer(questionId: String, text: String) {
         val newAnswers = _state.value.userAnswers.toMutableMap()
         newAnswers[questionId] = ExamAnswer.Essay(text)
-        _state.update { it.copy(userAnswers = newAnswers) }
-        saveAnswersTemporarily()
-    }
-
-    private fun updateTrueFalseAnswer(questionId: String, choiceId: String) {
-        val newAnswers = _state.value.userAnswers.toMutableMap()
-        newAnswers[questionId] = ExamAnswer.TrueFalse(choiceId)
         _state.update { it.copy(userAnswers = newAnswers) }
         saveAnswersTemporarily()
     }
@@ -289,13 +282,8 @@ class ExamViewModel @Inject constructor(
             }
 
             try {
-                val userDoc = firestore
-                    .collection("students")
-                    .whereEqualTo("email", email)
-                    .get()
-                    .await()
-                    .documents
-                    .firstOrNull()
+                val userDoc = firestore.collection("students").whereEqualTo("email", email).get()
+                    .await().documents.firstOrNull()
 
                 val studentId = userDoc?.id
                 if (studentId.isNullOrEmpty()) {
@@ -315,19 +303,24 @@ class ExamViewModel @Inject constructor(
 
                 val submissionDocId = "${_state.value.examId}_$studentId"
 
+                // 1. حساب النتيجة
+                val score = calculateScore()
+                // 2. حساب الحد الأقصى للدرجات لجميع الأسئلة
+                val maxScore =
+                    _state.value.questions.sumOf { it.points } // يتم حساب نقاط المقالي أيضاً
                 // حفظ الإجابات النهائية
-                firestore
-                    .collection("exam_submissions")
+                firestore.collection("exam_submissions")
                     .document(submissionDocId) // استخدام تركيبة examId_studentId كـ ID للتسليم
                     .set(
                         mapOf(
                             "answers" to answersMap,
                             "submittedAt" to System.currentTimeMillis(),
                             "studentId" to studentId,
-                            "examId" to _state.value.examId
+                            "examId" to _state.value.examId,
+                            "score" to score,
+                            "maxScore" to maxScore
                         )
-                    )
-                    .await()
+                    ).await()
 
                 _state.update { it.copy(isSubmitting = false) }
                 _eventFlow.emit(ExamUiEvent.ExamCompleted)
@@ -343,13 +336,8 @@ class ExamViewModel @Inject constructor(
         viewModelScope.launch {
             val email = auth.currentUser?.email ?: return@launch
             try {
-                val userDoc = firestore
-                    .collection("students")
-                    .whereEqualTo("email", email)
-                    .get()
-                    .await()
-                    .documents
-                    .firstOrNull()
+                val userDoc = firestore.collection("students").whereEqualTo("email", email).get()
+                    .await().documents.firstOrNull()
 
                 val studentId = userDoc?.id ?: return@launch
 
@@ -364,22 +352,73 @@ class ExamViewModel @Inject constructor(
 
                 val draftDocId = "${_state.value.examId}_${studentId}_draft"
 
-                FirebaseFirestore.getInstance()
-                    .collection("draft")
-                    .document(draftDocId)
-                    .set(
-                        mapOf(
-                            "answers" to answersMap,
-                            "savedAt" to System.currentTimeMillis(),
-                            "studentId" to studentId,
-                            "examId" to _state.value.examId, // إضافة examId لتسهيل الاستعلام
-                            "isDraft" to true // حقل إضافي للتمييز
-                        )
-                    ).await()
+                FirebaseFirestore.getInstance().collection("draft").document(draftDocId).set(
+                    mapOf(
+                        "answers" to answersMap,
+                        "savedAt" to System.currentTimeMillis(),
+                        "studentId" to studentId,
+                        "examId" to _state.value.examId, // إضافة examId لتسهيل الاستعلام
+                        "isDraft" to true // حقل إضافي للتمييز
+                    )
+                ).await()
             } catch (_: Exception) {
                 // تجاهل الأخطاء في الحفظ المؤقت
             }
         }
+    }
+
+    /**
+     * تحسب النتيجة الإجمالية للاختبار بناءً على إجابات الطالب والإجابات الصحيحة المخزنة في ExamState.
+     * الأسئلة المقالية (ESSAY) لا تُصحح آلياً.
+     */
+    private fun calculateScore(): Int {
+        var totalScore = 0
+        val stateValue = _state.value
+        val questions = stateValue.questions
+        val userAnswers = stateValue.userAnswers
+
+        questions.forEach { question ->
+            val userAnswer = userAnswers[question.id]
+            val questionPoints = question.points
+
+            when (question.type) {
+
+                // 1. أسئلة الاختيار من متعدد (إجابة واحدة)
+                // 2. أسئلة صح/خطأ (تتم معالجتها بنفس المنطق لأن كلاهما اختيار واحد)
+                QuestionType.MULTIPLE_CHOICE_SINGLE, QuestionType.TRUE_FALSE -> { // 🔴 تم دمج النوعين
+                    // البحث عن معرف الخيار الصحيح في قائمة الخيارات
+                    val correctAnswerId = question.choices.firstOrNull { it.isCorrect }?.id
+
+                    // الحصول على معرف الخيار الذي اختاره الطالب (يجب أن يكون دائماً SingleChoice من دالة selectSingleChoice)
+                    val userChoiceId =
+                        (userAnswer as? ExamAnswer.SingleChoice)?.choiceId // 🔴 الاعتماد فقط على SingleChoice
+
+                    // مقارنة الإجابة
+                    if (userChoiceId != null && userChoiceId == correctAnswerId) {
+                        totalScore += questionPoints
+                    }
+                }
+
+                // 3. أسئلة الاختيار من متعدد (عدة إجابات)
+                QuestionType.MULTIPLE_CHOICE_MULTIPLE -> {
+                    // ... (المنطق سليم ولا يحتاج لتعديل) ...
+                    val correctChoiceIds =
+                        question.choices.filter { it.isCorrect }.map { it.id }.toSet()
+                    val userChoiceIds =
+                        (userAnswer as? ExamAnswer.MultipleChoice)?.choiceIds?.toSet() ?: emptySet()
+
+                    if (userChoiceIds == correctChoiceIds && correctChoiceIds.isNotEmpty()) {
+                        totalScore += questionPoints
+                    }
+                }
+
+                // 4. الأسئلة المقالية (تتطلب تصحيحاً يدوياً)
+                QuestionType.ESSAY -> {
+                    // ... (لا تُضاف النقاط هنا) ...
+                }
+            }
+        }
+        return totalScore
     }
 
     override fun onCleared() {

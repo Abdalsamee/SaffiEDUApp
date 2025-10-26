@@ -1,14 +1,12 @@
 package com.example.saffieduapp.navigation
 
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.compose.runtime.getValue
+import androidx.navigation.NavHostController
 import com.example.saffieduapp.presentation.screens.chat.ChatScreen
 import com.example.saffieduapp.presentation.screens.teacher.home.TeacherHomeScreen
 import com.example.saffieduapp.presentation.screens.teacher.add_alert.AddAlertScreen
@@ -19,10 +17,15 @@ import com.example.saffieduapp.presentation.screens.teacher.profile.TeacherProfi
 
 @Composable
 fun TeacherNavHost(
-    navController: NavHostController,
+    navController: NavHostController, // ✅ 3. استقبل الكنترولر كبارامتر
     modifier: Modifier = Modifier,
-    onLogoutNavigate: () -> Unit // ✅ أضف هذا
+    onLogoutNavigate: () -> Unit
 ) {
+
+
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = navBackStackEntry?.destination?.route
+
     NavHost(
         navController = navController,
         startDestination = Routes.TEACHER_HOME_SCREEN,
@@ -42,8 +45,8 @@ fun TeacherNavHost(
         }
         composable(Routes.TEACHER_PROFILE_SCREEN) {
             TeacherProfileScreen(
-                navController = navController,
-                onLogoutNavigate = onLogoutNavigate // ✅ مررها للشاشة
+                onLogoutNavigate = onLogoutNavigate, // مرّره (إذا كانت الشاشة تحتاجه للتنقل الداخلي)
+                navController = navController // ✅ مرّر دالة الخروج
             )
         }
 

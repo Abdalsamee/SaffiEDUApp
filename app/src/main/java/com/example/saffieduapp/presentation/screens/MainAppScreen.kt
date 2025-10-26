@@ -19,7 +19,9 @@ import com.example.saffieduapp.navigation.MainNavGraph
 import com.example.saffieduapp.navigation.Routes
 
 @Composable
-fun MainAppScreen() {
+fun MainAppScreen(
+    onLogoutNavigate: () -> Unit
+) {
     val navController = rememberNavController()
     var isVideoFullscreen by remember { mutableStateOf(false) }
 
@@ -36,17 +38,12 @@ fun MainAppScreen() {
             if (!isVideoFullscreen) {
                 AppBottomNavigationBar(items = bottomNavItems, navController = navController)
             }
-        }
-    ) { innerPadding ->
+        }) { innerPadding ->
         MainNavGraph(
             navController = navController,
             modifier = Modifier.padding(innerPadding),
             onFullscreenChange = { fullscreen -> isVideoFullscreen = fullscreen },
-            onLogoutNavigate = {
-                navController.navigate(Routes.LOGIN_SCREEN) {
-                    popUpTo(Routes.AUTH_GRAPH) { inclusive = true }
-                }
-            }
+            onLogoutNavigate = onLogoutNavigate
         )
     }
 }
