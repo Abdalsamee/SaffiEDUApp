@@ -1,5 +1,8 @@
 package com.example.saffieduapp.presentation.screens.teacher.profile
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -33,11 +36,21 @@ import androidx.navigation.NavHostController
 
 @Composable
 fun TeacherProfileScreen(
-    viewModel: TeacherProfileViewModel = hiltViewModel(),
-    onLogoutNavigate: () -> Unit, // ✅ أضف هذا
+    viewModel: TeacherProfileViewModel = hiltViewModel(), onLogoutNavigate: () -> Unit, // ✅ أضف هذا
     navController: NavHostController
 
 ) {
+
+    // ✅ 1. إعداد مُشغّل اختيار الصور
+    val imagePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        // عند اختيار المستخدم لصورة (uri لا يساوي null)
+        uri?.let {
+            viewModel.updateProfilePhoto(it)
+        }
+    }
+
     val state by viewModel.state.collectAsState()
 
     Scaffold(
@@ -72,14 +85,13 @@ fun TeacherProfileScreen(
 
             else -> {
                 TeacherProfileContent(
-                    state = state,
-                    onEditPhoto = { /* تعديل الصورة لاحقًا */ },
-                    onLogoutClick = {
-                        viewModel.logout {
-                            onLogoutNavigate()
-                        }
-                    },
-                    modifier = Modifier.padding(innerPadding)
+                    state = state, onEditPhoto = {
+                    imagePickerLauncher.launch("image/*")
+                }, onLogoutClick = {
+                    viewModel.logout {
+                        onLogoutNavigate()
+                    }
+                }, modifier = Modifier.padding(innerPadding)
                 )
             }
         }
