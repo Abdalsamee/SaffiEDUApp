@@ -22,7 +22,6 @@ class SubmissionRepository @Inject constructor(
     private val firestore: FirebaseFirestore,
     private val storage: FirebaseStorage
 ) {
-
     @SuppressLint("Range")
     suspend fun submitAssignment(
         studentId: String,
@@ -43,20 +42,16 @@ class SubmissionRepository @Inject constructor(
                 ref.putFile(uri).await()
                 ref.downloadUrl.await().toString()
             }
-
-            // حفظ في Firestore
             val submission = StudentAssignmentSubmission(
                 studentId = studentId,
                 assignmentId = assignmentId,
                 submittedFiles = uploadedUrls,
                 notes = notes
             )
-
             firestore.collection("assignment_submissions")
                 .document("$assignmentId-$studentId")
                 .set(submission)
                 .await()
-
             true
         } catch (e: Exception) {
             e.printStackTrace()
