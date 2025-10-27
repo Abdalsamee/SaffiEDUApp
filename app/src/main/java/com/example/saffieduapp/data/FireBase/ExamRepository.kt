@@ -43,14 +43,8 @@ class ExamRepository @Inject constructor(
     private val firestore: FirebaseFirestore,
     private val auth: FirebaseAuth
 ) {
-
-    /**
-     * Save exam with questions (all conversion happens here).
-     * Returns Pair(success:Boolean, errorMessage:String?)
-     */
     suspend fun addExamWithQuestions(examDto: ExamDto): Pair<Boolean, String?> {
         return try {
-            // ensure we have teacher info (if examDto.teacherId empty, try to derive from auth)
             var teacherId = examDto.teacherId
             var teacherName = examDto.teacherName
             if (teacherId.isBlank()) {
@@ -67,8 +61,6 @@ class ExamRepository @Inject constructor(
                     }
                 }
             }
-
-            // prepare questions (already in DTO form if caller converted; but we defensively convert)
             val questionsData = examDto.questions.map { q ->
                 hashMapOf(
                     "id" to (q.id.ifBlank { null }),
@@ -85,7 +77,6 @@ class ExamRepository @Inject constructor(
                     "essayAnswer" to (q.essayAnswer ?: "")
                 )
             }
-
             val examData = hashMapOf(
                 "className" to examDto.className,
                 "examTitle" to examDto.examTitle,
@@ -100,7 +91,6 @@ class ExamRepository @Inject constructor(
                 "createdAt" to FieldValue.serverTimestamp(), // server timestamp
                 "questions" to questionsData
             )
-
             firestore.collection("exams").add(examData).await()
             Pair(true, null)
         } catch (e: Exception) {

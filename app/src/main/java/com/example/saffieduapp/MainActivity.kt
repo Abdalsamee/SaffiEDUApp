@@ -25,11 +25,9 @@ class MainActivity : ComponentActivity() {
         val context = newBase.createConfigurationContext(config)
         super.attachBaseContext(context)
     }
-
     @RequiresApi(Build.VERSION_CODES.O)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
         setContent {
             SaffiEDUAppTheme {
                 val navController = rememberNavController()
@@ -38,21 +36,14 @@ class MainActivity : ComponentActivity() {
                     startDestination = Routes.AUTH_GRAPH
                 ) {
                     authNavGraph(navController)
-
-
                     composable(route = Routes.MAIN_GRAPH) {
                         MainAppScreen()
                     }
-
-
-                    // Define the teacher main screen here instead of teacherGraph
                     composable(route = Routes.TEACHER_GRAPH) {
                         TeacherMainScreen(navController = rememberNavController())
                     }
                 }
             }
-
-
         }
     }
 }
