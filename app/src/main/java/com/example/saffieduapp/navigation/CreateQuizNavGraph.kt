@@ -1,10 +1,7 @@
 package com.example.saffieduapp.navigation
 
 import android.annotation.SuppressLint
-import android.widget.Toast
 import androidx.compose.runtime.remember
-import androidx.compose.ui.platform.LocalContext
-import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
@@ -12,7 +9,6 @@ import androidx.navigation.navigation
 import com.example.saffieduapp.presentation.screens.teacher.add_exam.AddExamScreen
 import com.example.saffieduapp.presentation.screens.teacher.add_exam.AddExamState
 import com.example.saffieduapp.presentation.screens.teacher.add_question.AddQuestionScreen
-import com.example.saffieduapp.presentation.screens.teacher.add_question.AddQuestionViewModel
 import com.example.saffieduapp.presentation.screens.teacher.add_question.QuestionData
 import com.example.saffieduapp.presentation.screens.teacher.quiz_summary.QuizSummaryScreen
 
@@ -36,20 +32,28 @@ fun NavGraphBuilder.createQuizNavGraph(navController: NavController) {
 
         // الوجهة الثانية: إضافة الأسئلة
         composable(Routes.ADD_QUESTION_SCREEN) { backStackEntry ->
-            // ✅ التعديل هنا: جلب QuestionData من الـ SavedStateHandle الخاص بـ *Previous* BackStackEntry
-            //    لأن QuizSummaryScreen (السابقة) هي من قامت بتخزين البيانات.
+
+            // 💡 ملاحظة: تمت إزالة استدعاء ViewModel هنا
+
             val questionToEdit =
                 navController.previousBackStackEntry?.savedStateHandle?.get<QuestionData>("questionToEdit")
+            val allQuestions =
+                navController.previousBackStackEntry?.savedStateHandle?.get<List<QuestionData>>("allQuestions")
+                    ?: emptyList()
 
             // ✅ يجب إزالة المفتاح بعد استخدامه لتجنب التعديل مرة أخرى إذا انتقلنا لـ ADD_QUESTION_SCREEN بطريقة عادية
             navController.previousBackStackEntry?.savedStateHandle?.remove<QuestionData>("questionToEdit")
+            navController.previousBackStackEntry?.savedStateHandle?.remove<List<QuestionData>>("allQuestions") // إزالة القائمة أيضاً
+
             AddQuestionScreen(
                 navController = navController,
                 questionToEdit = questionToEdit, // تمرير السؤال إلى الشاشة للتعديل
+                allQuestions = allQuestions, // <--- تمرير القائمة المسترجعة
                 onNavigateUp = { navController.popBackStack() },
                 onNavigateToSummary = { questions ->
-                    // احفظ الأسئلة في SavedStateHandle للـ QuizSummaryScreen
-                    navController.previousBackStackEntry?.savedStateHandle?.set(
+                    // 🎯 التصحيح: احفظ الأسئلة في الـ SavedStateHandle الخاص بالوجهة الحالية
+                    // (ADD_QUESTION_SCREEN) ليتم قراءتها منها في الملخص.
+                    navController.currentBackStackEntry?.savedStateHandle?.set(
                         "questions", questions
                     )
                     navController.navigate(Routes.QUIZ_SUMMARY_SCREEN)
@@ -58,42 +62,44 @@ fun NavGraphBuilder.createQuizNavGraph(navController: NavController) {
 
         // الوجهة الثالثة: ملخص الأسئلة
         composable(Routes.QUIZ_SUMMARY_SCREEN) { backStackEntry ->
-            // ✅ الحل هنا: استخدم remember لحفظ النتيجة
-            val (examState, questions) = remember {
-                // نقوم بالقراءة داخل remember لضمان حدوثها مرة واحدة فقط
-                val exam =
-                    navController.getBackStackEntry(Routes.ADD_EXAM_SCREEN).savedStateHandle.get<AddExamState>(
-                        "examState"
-                    ) ?: AddExamState()
-
-                val qst =
-                    navController.getBackStackEntry(Routes.ADD_QUESTION_SCREEN).savedStateHandle.get<List<QuestionData>>(
-                        "questions"
-                    ) ?: emptyList()
-
-                // قم بإرجاع القيم كـ Pair أو كائنات Immutable
-                exam to qst
+            // 1. استخدام remember لحفظ حالة الامتحان (لأنها ثابتة)
+            val examState = remember {
+                navController.getBackStackEntry(Routes.ADD_EXAM_SCREEN).savedStateHandle.get<AddExamState>(
+                    "examState"
+                ) ?: AddExamState()
             }
 
+            // 2. 💡 الحل: جلب قائمة الأسئلة مباشرة من SavedStateHandle
+            //     الخاص بـ ADD_QUESTION_SCREEN. هذا يضمن الحصول على القائمة المحدثة.
+            val questions =
+                navController.getBackStackEntry(Routes.ADD_QUESTION_SCREEN).savedStateHandle.get<List<QuestionData>>(
+                    "questions"
+                ) ?: emptyList()
+
+
+            // 3. قم بتمرير examState و questions إلى الشاشة
             QuizSummaryScreen(
                 examState = examState,
-                questions = questions,
+                questions = questions, // ✅ الآن يتم تمرير القائمة المحدثة
                 onNavigateUp = { navController.popBackStack() },
                 onPublish = {
-                    // ✅ العودة إلى شاشة المعلم الرئيسية بعد النشر
                     navController.navigate(Routes.TEACHER_HOME_SCREEN) {
                         popUpTo(Routes.TEACHER_HOME_SCREEN) { inclusive = true }
                     }
                 },
-                onEditQuestion = { questionData ->
-                    // 1. **التعديل هنا:** احفظ QuestionData في SavedStateHandle الخاص بالـ Back Stack Entry الحالي.
-                    //    هذا الـ SavedStateHandle هو ما ستستخدمه شاشة ADD_QUESTION_SCREEN لجلب البيانات منه.
+                onEditQuestion = { questionToEdit, allQuestions ->
+                    // 1. ضع السؤال والقائمة الكاملة في SavedStateHandle
+                    // (هنا نستخدم currentBackStackEntry لأنه هو BackStackEntry الحالي لـ QUIZ_SUMMARY_SCREEN)
                     navController.currentBackStackEntry?.savedStateHandle?.set(
-                        "questionToEdit", questionData
+                        "questionToEdit", questionToEdit
                     )
-                    // 2. انتقل إلى شاشة إضافة الأسئلة لتعديل السؤال المحفوظ
+                    navController.currentBackStackEntry?.savedStateHandle?.set(
+                        "allQuestions", allQuestions
+                    )
+                    // 2. انتقل إلى شاشة التعديل
                     navController.navigate(Routes.ADD_QUESTION_SCREEN)
-                })
+                },
+            )
         }
     }
 }

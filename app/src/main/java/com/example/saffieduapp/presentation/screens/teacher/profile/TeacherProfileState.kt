@@ -8,5 +8,5 @@ data class TeacherProfileState(
     val subject: String = "",
     val classesCount: Int = 0,
     val profileImageUrl: String? = null,
-    val error: String? = null
+    val error: String? = null,
 )

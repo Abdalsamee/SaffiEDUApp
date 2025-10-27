@@ -113,9 +113,9 @@ class TeacherHomeViewModel @Inject constructor(
         return try {
             val assignmentDoc =
                 firestore.collection("assignments").document(assignmentId).get().await()
-            assignmentDoc.getString("title") ?: "واجب (ID: $assignmentId)"
+            assignmentDoc.getString("title") ?: "واجب"
         } catch (e: Exception) {
-            "خطأ في جلب عنوان الواجب ($assignmentId)"
+            "خطأ في جلب عنوان الواجب"
         }
     }
 
@@ -123,9 +123,9 @@ class TeacherHomeViewModel @Inject constructor(
     private suspend fun getExamTitle(examId: String): String {
         return try {
             val examDoc = firestore.collection("exams").document(examId).get().await()
-            examDoc.getString("examTitle") ?: "اختبار (ID: $examId)"
+            examDoc.getString("examTitle") ?: "اختبار"
         } catch (e: Exception) {
-            "خطأ في جلب عنوان الاختبار ($examId)"
+            "خطأ في جلب عنوان الاختبار"
         }
     }
 
