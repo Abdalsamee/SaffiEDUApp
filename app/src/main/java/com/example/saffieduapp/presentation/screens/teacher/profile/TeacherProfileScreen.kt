@@ -19,7 +19,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
@@ -29,24 +28,20 @@ import com.example.saffieduapp.presentation.screens.student.profile.components.P
 import com.example.saffieduapp.presentation.screens.student.profile.components.AcademicInfoCard
 import com.example.saffieduapp.ui.theme.AppAlert
 import com.example.saffieduapp.ui.theme.AppPrimary
-import com.example.saffieduapp.ui.theme.SaffiEDUAppTheme
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.navigation.NavController
 import androidx.navigation.NavHostController
-import com.example.saffieduapp.navigation.Routes
 
 @Composable
 fun TeacherProfileScreen(
-    navController: NavHostController,
     viewModel: TeacherProfileViewModel = hiltViewModel(),
-    onLogoutNavigate: () -> Unit // ✅ أضف هذا
+    onLogoutNavigate: () -> Unit, // ✅ أضف هذا
+    navController: NavHostController
 
 ) {
     val state by viewModel.state.collectAsState()
 
     Scaffold(
-        topBar = { CommonTopAppBar(title = "الملف الشخصي") }
-    ) { innerPadding ->
+        topBar = { CommonTopAppBar(title = "الملف الشخصي") }) { innerPadding ->
 
         when {
             state.isLoading -> {
@@ -81,10 +76,7 @@ fun TeacherProfileScreen(
                     onEditPhoto = { /* تعديل الصورة لاحقًا */ },
                     onLogoutClick = {
                         viewModel.logout {
-                            // ✅ استخدم graph وليس شاشة مباشرة
-                            navController.navigate(Routes.AUTH_GRAPH) {
-                                popUpTo(0) { inclusive = true } // امسح كل شيء وارجع لشاشة الدخول
-                            }
+                            onLogoutNavigate()
                         }
                     },
                     modifier = Modifier.padding(innerPadding)
@@ -128,8 +120,7 @@ private fun TeacherProfileContent(
                     .size(40.dp)
                     .background(AppPrimary, CircleShape)
                     .border(3.dp, Color.White, CircleShape)
-                    .padding(6.dp),
-                contentAlignment = Alignment.Center
+                    .padding(6.dp), contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = Icons.Default.Edit,
@@ -137,8 +128,7 @@ private fun TeacherProfileContent(
                     tint = Color.White,
                     modifier = Modifier
                         .size(18.dp)
-                        .clickable { onEditPhoto() }
-                )
+                        .clickable { onEditPhoto() })
             }
         }
 
@@ -153,10 +143,7 @@ private fun TeacherProfileContent(
         )
 
         Text(
-            text = state.email,
-            color = Color.Gray,
-            fontSize = 14.sp,
-            textAlign = TextAlign.Center
+            text = state.email, color = Color.Gray, fontSize = 14.sp, textAlign = TextAlign.Center
         )
 
         Spacer(modifier = Modifier.height(24.dp))
@@ -172,19 +159,13 @@ private fun TeacherProfileContent(
         Spacer(modifier = Modifier.height(12.dp))
 
         ProfileInfoCard(
-            label = "الاسم الكامل :",
-            value = state.fullName,
-            icon = R.drawable.user
+            label = "الاسم الكامل :", value = state.fullName, icon = R.drawable.user
         )
         ProfileInfoCard(
-            label = "البريد الإلكتروني :",
-            value = state.email,
-            icon = R.drawable.email
+            label = "البريد الإلكتروني :", value = state.email, icon = R.drawable.email
         )
         ProfileInfoCard(
-            label = "رقم الهوية :",
-            value = state.nationalId,
-            icon = R.drawable.idcard
+            label = "رقم الهوية :", value = state.nationalId, icon = R.drawable.idcard
         )
 
         Spacer(modifier = Modifier.height(24.dp))
@@ -200,8 +181,7 @@ private fun TeacherProfileContent(
         Spacer(modifier = Modifier.height(12.dp))
 
         Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             AcademicInfoCard(
                 icon = R.drawable.subjecticon,
@@ -221,8 +201,7 @@ private fun TeacherProfileContent(
 
         // 🔹 زر تسجيل الخروج
         Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.Start
+            modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Start
         ) {
             Button(
                 onClick = onLogoutClick,// ← تعود إلى شاشة تسجيل الدخول
@@ -233,9 +212,7 @@ private fun TeacherProfileContent(
                     .height(48.dp)
             ) {
                 Text(
-                    text = "تسجيل الخروج",
-                    fontWeight = FontWeight.SemiBold,
-                    color = Color.White
+                    text = "تسجيل الخروج", fontWeight = FontWeight.SemiBold, color = Color.White
                 )
             }
         }

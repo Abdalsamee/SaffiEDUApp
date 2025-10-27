@@ -10,7 +10,6 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.FabPosition
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.*
@@ -22,8 +21,6 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
-import androidx.navigation.NavController
-import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.saffieduapp.R
@@ -36,55 +33,34 @@ import com.example.saffieduapp.presentation.screens.teacher.home.component.FabAc
 
 @Composable
 fun TeacherMainScreen(
-    navController: NavHostController,
-
-    ) {
-
+    onLogoutNavigate: () -> Unit
+) {
+    val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
 
     val bottomNavItems = listOf(
         BottomNavItem(
-            "الرئيسية",
-            Routes.TEACHER_HOME_SCREEN,
-            painterResource(id = R.drawable.homenot)
-        ),
-        BottomNavItem(
-            "الصفوف",
-            Routes.TEACHER_CLASSES_SCREEN,
-            painterResource(id = R.drawable.rclass)
-        ),
-        BottomNavItem(
-            "المهام",
-            Routes.TEACHER_TASKS_GRAPH,
-            painterResource(id = R.drawable.tasks)
-        ),
-        BottomNavItem(
-            "الدردشة", Routes.CHAT_SCREEN,
-            painterResource(id = R.drawable.chat)
-        ),
-        BottomNavItem(
-            "الملف الشخصي",
-            Routes.TEACHER_PROFILE_SCREEN,
-            painterResource(id = R.drawable.user)
+            "الرئيسية", Routes.TEACHER_HOME_SCREEN, painterResource(id = R.drawable.homenot)
+        ), BottomNavItem(
+            "الصفوف", Routes.TEACHER_CLASSES_SCREEN, painterResource(id = R.drawable.rclass)
+        ), BottomNavItem(
+            "المهام", Routes.TEACHER_TASKS_GRAPH, painterResource(id = R.drawable.tasks)
+        ), BottomNavItem(
+            "الدردشة", Routes.CHAT_SCREEN, painterResource(id = R.drawable.chat)
+        ), BottomNavItem(
+            "الملف الشخصي", Routes.TEACHER_PROFILE_SCREEN, painterResource(id = R.drawable.user)
         )
     )
     val fabActions = listOf(
         FabActionItem(
-            icon = painterResource(id = R.drawable.books),
-            label = "إضافة درس"
-        ),
-        FabActionItem(
-            icon = painterResource(id = R.drawable.assignment),
-            label = "إضافة واجب"
-        ),
-        FabActionItem(
-            icon = painterResource(id = R.drawable.exam),
-            label = "إضافة اختبار"
-        ),
-        FabActionItem(
-            icon = painterResource(id = R.drawable.alert),
-            label = "إضافة تنبيه"
+            icon = painterResource(id = R.drawable.books), label = "إضافة درس"
+        ), FabActionItem(
+            icon = painterResource(id = R.drawable.assignment), label = "إضافة واجب"
+        ), FabActionItem(
+            icon = painterResource(id = R.drawable.exam), label = "إضافة اختبار"
+        ), FabActionItem(
+            icon = painterResource(id = R.drawable.alert), label = "إضافة تنبيه"
         )
     )
 
@@ -125,13 +101,13 @@ fun TeacherMainScreen(
 
             ) { innerPadding ->
             TeacherNavHost(
+                // ✅ 6. مرّر نفس الكنترولر الداخلي إلى NavHost
                 navController = navController,
+
                 modifier = Modifier.padding(innerPadding),
-                onLogoutNavigate = {
-                    navController.navigate(Routes.AUTH_GRAPH) {
-                        popUpTo(0) { inclusive = true }
-                    }
-                }
+
+                // ✅ 7. مرّر دالة تسجيل الخروج التي استلمتها "كما هي"
+                onLogoutNavigate = onLogoutNavigate
             )
         }
 
@@ -152,8 +128,7 @@ fun TeacherMainScreen(
                     )
                     .graphicsLayer {
                         alpha = scrimAlpha
-                    },
-                color = Color.Black
+                    }, color = Color.Black
             ) {}
         }
 
@@ -180,8 +155,7 @@ fun TeacherMainScreen(
                             "إضافة اختبار" -> navController.navigate(Routes.CREATE_QUIZ_GRAPH)
                             "إضافة تنبيه" -> navController.navigate(Routes.TEACHER_ADD_ALERT_SCREEN)
                         }
-                    }
-                )
+                    })
             }
         }
     }
