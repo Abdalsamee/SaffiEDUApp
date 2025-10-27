@@ -36,6 +36,7 @@ fun AddQuestionScreen(
     navController: NavController,
     onNavigateUp: () -> Unit,
     questionToEdit: QuestionData? = null,
+    allQuestions: List<QuestionData> = emptyList(),
     viewModel: AddQuestionViewModel = hiltViewModel(),
     onNavigateToSummary: (List<QuestionData>) -> Unit
 ) {
@@ -54,9 +55,14 @@ fun AddQuestionScreen(
         }
     }
 
-    androidx.compose.runtime.LaunchedEffect(questionToEdit) {
+    androidx.compose.runtime.LaunchedEffect(
+        questionToEdit, allQuestions
+    ) { // أضف allQuestions كـ Key
         if (questionToEdit != null) {
-            viewModel.setQuestionForEditing(questionToEdit)
+            // 💡 التعديل 2: قم بتمرير القائمة الكاملة إلى الـ ViewModel
+            viewModel.setQuestionForEditing(
+                questionData = questionToEdit, questionsList = allQuestions
+            )
         }
     }
 

@@ -175,6 +175,16 @@ class AddQuestionViewModel @Inject constructor() : ViewModel() {
             essayAnswer = currentState.currentEssayAnswer
         )
 
+        // 💡 التعديل هنا: يجب أن يحدد ما إذا كنا في وضع التعديل أم الإضافة
+        val newQuestionsList = if (currentState.isEditing) {
+            // وضع التعديل: استبدل السؤال القديم بالسؤال الجديد
+            currentState.createdQuestions.map { q ->
+                if (q.id == questionData.id) questionData else q
+            }
+        } else {
+            // وضع الإضافة: أضف السؤال الجديد إلى القائمة
+            currentState.createdQuestions + questionData
+        }
         _state.update {
             it.copy(
                 currentQuestionText = "",
@@ -191,7 +201,7 @@ class AddQuestionViewModel @Inject constructor() : ViewModel() {
                     QuestionType.ESSAY -> mutableStateListOf()
                 },
                 currentEssayAnswer = "",
-                createdQuestions = it.createdQuestions + questionData,
+                createdQuestions = newQuestionsList, // <--- استخدام القائمة الجديدة
                 isEditing = false, // <--- مهم: الخروج من وضع التعديل
                 questionBeingEditedId = null
             )
@@ -200,7 +210,7 @@ class AddQuestionViewModel @Inject constructor() : ViewModel() {
     }
 
     // دالة تهيئة لعملية التعديل
-    fun setQuestionForEditing(questionData: QuestionData) {
+    fun setQuestionForEditing(questionData: QuestionData, questionsList: List<QuestionData>) {
         _state.update {
             it.copy(
                 isEditing = true,
@@ -209,7 +219,8 @@ class AddQuestionViewModel @Inject constructor() : ViewModel() {
                 currentQuestionType = questionData.type,
                 currentQuestionPoints = questionData.points,
                 currentChoices = questionData.choices.toMutableStateList(),
-                currentEssayAnswer = questionData.essayAnswer
+                currentEssayAnswer = questionData.essayAnswer,
+                createdQuestions = questionsList
             )
         }
     }
