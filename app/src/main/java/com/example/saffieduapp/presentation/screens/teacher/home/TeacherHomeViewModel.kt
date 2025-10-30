@@ -7,7 +7,9 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
@@ -27,6 +29,16 @@ class TeacherHomeViewModel @Inject constructor(
     private val firestore: FirebaseFirestore,
     private val prefs: PreferencesManager
 ) : ViewModel() {
+
+    // ⭐️ إضافة جديدة: لتعريف الأحداث التي تحدث مرة واحدة
+    sealed class UiEvent {
+        data class ShowSnackbar(val message: String) : UiEvent()
+        // يمكنك إضافة أحداث أخرى هنا مستقبلاً، مثل الانتقال لشاشة أخرى
+    }
+
+    // ⭐️ إضافة جديدة: لتدفق الأحداث
+    private val _eventFlow = MutableSharedFlow<UiEvent>()
+    val eventFlow = _eventFlow.asSharedFlow()
 
     private val _state = MutableStateFlow(TeacherHomeState())
     val state = _state.asStateFlow()
@@ -378,8 +390,9 @@ class TeacherHomeViewModel @Inject constructor(
                     } else {
                         println("ℹ️ المادة $subjectName مفعلة بالفعل للصف $className")
                     }
-                }
+                }gir
 
+                // 🔹 تحديث حالة المعلم
                 // 🔹 تحديث حالة المعلم
                 firestore.collection("teachers").document(teacherId)
                     .update("isSubjectActivated", true).await()
@@ -387,8 +400,13 @@ class TeacherHomeViewModel @Inject constructor(
                 prefs.setSubjectActivated(true)
                 _state.value = _state.value.copy(showActivateButton = false)
 
+                // ⭐️ إضافة جديدة: إرسال حدث بنجاح العملية
+                _eventFlow.emit(UiEvent.ShowSnackbar("تم تفعيل المادة بنجاح"))
+
             } catch (e: Exception) {
                 println("❌ خطأ عند تفعيل المادة: ${e.message}")
+                // ⭐️ إضافة اختيارية: إرسال رسالة خطأ
+                _eventFlow.emit(UiEvent.ShowSnackbar("خطأ: ${e.message}"))
             }
         }
     }
