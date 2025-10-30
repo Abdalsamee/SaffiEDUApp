@@ -1,11 +1,16 @@
 package com.example.saffieduapp.presentation.screens.teacher.home
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -25,6 +30,20 @@ fun TeacherHomeScreen(
 ) {
     val state by viewModel.state.collectAsState()
 
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    // ⭐️ إضافة جديدة: الاستماع للأحداث القادمة من الـ ViewModel
+    LaunchedEffect(key1 = true) { // key1 = true ليعمل مرة واحدة عند بدء الشاشة
+        viewModel.eventFlow.collect { event ->
+            when (event) {
+                is TeacherHomeViewModel.UiEvent.ShowSnackbar -> {
+                    snackbarHostState.showSnackbar(
+                        message = event.message
+                    )
+                }
+            }
+        }
+    }
 
     // ١. Box الرئيسي يبدأ هنا
     Box(modifier = Modifier.fillMaxSize()) {
@@ -79,6 +98,16 @@ fun TeacherHomeScreen(
             onActivateClick = { viewModel.activateSubject() })
 
 
+        if (state.isActivating) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(AppPrimary.copy(alpha = 0.2f)),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator(color = AppPrimary)
+            }
+        }
         if (state.isLoading) {
             Box(
                 modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center
@@ -86,5 +115,14 @@ fun TeacherHomeScreen(
                 CircularProgressIndicator(color = AppPrimary)
             }
         }
+        // ⭐️⭐️⭐️ التعديل المطلوب: إضافة SnackbarHost ⭐️⭐️⭐️
+        // هذا هو المكون الفعلي الذي يعرض رسائل الـ Snackbar
+        // يجب ربطه بـ snackbarHostState الذي يتم التحكم به من الـ LaunchedEffect
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(16.dp)
+        )
     }
 }

@@ -16,6 +16,7 @@ class TeacherTaskDetailsViewModel(savedStateHandle: SavedStateHandle) : ViewMode
 
     // استخراج معرّف المهمة ونوعها من المسار
     private val taskId: String = checkNotNull(savedStateHandle["taskId"])
+
     // يجب أن تتأكد أن taskType يتم تمريره كسلسلة قابلة للتحويل إلى TaskType (مثل "ASSIGNMENT" أو "EXAM")
     private val taskTypeString: String = checkNotNull(savedStateHandle["taskType"])
     private val taskType: TaskType = TaskType.valueOf(taskTypeString)
@@ -73,6 +74,7 @@ class TeacherTaskDetailsViewModel(savedStateHandle: SavedStateHandle) : ViewMode
                                 val submitted = submissionDoc.getBoolean("submitted") ?: false
                                 if (submitted) "تم التسليم" else "لم يسلم" // يمكنك تعديل هذا ليعرض التقدير لاحقاً إذا كان موجوداً
                             }
+
                             TaskType.EXAM -> {
                                 // لحالة الاختبار، نتحقق من حقل النتيجة (Score) إذا كان متاحاً، أو نستخدم حالة
                                 val isSubmitted = submissionDoc.getBoolean("submitted") ?: false

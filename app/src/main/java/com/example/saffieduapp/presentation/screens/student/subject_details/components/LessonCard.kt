@@ -24,6 +24,7 @@ import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.saffieduapp.R
 import com.example.saffieduapp.navigation.Routes
+import com.example.saffieduapp.navigation.navigateToVideoScreen
 import com.example.saffieduapp.presentation.screens.student.component.ProgressBarWithPercentage
 import com.example.saffieduapp.ui.theme.AppPrimary
 import com.example.saffieduapp.ui.theme.AppTextPrimary
@@ -122,16 +123,7 @@ fun LessonCard(
                 )
                 Button(
                     onClick = {
-                        // هنا فقط نفذ التنقل
-                        navController.currentBackStackEntry?.savedStateHandle?.set(
-                            "lessonId",
-                            lesson.id
-                        )
-                        navController.currentBackStackEntry?.savedStateHandle?.set(
-                            "videoUrl",
-                            lesson.videoUrl
-                        )
-                        navController.navigate(Routes.VIDEO_PLAYER_SCREEN)
+                        navController.navigateToVideoScreen(lesson.videoUrl)
                     },
                     shape = RoundedCornerShape(50),
                     colors = ButtonDefaults.buttonColors(containerColor = AppPrimary),

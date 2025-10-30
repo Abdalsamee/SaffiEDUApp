@@ -12,7 +12,7 @@ data class Lesson(
     val duration: Int? = 0,
     val description: String? = null,
     val pdfUrl: String? = null,
-    val videoUrl: String? = null,
+    val videoUrl: String,
     val pagesCount: Int? = 0,
     val notificationStatus: String? = null,
     val progress: Int = 0, // أضف هذا

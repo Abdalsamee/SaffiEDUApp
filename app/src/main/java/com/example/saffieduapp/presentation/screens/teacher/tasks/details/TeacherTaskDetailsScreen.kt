@@ -7,6 +7,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -19,21 +20,17 @@ import com.example.saffieduapp.ui.theme.SaffiEDUAppTheme
 
 @Composable
 fun TeacherTaskDetailsScreen(
-    navController: NavController,
-    viewModel: TeacherTaskDetailsViewModel = hiltViewModel()
+    navController: NavController, viewModel: TeacherTaskDetailsViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
 
     Scaffold(
         topBar = {
             CommonTopAppBar(
-                title = "تفاصيل المهمة",
-                onNavigateUp = {
+                title = "تفاصيل المهمة", onNavigateUp = {
                     navController.popBackStack()
-                }
-            )
-        }
-    ) { innerPadding ->
+                })
+        }) { innerPadding ->
         Column(
             modifier = Modifier
                 .padding(innerPadding)
@@ -51,29 +48,44 @@ fun TeacherTaskDetailsScreen(
 
             if (state.isLoading) {
                 Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
+                    modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center
                 ) {
                     CircularProgressIndicator()
                 }
             } else {
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = 16.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    items(state.students) { student ->
-                        StudentTaskItemCard(
-                            name = student.name,
-                            score = student.score,
-                            imageUrl = student.imageUrl,
-                            onDetailsClick = {
-
-                                navController.navigate("${Routes.TEACHER_STUDENT_EXAM_SCREEN}/${student.id}")
-                                //navController.navigate(Routes.TEACHER_STUDENT_ASSIGNMENT_SCREEN)
-                            }
+                // **التعديل يبدأ هنا**
+                if (state.students.isEmpty()) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(16.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "لا يوجد تسليمات لهذه المهمة",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center
                         )
+                    }
+                } else {
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 16.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        items(state.students) { student ->
+                            StudentTaskItemCard(
+                                name = student.name,
+                                score = student.score,
+                                imageUrl = student.imageUrl,
+                                onDetailsClick = {
+
+                                    navController.navigate("${Routes.TEACHER_STUDENT_EXAM_SCREEN}/${student.id}")
+                                    //navController.navigate(Routes.TEACHER_STUDENT_ASSIGNMENT_SCREEN)
+                                })
+                        }
                     }
                 }
             }

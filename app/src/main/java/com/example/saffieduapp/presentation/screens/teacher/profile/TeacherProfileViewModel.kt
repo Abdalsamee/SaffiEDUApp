@@ -7,8 +7,10 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.storage.FirebaseStorage
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.channels.Channel // 👈 وارد جديد
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.receiveAsFlow // 👈 وارد جديد
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
@@ -23,6 +25,11 @@ class TeacherProfileViewModel @Inject constructor() : ViewModel() {
         )
     )
     val state: StateFlow<TeacherProfileState> = _state
+
+    // 🌟 قناة الأحداث لإرسال رسائل Toast إلى واجهة المستخدم
+    private val _events = Channel<TeacherProfileEvent>()
+    val events = _events.receiveAsFlow()
+    // ----------------------------------------------------
 
     private val auth = FirebaseAuth.getInstance()
     private val db = FirebaseFirestore.getInstance()
@@ -98,8 +105,7 @@ class TeacherProfileViewModel @Inject constructor() : ViewModel() {
             return
         }
 
-        // 1. تحديث الحالة لبدء إظهار مؤشر التحميل
-        _state.update { it.copy(error = null) }
+        _state.update { it.copy(error = null, isPhotoUpdating = true) }
 
         viewModelScope.launch {
             try {
@@ -119,17 +125,23 @@ class TeacherProfileViewModel @Inject constructor() : ViewModel() {
                 // 6. تحديث الحالة في التطبيق بالصورة الجديدة وإيقاف التحميل
                 _state.update {
                     it.copy(
-                        profileImageUrl = downloadUrl
+                        profileImageUrl = downloadUrl, isPhotoUpdating = false
                     )
                 }
+
+                // 🌟 إرسال حدث النجاح
+                _events.send(TeacherProfileEvent.ShowToast("تم تحديث صورة الملف الشخصي بنجاح"))
 
             } catch (e: Exception) {
                 // 7. التعامل مع أي خطأ يحدث أثناء الرفع أو التحديث
                 _state.update {
                     it.copy(
-                        error = "فشل تحديث الصورة: ${e.message}"
+                        error = "فشل تحديث الصورة: ${e.message}",
+                        isPhotoUpdating = false // إيقاف التحميل عند الفشل
                     )
                 }
+                // 🌟 إرسال حدث الفشل
+                _events.send(TeacherProfileEvent.ShowToast("فشل التحديث: ${e.message}"))
             }
         }
     }
@@ -144,4 +156,8 @@ class TeacherProfileViewModel @Inject constructor() : ViewModel() {
             onComplete()
         }
     }
+}
+
+sealed class TeacherProfileEvent {
+    data class ShowToast(val message: String) : TeacherProfileEvent()
 }

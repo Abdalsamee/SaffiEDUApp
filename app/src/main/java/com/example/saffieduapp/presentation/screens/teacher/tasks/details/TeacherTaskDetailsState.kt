@@ -7,8 +7,5 @@ data class TeacherTaskDetailsState(
 )
 
 data class StudentTaskItem(
-    val id: String,
-    val name: String,
-    val score: String,
-    val imageUrl: String
+    val id: String, val name: String, val score: String, val imageUrl: String
 )
