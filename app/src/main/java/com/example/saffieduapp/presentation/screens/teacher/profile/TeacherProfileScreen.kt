@@ -1,6 +1,7 @@
 package com.example.saffieduapp.presentation.screens.teacher.profile
 
 import android.net.Uri
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -19,6 +20,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -51,12 +53,22 @@ fun TeacherProfileScreen(
             viewModel.updateProfilePhoto(it)
         }
     }
+    val context = LocalContext.current
+
+    LaunchedEffect(Unit) {
+        viewModel.events.collect { event ->
+            when (event) {
+                is TeacherProfileEvent.ShowToast -> {
+                    Toast.makeText(context, event.message, Toast.LENGTH_LONG).show()
+                }
+            }
+        }
+    }
 
     val state by viewModel.state.collectAsState()
 
     Scaffold(
-        topBar = { CommonTopAppBar(title = "الملف الشخصي") }
-    ) { innerPadding ->
+        topBar = { CommonTopAppBar(title = "الملف الشخصي") }) { innerPadding ->
 
         when {
             state.isLoading -> {
@@ -91,16 +103,13 @@ fun TeacherProfileScreen(
 
             else -> {
                 TeacherProfileContent(
-                    state = state,
-                    onEditPhoto = {
-                        imagePickerLauncher.launch("image/*")
-                    },
-                    onLogoutClick = {
-                        viewModel.logout {
-                            onLogoutNavigate()
-                        }
-                    },
-                    modifier = Modifier.padding(innerPadding)
+                    state = state, onEditPhoto = {
+                    imagePickerLauncher.launch("image/*")
+                }, onLogoutClick = {
+                    viewModel.logout {
+                        onLogoutNavigate()
+                    }
+                }, modifier = Modifier.padding(innerPadding)
                 )
             }
         }
@@ -135,9 +144,7 @@ private fun TeacherProfileContent(
                     contentAlignment = Alignment.Center
                 ) {
                     CircularProgressIndicator(
-                        modifier = Modifier.size(50.dp),
-                        color = AppPrimary,
-                        strokeWidth = 4.dp
+                        modifier = Modifier.size(50.dp), color = AppPrimary, strokeWidth = 4.dp
                     )
                 }
             } else {
@@ -169,8 +176,7 @@ private fun TeacherProfileContent(
                     modifier = Modifier
                         .size(18.dp)
                         // 🌟 تعطيل النقر أثناء التحديث
-                        .clickable(enabled = !state.isPhotoUpdating) { onEditPhoto() }
-                )
+                        .clickable(enabled = !state.isPhotoUpdating) { onEditPhoto() })
             }
         }
 
