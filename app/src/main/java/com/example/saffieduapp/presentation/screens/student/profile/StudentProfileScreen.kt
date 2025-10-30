@@ -51,16 +51,20 @@ fun StudentProfileScreen(
             viewModel.updateProfileImage(it)
         }
     }
+
     // 🔹 عرض الرسائل التوضيحية (نجاح / فشل)
-    LaunchedEffect(state.message) {
+    // نستخدم LaunchedEffect لتجنب إعادة إنشاء Toast في كل عملية إعادة تركيب (recomposition)
+    LaunchedEffect(state.message, state.errorMessage) {
         state.message?.let { msg ->
             Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+        }
+        state.errorMessage?.let { msg ->
+            Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
         }
     }
 
     Scaffold(
-        topBar = { CommonTopAppBar(title = "الملف الشخصي") }
-    ) { innerPadding ->
+        topBar = { CommonTopAppBar(title = "الملف الشخصي") }) { innerPadding ->
 
         if (state.isLoading) {
             Box(
@@ -103,16 +107,33 @@ private fun StudentProfileContent(
 
         // 🔹 صورة الطالب مع أيقونة التعديل
         Box(contentAlignment = Alignment.BottomCenter) {
-            AsyncImage(
-                model = state.profileImageUrl ?: R.drawable.user,
-                contentDescription = "Student Image",
-                placeholder = painterResource(R.drawable.secstudent),
-                error = painterResource(R.drawable.secstudent),
-                modifier = Modifier
-                    .size(120.dp)
-                    .clip(CircleShape)
-                    .border(3.dp, Color.White, CircleShape)
-            )
+
+            // 🌟 تطبيق نظام المعلم: عرض مؤشر التحميل إذا كانت isPhotoUpdating = true
+            if (state.isPhotoUpdating) {
+                Box(
+                    modifier = Modifier
+                        .size(120.dp)
+                        .clip(CircleShape)
+                        .background(Color.LightGray.copy(alpha = 0.5f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(50.dp), color = AppPrimary, strokeWidth = 4.dp
+                    )
+                }
+            } else {
+                AsyncImage(
+                    model = state.profileImageUrl ?: R.drawable.user,
+                    contentDescription = "Student Image",
+                    placeholder = painterResource(R.drawable.secstudent),
+                    error = painterResource(R.drawable.secstudent),
+                    modifier = Modifier
+                        .size(120.dp)
+                        .clip(CircleShape)
+                        .border(3.dp, Color.White, CircleShape)
+                )
+            }
+
 
             // دائرة القلم الزرقاء فوق الصورة
             Box(
@@ -121,8 +142,7 @@ private fun StudentProfileContent(
                     .size(40.dp)
                     .background(AppPrimary, CircleShape)
                     .border(3.dp, Color.White, CircleShape)
-                    .padding(6.dp),
-                contentAlignment = Alignment.Center
+                    .padding(6.dp), contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = Icons.Default.Edit,
@@ -130,8 +150,8 @@ private fun StudentProfileContent(
                     tint = Color.White,
                     modifier = Modifier
                         .size(18.dp)
-                        .clickable { onEditPhoto() }
-                )
+                        // 🌟 تعطيل النقر أثناء تحديث الصورة
+                        .clickable(enabled = !state.isPhotoUpdating) { onEditPhoto() })
             }
         }
 
@@ -146,10 +166,7 @@ private fun StudentProfileContent(
         )
 
         Text(
-            text = state.email,
-            color = Color.Gray,
-            fontSize = 14.sp,
-            textAlign = TextAlign.Center
+            text = state.email, color = Color.Gray, fontSize = 14.sp, textAlign = TextAlign.Center
         )
 
         Spacer(modifier = Modifier.height(24.dp))
@@ -166,19 +183,13 @@ private fun StudentProfileContent(
 
         // 🔹 بطاقات المعلومات
         ProfileInfoCard(
-            label = "الاسم الكامل:",
-            value = state.fullName,
-            icon = R.drawable.user
+            label = "الاسم الكامل:", value = state.fullName, icon = R.drawable.user
         )
         ProfileInfoCard(
-            label = "البريد الإلكتروني:",
-            value = state.email,
-            icon = R.drawable.email
+            label = "البريد الإلكتروني:", value = state.email, icon = R.drawable.email
         )
         ProfileInfoCard(
-            label = "رقم الهوية:",
-            value = state.phoneNumber,
-            icon = R.drawable.idcard
+            label = "رقم الهوية:", value = state.phoneNumber, icon = R.drawable.idcard
         )
 
         Spacer(modifier = Modifier.height(24.dp))
@@ -195,8 +206,7 @@ private fun StudentProfileContent(
 
         // 🔹 صف بطاقتين (المعدل والصف الدراسي)
         Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             AcademicInfoCard(
                 icon = R.drawable.graduationcap,
@@ -214,8 +224,7 @@ private fun StudentProfileContent(
 
         Spacer(modifier = Modifier.weight(1f))
         Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.Start // ✅ محاذاة إلى البداية
+            modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Start
         ) {
             // 🔹 زر تسجيل الخروج
             Button(
@@ -225,7 +234,6 @@ private fun StudentProfileContent(
                 modifier = Modifier
                     .fillMaxWidth(0.5f)
                     .height(48.dp)
-
             ) {
                 Text(text = "تسجيل الخروج", fontWeight = FontWeight.SemiBold, color = Color.White)
             }
@@ -235,25 +243,3 @@ private fun StudentProfileContent(
         Spacer(modifier = Modifier.weight(1f))
     }
 }
-
-
-//@Preview(showBackground = true, locale = "ar", showSystemUi = true)
-//@Composable
-//private fun PreviewStudentProfileScreen() {
-//    SaffiEDUAppTheme {
-//        StudentProfileContent(
-//            state = StudentProfileState(
-//                isLoading = false,
-//                fullName = "فرج النجار",
-//                email = "faragstudent123@gmail.com",
-//                phoneNumber = "1234567890",
-//                className = "الثاني عشر",
-//                average = "96",
-//                profileImageUrl = null
-//            ),
-//            onEditPhoto = {},
-//            onLogoutClick = {}
-//        )
-//
-//    }
-//}

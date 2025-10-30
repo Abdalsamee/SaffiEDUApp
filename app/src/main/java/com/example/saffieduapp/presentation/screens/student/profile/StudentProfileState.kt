@@ -2,7 +2,7 @@ package com.example.saffieduapp.presentation.screens.student.profile
 
 data class StudentProfileState(
     val isLoading: Boolean = true,
-
+    val isPhotoUpdating: Boolean = false,
     // 🔹 بيانات الحساب
     val fullName: String = "",
     val email: String = "",
