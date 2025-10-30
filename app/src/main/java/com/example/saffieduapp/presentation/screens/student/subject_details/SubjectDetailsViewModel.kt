@@ -6,7 +6,6 @@ import androidx.core.content.FileProvider
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.saffieduapp.data.FireBase.AlertRepository
 import com.example.saffieduapp.domain.model.Subject
 import com.example.saffieduapp.presentation.screens.student.subject_details.components.Lesson
 import com.example.saffieduapp.presentation.screens.student.subject_details.components.PdfLesson
@@ -32,7 +31,7 @@ import javax.inject.Inject
 
 sealed class DetailsUiEvent {
     data class OpenPdf(val uri: Uri) : DetailsUiEvent()
-    data class OpenVideo(val url: String) : DetailsUiEvent()
+    data class OpenVideo(val url1: String?, val url: String) : DetailsUiEvent()
     data class ShowToast(val message: String) : DetailsUiEvent()
 }
 
@@ -110,7 +109,7 @@ class SubjectDetailsViewModel @Inject constructor(
         _state.update { it.copy(selectedTab = tab) }
     }
 
-     fun loadSubjectDetails(subjectId: String) {
+    fun loadSubjectDetails(subjectId: String) {
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true) }
             val allSubjects = listOf(
@@ -253,8 +252,8 @@ class SubjectDetailsViewModel @Inject constructor(
 
     fun onVideoCardClick(videoLesson: Lesson) {
         viewModelScope.launch {
-            if (!videoLesson.videoUrl.isNullOrEmpty()) {
-                _eventFlow.emit(DetailsUiEvent.OpenVideo(videoLesson.videoUrl))
+            if (videoLesson.videoUrl.isNotEmpty()) {
+                _eventFlow.emit(DetailsUiEvent.OpenVideo(videoLesson.id, videoLesson.videoUrl))
             } else {
                 _eventFlow.emit(DetailsUiEvent.ShowToast("لا يوجد فيديو"))
             }
