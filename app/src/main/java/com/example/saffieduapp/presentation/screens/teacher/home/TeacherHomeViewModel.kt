@@ -390,7 +390,7 @@ class TeacherHomeViewModel @Inject constructor(
                     } else {
                         println("ℹ️ المادة $subjectName مفعلة بالفعل للصف $className")
                     }
-                }gir
+                }
 
                 // 🔹 تحديث حالة المعلم
                 // 🔹 تحديث حالة المعلم
