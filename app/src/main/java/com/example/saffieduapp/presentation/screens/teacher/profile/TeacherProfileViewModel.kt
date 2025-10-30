@@ -98,8 +98,7 @@ class TeacherProfileViewModel @Inject constructor() : ViewModel() {
             return
         }
 
-        // 1. تحديث الحالة لبدء إظهار مؤشر التحميل
-        _state.update { it.copy(error = null) }
+        _state.update { it.copy(error = null, isPhotoUpdating = true) }
 
         viewModelScope.launch {
             try {
@@ -119,7 +118,7 @@ class TeacherProfileViewModel @Inject constructor() : ViewModel() {
                 // 6. تحديث الحالة في التطبيق بالصورة الجديدة وإيقاف التحميل
                 _state.update {
                     it.copy(
-                        profileImageUrl = downloadUrl
+                        profileImageUrl = downloadUrl, isPhotoUpdating = false
                     )
                 }
 
@@ -127,7 +126,8 @@ class TeacherProfileViewModel @Inject constructor() : ViewModel() {
                 // 7. التعامل مع أي خطأ يحدث أثناء الرفع أو التحديث
                 _state.update {
                     it.copy(
-                        error = "فشل تحديث الصورة: ${e.message}"
+                        error = "فشل تحديث الصورة: ${e.message}",
+                        isPhotoUpdating = false // 🌟 إيقاف التحميل عند الفشل
                     )
                 }
             }

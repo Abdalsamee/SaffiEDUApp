@@ -28,20 +28,21 @@ import coil.compose.AsyncImage
 import com.example.saffieduapp.R
 import com.example.saffieduapp.presentation.screens.student.components.CommonTopAppBar
 import com.example.saffieduapp.presentation.screens.student.profile.components.ProfileInfoCard
-import com.example.saffieduapp.presentation.screens.student.profile.components.AcademicInfoCard
+// import com.example.saffieduapp.presentation.screens.student.profile.components.AcademicInfoCard // تم استخدامها بالفعل في ملفك
 import com.example.saffieduapp.ui.theme.AppAlert
 import com.example.saffieduapp.ui.theme.AppPrimary
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
+import com.example.saffieduapp.presentation.screens.student.profile.components.AcademicInfoCard
 
 @Composable
 fun TeacherProfileScreen(
-    viewModel: TeacherProfileViewModel = hiltViewModel(), onLogoutNavigate: () -> Unit, // ✅ أضف هذا
+    viewModel: TeacherProfileViewModel = hiltViewModel(),
+    onLogoutNavigate: () -> Unit,
     navController: NavHostController
-
 ) {
 
-    // ✅ 1. إعداد مُشغّل اختيار الصور
+    // 1. إعداد مُشغّل اختيار الصور
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
@@ -54,7 +55,8 @@ fun TeacherProfileScreen(
     val state by viewModel.state.collectAsState()
 
     Scaffold(
-        topBar = { CommonTopAppBar(title = "الملف الشخصي") }) { innerPadding ->
+        topBar = { CommonTopAppBar(title = "الملف الشخصي") }
+    ) { innerPadding ->
 
         when {
             state.isLoading -> {
@@ -68,12 +70,16 @@ fun TeacherProfileScreen(
                 }
             }
 
-            state.error != null -> {
+            // لا نحتاج لإظهار شاشة خطأ كاملة إذا كان الخطأ متعلقًا فقط بتحديث الصورة
+            // (سأفترض أنك تتعامل مع رسائل الخطأ كـ Toast أو Snackbar في التطبيق الفعلي)
+            state.error != null && !state.isLoading -> {
+                // قد ترغب في عرض Snackbar هنا بدلاً من Box في منتصف الشاشة
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(innerPadding),
-                    contentAlignment = Alignment.Center
+                        .padding(innerPadding)
+                        .padding(bottom = 60.dp), // لترك مسافة للـ Snackbar
+                    contentAlignment = Alignment.BottomCenter
                 ) {
                     Text(
                         text = state.error ?: "حدث خطأ غير معروف",
@@ -85,13 +91,16 @@ fun TeacherProfileScreen(
 
             else -> {
                 TeacherProfileContent(
-                    state = state, onEditPhoto = {
-                    imagePickerLauncher.launch("image/*")
-                }, onLogoutClick = {
-                    viewModel.logout {
-                        onLogoutNavigate()
-                    }
-                }, modifier = Modifier.padding(innerPadding)
+                    state = state,
+                    onEditPhoto = {
+                        imagePickerLauncher.launch("image/*")
+                    },
+                    onLogoutClick = {
+                        viewModel.logout {
+                            onLogoutNavigate()
+                        }
+                    },
+                    modifier = Modifier.padding(innerPadding)
                 )
             }
         }
@@ -113,19 +122,38 @@ private fun TeacherProfileContent(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
 
-        // 🔹 صورة المعلم مع أيقونة التعديل
+        // 🔹 صورة المعلم مع أيقونة التعديل - تم التعديل هنا لتضمين مؤشر التحميل
         Box(contentAlignment = Alignment.BottomCenter) {
-            AsyncImage(
-                model = state.profileImageUrl ?: R.drawable.fullname,
-                contentDescription = "Teacher Image",
-                placeholder = painterResource(R.drawable.fullname),
-                error = painterResource(R.drawable.fullname),
-                modifier = Modifier
-                    .size(120.dp)
-                    .clip(CircleShape)
-                    .border(3.dp, Color.White, CircleShape)
-            )
 
+            // 🌟 استخدام حالة isPhotoUpdating لعرض مؤشر التحميل
+            if (state.isPhotoUpdating) {
+                Box(
+                    modifier = Modifier
+                        .size(120.dp)
+                        .clip(CircleShape)
+                        .background(Color.LightGray.copy(alpha = 0.5f)), // خلفية خفيفة أثناء التحميل
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(50.dp),
+                        color = AppPrimary,
+                        strokeWidth = 4.dp
+                    )
+                }
+            } else {
+                AsyncImage(
+                    model = state.profileImageUrl ?: R.drawable.fullname,
+                    contentDescription = "Teacher Image",
+                    placeholder = painterResource(R.drawable.fullname),
+                    error = painterResource(R.drawable.fullname),
+                    modifier = Modifier
+                        .size(120.dp)
+                        .clip(CircleShape)
+                        .border(3.dp, Color.White, CircleShape)
+                )
+            }
+
+            // 🔹 أيقونة التعديل
             Box(
                 modifier = Modifier
                     .offset(y = 15.dp)
@@ -140,7 +168,9 @@ private fun TeacherProfileContent(
                     tint = Color.White,
                     modifier = Modifier
                         .size(18.dp)
-                        .clickable { onEditPhoto() })
+                        // 🌟 تعطيل النقر أثناء التحديث
+                        .clickable(enabled = !state.isPhotoUpdating) { onEditPhoto() }
+                )
             }
         }
 
@@ -216,7 +246,7 @@ private fun TeacherProfileContent(
             modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Start
         ) {
             Button(
-                onClick = onLogoutClick,// ← تعود إلى شاشة تسجيل الدخول
+                onClick = onLogoutClick,
                 colors = ButtonDefaults.buttonColors(containerColor = AppAlert),
                 shape = RoundedCornerShape(10.dp),
                 modifier = Modifier

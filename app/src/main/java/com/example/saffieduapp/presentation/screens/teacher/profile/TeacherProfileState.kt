@@ -8,5 +8,6 @@ data class TeacherProfileState(
     val subject: String = "",
     val classesCount: Int = 0,
     val profileImageUrl: String? = null,
+    val isPhotoUpdating: Boolean = false,
     val error: String? = null,
 )
