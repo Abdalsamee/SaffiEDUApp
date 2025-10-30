@@ -350,8 +350,12 @@ class TeacherHomeViewModel @Inject constructor(
     }
 
     fun activateSubject() {
+
         viewModelScope.launch {
             try {
+
+                _state.value = _state.value.copy(isActivating = true)
+
                 val teacherId = idTeach ?: return@launch
                 val currentState = _state.value
                 val subjectName = currentState.teacherSub.removePrefix("مدرس ").trim()
@@ -398,13 +402,16 @@ class TeacherHomeViewModel @Inject constructor(
                     .update("isSubjectActivated", true).await()
 
                 prefs.setSubjectActivated(true)
-                _state.value = _state.value.copy(showActivateButton = false)
-
+                _state.value = _state.value.copy(
+                    showActivateButton = false, isActivating = false
+                )
                 // ⭐️ إضافة جديدة: إرسال حدث بنجاح العملية
                 _eventFlow.emit(UiEvent.ShowSnackbar("تم تفعيل المادة بنجاح"))
 
             } catch (e: Exception) {
                 println("❌ خطأ عند تفعيل المادة: ${e.message}")
+                _state.value =
+                    _state.value.copy(isActivating = false) // ✅ إيقاف التحميل في حالة الخطأ
                 // ⭐️ إضافة اختيارية: إرسال رسالة خطأ
                 _eventFlow.emit(UiEvent.ShowSnackbar("خطأ: ${e.message}"))
             }

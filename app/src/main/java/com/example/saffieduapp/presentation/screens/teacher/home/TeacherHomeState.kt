@@ -28,8 +28,10 @@ data class TopStudent(
     val assignmentsProgress: String, // مثال: "9/10"
     val quizzesProgress: String // مثال: "10/10"
 )
+
 data class TeacherHomeState(
     val isLoading: Boolean = true,
+    val isActivating: Boolean = false,
     val isRefreshing: Boolean = false,
     val teacherName: String = "",
     val teacherSub: String = "", // مثال: "مدرس رياضيات"

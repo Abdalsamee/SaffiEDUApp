@@ -1,5 +1,6 @@
 package com.example.saffieduapp.presentation.screens.teacher.home
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.CircularProgressIndicator
@@ -97,6 +98,16 @@ fun TeacherHomeScreen(
             onActivateClick = { viewModel.activateSubject() })
 
 
+        if (state.isActivating) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(AppPrimary.copy(alpha = 0.2f)),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator(color = AppPrimary)
+            }
+        }
         if (state.isLoading) {
             Box(
                 modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center
