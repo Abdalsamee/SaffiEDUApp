@@ -1,5 +1,6 @@
 package com.example.saffieduapp.presentation.screens.student.tasks
 
+import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -11,11 +12,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.viewModelScope
 import androidx.navigation.NavController
 import com.example.saffieduapp.R
 import com.example.saffieduapp.navigation.Routes
@@ -24,20 +27,25 @@ import com.example.saffieduapp.presentation.screens.student.tasks.components.Ass
 import com.example.saffieduapp.presentation.screens.student.tasks.components.ExamCard
 import com.example.saffieduapp.ui.theme.AppPrimary
 import com.example.saffieduapp.ui.theme.AppTextSecondary
+import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 
 @Composable
 fun TasksScreen(
-    navController: NavController,
-    viewModel: TasksViewModel = hiltViewModel()
+    navController: NavController, viewModel: TasksViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
     val tabTitles = listOf("الواجبات", "الاختبارات")
 
+    val context = LocalContext.current
+
     Scaffold(
         topBar = {
             CommonTopAppBar(title = "المهام")
-        }
-    ) { innerPadding ->
+        }) { innerPadding ->
         Column(modifier = Modifier.padding(innerPadding)) {
 
             Row(
@@ -50,8 +58,7 @@ fun TasksScreen(
                     CustomTab(
                         text = title,
                         isSelected = state.selectedTabIndex == index,
-                        onClick = { viewModel.onTabSelected(index) }
-                    )
+                        onClick = { viewModel.onTabSelected(index) })
                 }
             }
 
@@ -72,9 +79,11 @@ fun TasksScreen(
                                     AssignmentStatus.SUBMITTED -> {
                                         navController.navigate("${Routes.SUBMIT_ASSIGNMENT_SCREEN}/$assignmentId")
                                     }
+
                                     AssignmentStatus.EXPIRED, AssignmentStatus.LATE -> {
                                         navController.navigate("${Routes.ASSIGNMENT_DETAILS_SCREEN}/$assignmentId")
                                     }
+
                                     AssignmentStatus.PENDING -> {
                                         navController.navigate("${Routes.ASSIGNMENT_DETAILS_SCREEN}/$assignmentId")
                                     }
@@ -82,33 +91,39 @@ fun TasksScreen(
                             }
 
 
-                        }
-                    )
+                        })
 
 
                 } else {
                     ExamsList(
-                        examsByDate = state.examsByDate,
-                        onExamClick = { examId ->
+                        examsByDate = state.examsByDate, onExamClick = { examId ->
                             val exam = viewModel.getExamById(examId)
 
                             exam?.let {
                                 when (exam.status) {
                                     ExamStatus.COMPLETED -> {
-                                        // ✅ الطالب أنهى الاختبار
-                                        // ننتقل إلى شاشة النتيجة (الشاشة نفسها تعرض "لم يتم التقييم بعد" إذا لم يكن هناك تقييم)
-                                        navController.navigate("${Routes.STUDENT_EXAM_RESULT_SCREEN}/$examId")
+
+                                        // 👇 --- هذا هو المنطق الجديد --- 👇
+                                        if (exam.showResultsImmediately) {
+                                            // 1. إذا كانت النتائج فورية: اذهب لشاشة النتائج
+                                            navController.navigate("${Routes.STUDENT_EXAM_RESULT_SCREEN}/$examId")
+                                        } else {
+                                            // 2. إذا لم تكن فورية: أظهر رسالة فقط
+                                            Toast.makeText(
+                                                context,
+                                                "تم التسليم، النتيجة قيد المراجعة",
+                                                Toast.LENGTH_SHORT
+                                            ).show()
+                                        }
                                     }
 
-                                    ExamStatus.IN_PROGRESS,
-                                    ExamStatus.NOT_COMPLETED -> {
+                                    ExamStatus.IN_PROGRESS, ExamStatus.NOT_COMPLETED -> {
                                         // ⏳ لم يبدأ بعد أو قيد التقدم — نذهب لتفاصيل الاختبار
                                         navController.navigate("${Routes.EXAM_DETAILS_SCREEN}/$examId")
                                     }
                                 }
                             }
-                        }
-                    )
+                        })
 
                 }
             }
@@ -118,9 +133,7 @@ fun TasksScreen(
 
 @Composable
 private fun CustomTab(
-    text: String,
-    isSelected: Boolean,
-    onClick: () -> Unit
+    text: String, isSelected: Boolean, onClick: () -> Unit
 ) {
     val textColor = if (isSelected) AppPrimary else AppTextSecondary
     Text(
@@ -137,8 +150,7 @@ private fun CustomTab(
 
 @Composable
 private fun AssignmentsList(
-    assignmentsByDate: Map<String, List<AssignmentItem>>,
-    onAssignmentClick: (String) -> Unit
+    assignmentsByDate: Map<String, List<AssignmentItem>>, onAssignmentClick: (String) -> Unit
 
 ) {
     if (assignmentsByDate.isEmpty()) {
@@ -165,8 +177,7 @@ private fun AssignmentsList(
                             Box(modifier = Modifier.weight(1f)) {
                                 AssignmentCard(
                                     assignment = assignment,
-                                    onClick = { onAssignmentClick(assignment.id) }
-                                )
+                                    onClick = { onAssignmentClick(assignment.id) })
                             }
                         }
                         // Add a spacer to fill the gap if there's only one item in the last row
@@ -183,8 +194,7 @@ private fun AssignmentsList(
 
 @Composable
 private fun ExamsList(
-    examsByDate: Map<String, List<ExamItem>>,
-    onExamClick: (String) -> Unit
+    examsByDate: Map<String, List<ExamItem>>, onExamClick: (String) -> Unit
 ) {
     if (examsByDate.isEmpty()) {
         EmptyState(message = "لا توجد اختبارات حالياً")
@@ -205,8 +215,7 @@ private fun ExamsList(
                 }
                 items(exams) { exam ->
                     Box(
-                        modifier = Modifier.clickable { onExamClick(exam.id) }
-                    ) {
+                        modifier = Modifier.clickable { onExamClick(exam.id) }) {
                         ExamCard(
                             title = exam.title,
                             subtitle = exam.subjectName,
@@ -217,8 +226,7 @@ private fun ExamsList(
                             onclick = {
 
                                 println("Exam clicked: ${exam.title}")
-                            }
-                        )
+                            })
                     }
 
                 }
@@ -230,14 +238,10 @@ private fun ExamsList(
 @Composable
 private fun EmptyState(message: String, modifier: Modifier = Modifier) {
     Box(
-        modifier = modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
+        modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center
     ) {
         Text(
-            text = message,
-            fontSize = 18.sp,
-            color = AppTextSecondary,
-            textAlign = TextAlign.Center
+            text = message, fontSize = 18.sp, color = AppTextSecondary, textAlign = TextAlign.Center
         )
     }
 }

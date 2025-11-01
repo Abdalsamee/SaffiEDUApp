@@ -53,9 +53,7 @@ class TasksViewModel @Inject constructor(
     }
 
     private fun fetchStudentIdByEmail(email: String, onResult: (String?) -> Unit) {
-        db.collection("students")
-            .whereEqualTo("email", email)
-            .get()
+        db.collection("students").whereEqualTo("email", email).get()
             .addOnSuccessListener { querySnapshot ->
                 if (!querySnapshot.isEmpty) {
                     val document = querySnapshot.documents[0]
@@ -64,8 +62,7 @@ class TasksViewModel @Inject constructor(
                 } else {
                     onResult(null)
                 }
-            }
-            .addOnFailureListener {
+            }.addOnFailureListener {
                 onResult(null)
             }
     }
@@ -89,16 +86,13 @@ class TasksViewModel @Inject constructor(
 
                     _state.update {
                         it.copy(
-                            isLoading = false,
-                            assignmentsByDate = assignmentsByDate,
-                            error = null
+                            isLoading = false, assignmentsByDate = assignmentsByDate, error = null
                         )
                     }
                 } else {
                     _state.update {
                         it.copy(
-                            isLoading = false,
-                            error = "تعذر جلب صف الطالب"
+                            isLoading = false, error = "تعذر جلب صف الطالب"
                         )
                     }
                 }
@@ -106,8 +100,7 @@ class TasksViewModel @Inject constructor(
                 e.printStackTrace()
                 _state.update {
                     it.copy(
-                        isLoading = false,
-                        error = "فشل في تحميل البيانات"
+                        isLoading = false, error = "فشل في تحميل البيانات"
                     )
                 }
             }
@@ -137,9 +130,7 @@ class TasksViewModel @Inject constructor(
 
                     _state.update {
                         it.copy(
-                            examsByDate = examsByDate,
-                            isLoading = false,
-                            error = null
+                            examsByDate = examsByDate, isLoading = false, error = null
                         )
                     }
                 }
@@ -147,8 +138,7 @@ class TasksViewModel @Inject constructor(
                 e.printStackTrace()
                 _state.update {
                     it.copy(
-                        error = "فشل في تحميل الاختبارات",
-                        isLoading = false
+                        error = "فشل في تحميل الاختبارات", isLoading = false
                     )
                 }
             }
@@ -156,14 +146,11 @@ class TasksViewModel @Inject constructor(
     }
 
     private suspend fun getExamsByClass(
-        studentClass: String,
-        studentId: String
+        studentClass: String, studentId: String
     ): List<ExamItem> { // ✅ Added studentId
         return try {
-            val snapshot = db.collection("exams")
-                .whereEqualTo("className", studentClass)
-                .get()
-                .await()
+            val snapshot =
+                db.collection("exams").whereEqualTo("className", studentClass).get().await()
 
             // We must now process each document one by one to check its submission status
             val examItems = mutableListOf<ExamItem>()
@@ -172,14 +159,16 @@ class TasksViewModel @Inject constructor(
                 // ✅ For each exam, check if this specific student has submitted it
                 val hasSubmitted = hasStudentSubmittedExam(doc.id, studentId)
 
+                val showResults = doc.getBoolean("showResultsImmediately") ?: false
+
                 val item = ExamItem(
                     id = doc.id,
                     title = doc.getString("examTitle") ?: "بدون عنوان",
                     subjectName = doc.getString("examType") ?: "عام",
                     imageUrl = "",
                     time = parseExamDateTime(doc),
-                    // ✅ Pass the submission status to determine the final status
-                    status = determineExamStatus(doc, hasSubmitted)
+                    status = determineExamStatus(doc, hasSubmitted),
+                    showResultsImmediately = showResults
                 )
                 examItems.add(item)
             }
@@ -255,12 +244,10 @@ class TasksViewModel @Inject constructor(
 
     private suspend fun hasStudentSubmittedExam(examId: String, studentId: String): Boolean {
         return try {
-            val submissionQuery = db.collection("exam_submissions")
-                .whereEqualTo("examId", examId)
+            val submissionQuery = db.collection("exam_submissions").whereEqualTo("examId", examId)
                 .whereEqualTo("studentId", studentId)
                 .limit(1) // We only care if at least one submission exists
-                .get()
-                .await()
+                .get().await()
 
             // If the query is NOT empty, it means a submission exists.
             !submissionQuery.isEmpty
