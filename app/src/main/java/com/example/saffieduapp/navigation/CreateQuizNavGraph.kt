@@ -47,8 +47,8 @@ fun NavGraphBuilder.createQuizNavGraph(navController: NavController) {
 
             AddQuestionScreen(
                 navController = navController,
-                questionToEdit = questionToEdit, // تمرير السؤال إلى الشاشة للتعديل
-                allQuestions = allQuestions, // <--- تمرير القائمة المسترجعة
+                questionToEdit = questionToEdit,
+                allQuestions = allQuestions,
                 onNavigateUp = { navController.popBackStack() },
                 onNavigateToSummary = { questions ->
                     // 🎯 التصحيح: احفظ الأسئلة في الـ SavedStateHandle الخاص بالوجهة الحالية
@@ -57,6 +57,7 @@ fun NavGraphBuilder.createQuizNavGraph(navController: NavController) {
                         "questions", questions
                     )
                     navController.navigate(Routes.QUIZ_SUMMARY_SCREEN)
+
                 })
         }
 
@@ -83,9 +84,7 @@ fun NavGraphBuilder.createQuizNavGraph(navController: NavController) {
                 questions = questions, // ✅ الآن يتم تمرير القائمة المحدثة
                 onNavigateUp = { navController.popBackStack() },
                 onPublish = {
-                    navController.navigate(Routes.TEACHER_HOME_SCREEN) {
-                        popUpTo(Routes.TEACHER_HOME_SCREEN) { inclusive = true }
-                    }
+                    navController.navigate(Routes.TEACHER_HOME_SCREEN)
                 },
                 onEditQuestion = { questionToEdit, allQuestions ->
                     // 1. ضع السؤال والقائمة الكاملة في SavedStateHandle
