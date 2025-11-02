@@ -1,19 +1,25 @@
 package com.example.saffieduapp.presentation.screens.student.home
 
 import android.app.Application
+import android.media.MediaMetadataRetriever
+import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.saffieduapp.data.FireBase.WorkManager.AlertScheduler
 import com.example.saffieduapp.domain.model.FeaturedLesson
 import com.example.saffieduapp.domain.model.Subject
 import com.example.saffieduapp.domain.model.UrgentTask
+import com.example.saffieduapp.presentation.screens.student.exam_screen.formatDuration
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -24,6 +30,7 @@ data class StdData(
     val fullName: String = "", val grade: String = ""
 )
 
+@RequiresApi(Build.VERSION_CODES.Q)
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     private val auth: FirebaseAuth,
@@ -39,6 +46,7 @@ class HomeViewModel @Inject constructor(
         loadUserData()
     }
 
+    @RequiresApi(Build.VERSION_CODES.Q)
     private fun loadUserData() {
         viewModelScope.launch {
             _state.value = _state.value.copy(isLoading = true)
@@ -111,6 +119,7 @@ class HomeViewModel @Inject constructor(
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.Q)
     private suspend fun loadInitialData() {
         try {
             val studentGrade = _state.value.studentGrade
@@ -125,12 +134,13 @@ class HomeViewModel @Inject constructor(
             val lessonsList = querySnapshot.documents.mapNotNull { doc ->
                 val title = doc.getString("title") ?: return@mapNotNull null
                 val subject = doc.getString("subjectName") ?: "غير معروف"
-                val duration = doc.getString("duration") ?: "غير معروف"
                 val viewers = doc.getLong("viewersCount")?.toInt() ?: 0
                 val imageUrl = doc.getString("imageUrl") ?: ""
                 val publicationDateStr = doc.getString("publicationDate") ?: return@mapNotNull null
                 val videoUrl = doc.getString("videoUrl")
                     ?: return@mapNotNull null // ✅ فقط الدروس التي تحتوي فيديو
+
+                val duration = getVideoDuration(videoUrl)
 
                 val publicationDate = try {
                     dateFormat.parse(publicationDateStr)
@@ -315,5 +325,23 @@ class HomeViewModel @Inject constructor(
                     )
                 }
             }
+    }
+
+    @RequiresApi(Build.VERSION_CODES.Q) // MediaMetadataRetriever requires API 10+, setDataSource from URL is better on Q+
+    suspend fun getVideoDuration(videoUrl: String): String = withContext(Dispatchers.IO) {
+        val retriever = MediaMetadataRetriever()
+        try {
+            retriever.setDataSource(videoUrl, HashMap<String, String>())
+            val time = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)
+            val durationMillis = time?.toLongOrNull() ?: 0L
+
+            return@withContext formatDuration(durationMillis)
+
+        } catch (e: Exception) {
+            e.printStackTrace()
+            return@withContext "غير معروف"
+        } finally {
+            retriever.release()
+        }
     }
 }
