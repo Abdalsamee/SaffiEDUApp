@@ -228,11 +228,15 @@ class TasksViewModel @Inject constructor(
     }
 
     private fun groupExamsByDate(exams: List<ExamItem>): Map<String, List<ExamItem>> {
-        return exams.groupBy { exam ->
-            // استخدام وقت الاختبار الفعلي بدلاً من الوقت الحالي
+        // ✅ أولاً: نفرز كل الاختبارات حسب الوقت تنازلياً (الأحدث أولاً)
+        val sortedExams = exams.sortedByDescending { it.time }
+
+        // ✅ ثم نجمّعها حسب التاريخ بعد الفرز
+        return sortedExams.groupBy { exam ->
             formatDateForGrouping(Date(exam.time))
-        }
+        }.toSortedMap(compareByDescending { it }) // ✅ ترتيب المجموعات نفسها من الأحدث إلى الأقدم
     }
+
 
     fun getAssignmentById(id: String): AssignmentItem? {
         return state.value.assignmentsByDate.values.flatten().find { it.id == id }
