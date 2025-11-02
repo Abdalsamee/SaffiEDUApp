@@ -220,7 +220,7 @@ class TasksViewModel @Inject constructor(
 
                 // انتهى وقت الاختبار (ولم يسلّمه الطالب)
                 // ✅ هذا هو التغيير الذي طلبته
-                else -> ExamStatus.COMPLETED // <-- تم تغييرها من NOT_COMPLETED
+                else -> ExamStatus.NOT_COMPLETED
             }
         } catch (e: Exception) {
             ExamStatus.NOT_COMPLETED
