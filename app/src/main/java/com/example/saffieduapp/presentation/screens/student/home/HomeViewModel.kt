@@ -217,7 +217,7 @@ class HomeViewModel @Inject constructor(
 
             // 1. تحديد تاريخ اليوم الحالي وتنسيقه
             val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.ENGLISH)
-            val todayDateString = dateFormat.format(Date()) // ⬅️ تاريخ اليوم بصيغة 'YYYY-MM-DD'
+            val todayDateString = dateFormat.format(Date())
 
             // 2. تغيير الاستعلام ليقارن بتاريخ اليوم
             val querySnapshot =
@@ -226,11 +226,18 @@ class HomeViewModel @Inject constructor(
                     .whereEqualTo("examDate", todayDateString).get().await()
 
             val examsList = querySnapshot.documents.mapNotNull { doc ->
+                val teacherId =
+                    doc.getString("teacherId") ?: return@mapNotNull null // لا يمكن المتابعة بدون ID
+
+                val subjectNameFromTeacher = getTeacherSubjectName(teacherId) ?: "غير محدد"
+
+                // ... باقي الحقول
                 val examType = doc.getString("examType") ?: "غير محدد"
                 val examDate = doc.getString("examDate") ?: ""
                 val examStartTime = doc.getString("examStartTime") ?: ""
-                val subjectName = doc.getString("subjectName") ?: "غير محدد"
-
+                // إذا كنت تريد استخدام اسم المادة من ملف المعلم (subjectNameFromTeacher)
+                // بدلاً من الحقل subjectName الموجود في وثيقة الاختبار
+                val subjectName = doc.getString("subjectName") ?: subjectNameFromTeacher
                 UrgentTask(
                     id = doc.id,
                     examType = examType,
@@ -342,6 +349,20 @@ class HomeViewModel @Inject constructor(
             return@withContext "غير معروف"
         } finally {
             retriever.release()
+        }
+    }
+
+    private suspend fun getTeacherSubjectName(teacherId: String): String? {
+        return try {
+            // الوصول إلى وثيقة المعلم مباشرة باستخدام الـ ID
+            val teacherDoc = firestore.collection("teachers").document(teacherId).get().await()
+
+            // التحقق من وجود الوثيقة وقراءة حقل "subject"
+            teacherDoc.getString("subject")
+
+        } catch (e: Exception) {
+            println("Error fetching teacher subject: ${e.message}")
+            null
         }
     }
 }
