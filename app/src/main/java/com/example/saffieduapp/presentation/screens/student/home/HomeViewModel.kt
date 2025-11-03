@@ -27,7 +27,7 @@ import java.util.Locale
 import javax.inject.Inject
 
 data class StdData(
-    val fullName: String = "", val grade: String = ""
+    val fullName: String = "", val grade: String = "", val profileImageUrl: String = ""
 )
 
 @RequiresApi(Build.VERSION_CODES.Q)
@@ -71,8 +71,9 @@ class HomeViewModel @Inject constructor(
                             _state.value = _state.value.copy(
                                 studentName = studentWithGrade,
                                 studentGrade = userData.grade,
-                                studentId = studentDocId, // ✅ تخزين ID الطالب المستخرج
-                                isLoading = false
+                                studentId = studentDocId,
+                                isLoading = false,
+                                profileImageUrl = userData.profileImageUrl,
                             )
 
                             // تحميل المواد للصف المناسب

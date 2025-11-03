@@ -118,7 +118,7 @@ fun HomeScreen(
         HomeTopSection(
             studentName = state.studentName,
             studentSubject = state.studentGrade,
-            profileImageUrl = state.profileImageUrl.toString(),
+            profileImageUrl = state.profileImageUrl
         )
 
         if (state.isLoading && !state.isRefreshing) {
