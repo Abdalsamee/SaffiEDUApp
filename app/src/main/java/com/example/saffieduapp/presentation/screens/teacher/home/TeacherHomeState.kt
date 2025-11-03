@@ -12,11 +12,11 @@ data class StudentUpdate(
 
 data class TeacherClass(
     val classId: String,
-    val className: String, // مثال: "الصف العاشر"
+    val className: String,
     val subjectName: String,
     val subjectImageUrl: String,
     val studentCount: Int,
-    val studentImages: List<String> // قائمة بروابط صور أول 3 طلاب مثلاً
+    val studentImages: List<String>
 )
 
 data class TopStudent(
@@ -24,9 +24,9 @@ data class TopStudent(
     val studentName: String,
     val studentImageUrl: String,
     val rank: Int,
-    val overallProgress: Int, // النسبة المئوية
-    val assignmentsProgress: String, // مثال: "9/10"
-    val quizzesProgress: String // مثال: "10/10"
+    val overallProgress: Int,
+    val assignmentsProgress: String,
+    val quizzesProgress: String
 )
 
 data class TeacherHomeState(
@@ -34,7 +34,7 @@ data class TeacherHomeState(
     val isActivating: Boolean = false,
     val isRefreshing: Boolean = false,
     val teacherName: String = "",
-    val teacherSub: String = "", // مثال: "مدرس رياضيات"
+    val teacherSub: String = "",
     val profileImageUrl: String = "",
     val searchQuery: String = "",
     val studentUpdates: List<StudentUpdate> = emptyList(),
@@ -46,7 +46,6 @@ data class TeacherHomeState(
     val selectedClassFilter: String? = null,
     // قائمة الطلاب المتفوقين للصف المختار
     val topStudents: List<TopStudent> = emptyList(),
-    val showActivateButton: Boolean = false // ⬅️ إضافة هذه الخاصية
+    val showActivateButton: Boolean = false
 
 )
-
