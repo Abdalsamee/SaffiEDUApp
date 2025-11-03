@@ -1,5 +1,6 @@
 package com.example.saffieduapp.presentation.screens.teacher.tasks.details
 
+// ... (بقية الـ Imports) ...
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -25,7 +26,6 @@ class TeacherTaskDetailsViewModel(savedStateHandle: SavedStateHandle) : ViewMode
     val state: StateFlow<TeacherTaskDetailsState> = _state
 
     init {
-        // بدلاً من تحميل البيانات الوهمية، سنقوم بتحميل البيانات من Firestore
         loadStudentSubmissions()
     }
 
@@ -47,6 +47,7 @@ class TeacherTaskDetailsViewModel(savedStateHandle: SavedStateHandle) : ViewMode
 
             try {
                 // 3. جلب جميع التقديمات للمهمة المحددة
+                // أي مستند يتم جلبه هنا يعتبر تسليماً
                 val submissionsSnapshot = db.collection(submissionCollectionName)
                     .whereEqualTo(taskIdFieldName, taskId)
                     .get()
@@ -70,17 +71,22 @@ class TeacherTaskDetailsViewModel(savedStateHandle: SavedStateHandle) : ViewMode
                         // 6. تحديد النتيجة أو الحالة
                         val scoreOrStatus = when (taskType) {
                             TaskType.ASSIGNMENT -> {
-                                // لحالة الواجب، نتحقق فقط مما إذا كان قد تم التقديم (submitted)
-                                val submitted = submissionDoc.getBoolean("submitted") ?: false
-                                if (submitted) "تم التسليم" else "لم يسلم" // يمكنك تعديل هذا ليعرض التقدير لاحقاً إذا كان موجوداً
+                                // لحالة الواجب: نفترض أنه تم التسليم بمجرد وجود المستند
+                                "تم التسليم"
                             }
 
                             TaskType.EXAM -> {
-                                // لحالة الاختبار، نتحقق من حقل النتيجة (Score) إذا كان متاحاً، أو نستخدم حالة
-                                val isSubmitted = submissionDoc.getBoolean("submitted") ?: false
-                                // إذا كان لديك حقل 'score' في مستندات الاختبارات:
-                                // val score = submissionDoc.getLong("score")
-                                if (isSubmitted) "تم الانهاء" else "لم يبدأ" // Placeholder. عدّله لجلب النتيجة الفعلية عند توفرها
+                                // لحالة الاختبار: نفترض أنه تم التسليم بمجرد وجود المستند، ونبحث عن النتيجة
+                                val score = submissionDoc.getLong("score")
+                                val maxScore = submissionDoc.getLong("maxScore")
+
+                                if (score != null && maxScore != null) {
+                                    // حالة: النتيجة متوفرة
+                                    "$score / $maxScore"
+                                } else {
+                                    // حالة: تم التسليم، لكن النتيجة غير متوفرة بعد (في انتظار التصحيح)
+                                    "تم الانهاء (لم يصحح)"
+                                }
                             }
                         }
 
@@ -101,7 +107,7 @@ class TeacherTaskDetailsViewModel(savedStateHandle: SavedStateHandle) : ViewMode
                 )
 
             } catch (e: Exception) {
-                // يمكنك إضافة معالجة أفضل للخطأ هنا
+                // معالجة الخطأ
                 println("Error loading student submissions: ${e.message}")
                 _state.value = _state.value.copy(isLoading = false, students = emptyList())
             }
