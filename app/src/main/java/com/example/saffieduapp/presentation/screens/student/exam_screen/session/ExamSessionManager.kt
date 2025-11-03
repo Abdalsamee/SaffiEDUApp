@@ -378,6 +378,91 @@ class ExamSessionManager(
         currentSession = null
         _sessionState.value = null
     }
+    /**
+     * إرجاع جميع ملفات الوسائط (صور + فيديوهات) الخاصة بجلسة معينة
+     */
+    fun getLocalMediaFiles(): List<File> {
+        val files = mutableListOf<File>()
+        try {
+            val session = currentSession ?: return emptyList()
+
+            // الصور
+            val snapshotsDir = File(context.filesDir, "exam_snapshots/${session.sessionId}")
+            if (snapshotsDir.exists()) {
+                snapshotsDir.walkTopDown().forEach { file ->
+                    if (file.isFile && file.extension == "jpg") {
+                        files.add(file)
+                    }
+                }
+            }
+
+            // الفيديوهات
+            val videoDir = File(context.filesDir, "exam_videos/${session.sessionId}")
+            if (videoDir.exists()) {
+                videoDir.walkTopDown().forEach { file ->
+                    if (file.isFile && file.extension == "mp4") {
+                        files.add(file)
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to list local media files", e)
+        }
+        return files
+    }
+    /**
+     * تصدير تقرير المراقبة الكامل بصيغة JSON لرفعها لاحقاً
+     */
+    fun exportSessionForUpload(): String {
+        val session = currentSession ?: return "{}"
+        return try {
+            val reportMap = mapOf(
+                "sessionId" to session.sessionId,
+                "examId" to examId,
+                "studentId" to studentId,
+                "startTime" to session.startTime,
+                "endTime" to session.endTime,
+                "status" to session.status.name,
+                "snapshots" to session.snapshots.map {
+                    mapOf(
+                        "id" to it.id,
+                        "timestamp" to it.timestamp,
+                        "reason" to it.reason.name,
+                        "path" to it.filePath
+                    )
+                },
+                "violations" to session.violations.map {
+                    mapOf(
+                        "type" to it.type,
+                        "timestamp" to it.timestamp,
+                        "description" to it.description,
+                        "snapshotId" to it.snapshotId
+                    )
+                },
+                "backCameraVideo" to session.backCameraVideo?.let {
+                    mapOf(
+                        "path" to it.path,
+                        "timestamp" to it.timestamp,
+                        "duration" to it.duration,
+                        "fileSize" to it.fileSize
+                    )
+                },
+                "securityEvents" to session.securityEvents.map {
+                    mapOf(
+                        "type" to it.type.name,
+                        "timestamp" to it.timestamp,
+                        "details" to it.details
+                    )
+                }
+            )
+
+            gson.toJson(reportMap)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to export session for upload", e)
+            "{}"
+        }
+    }
+
 }
 
 /**

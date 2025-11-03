@@ -23,6 +23,8 @@ fun ExamScreen(
     onExamComplete: () -> Unit,
     examId: String,
     viewModel: ExamViewModel = hiltViewModel(),
+    onFinalDialogOpen: (() -> Unit)? = null,
+    onFinalDialogClose: (() -> Unit)? = null
 
     ) {
 
@@ -57,11 +59,16 @@ fun ExamScreen(
     }
 
     if (showSubmitDialog) {
+        LaunchedEffect(Unit) { onFinalDialogOpen?.invoke() }
         ExamSubmitDialog(
             remainingTimeInSeconds = state.remainingTimeInSeconds,
-            onDismiss = { showSubmitDialog = false },
+            onDismiss = {
+                showSubmitDialog = false
+                onFinalDialogClose?.invoke()
+                        },
             onConfirm = {
                 showSubmitDialog = false
+                onFinalDialogClose?.invoke()
                 viewModel.onEvent(ExamEvent.SubmitExam)
             }
         )
