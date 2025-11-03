@@ -15,14 +15,18 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.*
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModelProvider
+import com.example.saffieduapp.data.FireBase.WorkManager.ExamUploadWorker
 import com.example.saffieduapp.presentation.screens.student.exam_screen.components.*
 import com.example.saffieduapp.presentation.screens.student.exam_screen.security.*
 import com.example.saffieduapp.ui.theme.SaffiEDUAppTheme
 import com.google.firebase.auth.FirebaseAuth
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.launch
 
 @AndroidEntryPoint
 class ExamActivity : ComponentActivity() {
+
+    var isInternalDialogVisible = false
 
     // الأمن والكاميرا
     private lateinit var securityManager: ExamSecurityManager
@@ -168,6 +172,25 @@ class ExamActivity : ComponentActivity() {
             }
         }
     }
+    @Composable
+    private fun SuppressOverlayWhileShown(tag: String, content: @Composable () -> Unit) {
+        DisposableEffect(tag) {
+            // أعلِم الـ Activity أننا نعرض Dialog داخلي
+            isInternalDialogVisible = true
+
+            // كتم منظومة الأمان (OverlayDetector) عبر قناع داخلي آمن
+            val token = securityManager.markInternalOperationStart(tag)
+
+            onDispose {
+                // إعادة الحالة
+                isInternalDialogVisible = false
+                securityManager.markInternalOperationEnd(token)
+            }
+        }
+        content()
+    }
+
+
 
     @Composable
     private fun ExamActivityContent() {
@@ -297,52 +320,54 @@ class ExamActivity : ComponentActivity() {
 
         // الحوارات
         if (showExitDialog) {
-            DisposableEffect(Unit) {
-                onDispose { securityManager.unregisterInternalDialog(ExamSecurityManager.DIALOG_EXIT_WARNING) }
+            SuppressOverlayWhileShown(ExamSecurityManager.DIALOG_EXIT_WARNING) {
+                ExamExitWarningDialog(
+                    onDismiss = {
+                        showExitDialog = false
+                        securityManager.unregisterInternalDialog(ExamSecurityManager.DIALOG_EXIT_WARNING)
+                    },
+                    onConfirmExit = {
+                        securityManager.logViolation("USER_FORCED_EXIT")
+                        securityManager.unregisterInternalDialog(ExamSecurityManager.DIALOG_EXIT_WARNING)
+                        finishExam()
+                    }
+                )
             }
-            ExamExitWarningDialog(
-                onDismiss = {
-                    showExitDialog = false
-                    securityManager.unregisterInternalDialog(ExamSecurityManager.DIALOG_EXIT_WARNING)
-                },
-                onConfirmExit = {
-                    securityManager.logViolation("USER_FORCED_EXIT")
-                    securityManager.unregisterInternalDialog(ExamSecurityManager.DIALOG_EXIT_WARNING)
-                    finishExam()
-                }
-            )
         }
+
 
         if (showNoFaceWarning) {
-            DisposableEffect(Unit) {
-                onDispose { securityManager.unregisterInternalDialog(ExamSecurityManager.DIALOG_NO_FACE_WARNING) }
+            SuppressOverlayWhileShown(ExamSecurityManager.DIALOG_NO_FACE_WARNING) {
+                NoFaceWarningDialog(
+                    violationCount = securityManager.getNoFaceViolationCount(),
+                    remainingWarnings = securityManager.getRemainingNoFaceWarnings(),
+                    isPaused = isPaused,
+                    onDismiss = { securityManager.dismissNoFaceWarning() }
+                )
             }
-            NoFaceWarningDialog(
-                violationCount = securityManager.getNoFaceViolationCount(),
-                remainingWarnings = securityManager.getRemainingNoFaceWarnings(),
-                isPaused = isPaused,
-                onDismiss = { securityManager.dismissNoFaceWarning() }
-            )
         }
+
 
         if (showMultipleFacesWarning) {
-            DisposableEffect(Unit) {
-                onDispose { securityManager.unregisterInternalDialog(ExamSecurityManager.DIALOG_MULTIPLE_FACES) }
+            SuppressOverlayWhileShown(ExamSecurityManager.DIALOG_MULTIPLE_FACES) {
+                MultipleFacesWarningDialog(
+                    onDismiss = { securityManager.dismissMultipleFacesWarning() }
+                )
             }
-            MultipleFacesWarningDialog(onDismiss = { securityManager.dismissMultipleFacesWarning() })
         }
 
+
         if (showExitWarning) {
-            DisposableEffect(Unit) {
-                onDispose { securityManager.unregisterInternalDialog(ExamSecurityManager.DIALOG_EXIT_RETURN) }
-            }
             val exitCount = violations.count { it.type.startsWith("APP_RESUMED") }
-            ExamReturnWarningDialog(
-                exitAttempts = exitCount,
-                remainingAttempts = securityManager.getRemainingAttempts(),
-                onContinue = { securityManager.dismissExitWarning() }
-            )
+            SuppressOverlayWhileShown(ExamSecurityManager.DIALOG_EXIT_RETURN) {
+                ExamReturnWarningDialog(
+                    exitAttempts = exitCount,
+                    remainingAttempts = securityManager.getRemainingAttempts(),
+                    onContinue = { securityManager.dismissExitWarning() }
+                )
+            }
         }
+
 
         // تحذير الـ Overlay (حالات حرجة)
         if (showOverlayWarning) {
@@ -459,11 +484,55 @@ class ExamActivity : ComponentActivity() {
             if (::securityManager.isInitialized) securityManager.cleanup()
 
             securityManager.markInternalOperationEnd(token)
+
         } catch (e: Exception) {
             Log.e("ExamActivity", "Error in finishExam", e)
         } finally {
+            try {
+                if (::cameraViewModel.isInitialized) {
+                    val sessionManager = cameraViewModel.getSessionManager()
+                    val session = sessionManager.getCurrentSession()
+
+                    if (session != null) {
+                        val studentId = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: "unknown"
+                        val mediaFiles = sessionManager.getLocalMediaFiles()
+                        val sessionJson = sessionManager.exportSessionForUpload()
+
+                        // تجهيز البيانات لـ WorkManager
+                        val mediaPaths = mediaFiles.map { it.absolutePath }
+                        val inputData = androidx.work.Data.Builder()
+                            .putString("examId", session.examId)
+                            .putString("studentId", studentId)
+                            .putString("sessionId", session.sessionId)
+                            .putString("sessionJson", sessionJson)
+                            .putString("mediaPaths", com.google.gson.Gson().toJson(mediaPaths))
+                            .build()
+
+                        // إنشاء مهمة WorkManager
+                        val uploadRequest = androidx.work.OneTimeWorkRequestBuilder<ExamUploadWorker>()
+                            .setInputData(inputData)
+                            .setConstraints(
+                                androidx.work.Constraints.Builder()
+                                    .setRequiredNetworkType(androidx.work.NetworkType.CONNECTED)
+                                    .build()
+                            )
+                            .build()
+
+                        // جدولة الرفع في الخلفية
+                        androidx.work.WorkManager.getInstance(this)
+                            .enqueue(uploadRequest)
+
+                        Log.d("ExamUploadWorker", "📤 Upload task scheduled in background")
+                    }
+                }
+            } catch (uploadError: Exception) {
+                Log.e("ExamUploadWorker", "❌ Failed to schedule upload", uploadError)
+            }
+
+            // ← هذا السطر يبقى في النهاية كما هو
             finish()
         }
+
     }
 
 
