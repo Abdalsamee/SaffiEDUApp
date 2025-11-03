@@ -177,7 +177,7 @@ class ExamActivity : ComponentActivity() {
         val showExitWarning by securityManager.showExitWarning.collectAsState()
         val showMultipleFacesWarning by securityManager.showMultipleFacesWarning.collectAsState()
         val showOverlayWarning by securityManager.shouldShowWarning.collectAsState()
-        val autoSubmit by securityManager.shouldAutoSubmit.collectAsState() // 👈 NEW
+        val autoSubmit by securityManager.shouldAutoSubmit.collectAsState()
 
         val isPaused by securityManager.isPaused.collectAsState()
         val violations by securityManager.violations.collectAsState()
@@ -206,7 +206,7 @@ class ExamActivity : ComponentActivity() {
             }
         }
 
-        // 👇 NEW: عند طلب الإنهاء التلقائي من المانجر — ننهي بهدوء مع كتم كاشف الـ overlay
+
         LaunchedEffect(autoSubmit) {
             if (autoSubmit) {
                 val token = securityManager.markInternalOperationStart("AutoSubmitExam")
@@ -276,6 +276,12 @@ class ExamActivity : ComponentActivity() {
             },
             onExamComplete = { finishExam() },
             examId = examId // متغير الذي حصلت عليه من Intent
+                  ,  onFinalDialogOpen = {
+                securityManager.registerInternalDialog("DIALOG_FINAL_SUBMIT")
+            },
+            onFinalDialogClose = {
+                securityManager.unregisterInternalDialog("DIALOG_FINAL_SUBMIT")
+            }
         )
 
         // Overlay للمسح أثناء الامتحان
