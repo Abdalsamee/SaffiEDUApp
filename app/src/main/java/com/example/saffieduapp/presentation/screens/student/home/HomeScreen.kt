@@ -1,6 +1,8 @@
 package com.example.saffieduapp.presentation.screens.student.home
 
+import android.os.Build
 import android.widget.Toast
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -23,6 +25,7 @@ import com.example.saffieduapp.ui.theme.AppPrimary
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.collectLatest
 
+@RequiresApi(Build.VERSION_CODES.Q)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
@@ -115,7 +118,7 @@ fun HomeScreen(
         HomeTopSection(
             studentName = state.studentName,
             studentSubject = state.studentGrade,
-            profileImageUrl = state.profileImageUrl,
+            profileImageUrl = state.profileImageUrl.toString(),
         )
 
         if (state.isLoading && !state.isRefreshing) {

@@ -38,6 +38,7 @@ class HomeViewModel @Inject constructor(
     application: Application
 ) : AndroidViewModel(application) {
 
+    // ✅ تم تصحيح التهيئة ليتم استخدام القيمة الافتراضية
     private val _state = MutableStateFlow(HomeState())
     val state = _state.asStateFlow()
     private val appContext = application.applicationContext
@@ -58,7 +59,11 @@ class HomeViewModel @Inject constructor(
                             .get().await()
 
                     if (!querySnapshot.isEmpty) {
-                        val userData = querySnapshot.documents[0].toObject(StdData::class.java)
+                        val documentSnapshot = querySnapshot.documents[0] // 👈 جلب لقطة الوثيقة
+                        val studentDocId =
+                            documentSnapshot.id // ✅ الحصول على ID الوثيقة (معرّف الطالب)
+
+                        val userData = documentSnapshot.toObject(StdData::class.java)
                         if (userData != null) {
                             val formattedStudentName = formatStudentName(userData.fullName)
                             val studentWithGrade = formattedStudentName
@@ -66,6 +71,7 @@ class HomeViewModel @Inject constructor(
                             _state.value = _state.value.copy(
                                 studentName = studentWithGrade,
                                 studentGrade = userData.grade,
+                                studentId = studentDocId, // ✅ تخزين ID الطالب المستخرج
                                 isLoading = false
                             )
 
@@ -81,7 +87,7 @@ class HomeViewModel @Inject constructor(
                             // الاستماع للدرس الجديد بعد معرفة الصف
                             listenForNewLessons(userData.grade)
 
-                            // ✅ بعد معرفة الصف، جلب أهم الدروس
+                            // بعد معرفة الصف، جلب أهم الدروس
                             loadInitialData()
                         }
                     }
@@ -215,31 +221,47 @@ class HomeViewModel @Inject constructor(
             val studentGrade = _state.value.studentGrade
             if (studentGrade.isBlank()) return
 
-            // 1. تحديد تاريخ اليوم الحالي وتنسيقه
+            // 1. **تحديد معرّف الطالب الحالي من الـ State (المخزن عبر الإيميل)**
+            val currentStudentId = _state.value.studentId
+            if (currentStudentId.isBlank()) return // لا يمكن المتابعة بدون ID
+
+            // 2. **جلب معرّفات الاختبارات المسلّمة من قِبل هذا الطالب**
+            val submittedExamsSnapshot =
+                firestore.collection("exam_submissions").whereEqualTo("studentId", currentStudentId)
+                    .get().await()
+
+            val submittedExamIds = submittedExamsSnapshot.documents.mapNotNull {
+                it.getString("examId")
+            }.toSet() // استخدام Set لتحسين سرعة البحث
+
+            // 3. تحديد تاريخ اليوم الحالي وتنسيقه
             val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.ENGLISH)
             val todayDateString = dateFormat.format(Date())
 
-            // 2. تغيير الاستعلام ليقارن بتاريخ اليوم
+            // 4. جلب الاختبارات المتاحة للصف وتاريخ اليوم
             val querySnapshot =
                 firestore.collection("exams").whereEqualTo("className", studentGrade)
-                    // ✅ الفلتر الجديد: عرض الاختبارات التي تاريخ انتهائها (examDate) هو اليوم
                     .whereEqualTo("examDate", todayDateString).get().await()
 
             val examsList = querySnapshot.documents.mapNotNull { doc ->
-                val teacherId =
-                    doc.getString("teacherId") ?: return@mapNotNull null // لا يمكن المتابعة بدون ID
+                val examId = doc.id // الحصول على ID الاختبار
 
+                // 5. **التحقق من أن الاختبار لم يتم تسليمه**
+                if (submittedExamIds.contains(examId)) {
+                    return@mapNotNull null // تخطي هذا الاختبار (تم تسليمه)
+                }
+
+                // ... باقي الكود لإنشاء UrgentTask ...
+
+                val teacherId = doc.getString("teacherId") ?: return@mapNotNull null
                 val subjectNameFromTeacher = getTeacherSubjectName(teacherId) ?: "غير محدد"
-
-                // ... باقي الحقول
                 val examType = doc.getString("examType") ?: "غير محدد"
                 val examDate = doc.getString("examDate") ?: ""
                 val examStartTime = doc.getString("examStartTime") ?: ""
-                // إذا كنت تريد استخدام اسم المادة من ملف المعلم (subjectNameFromTeacher)
-                // بدلاً من الحقل subjectName الموجود في وثيقة الاختبار
                 val subjectName = doc.getString("subjectName") ?: subjectNameFromTeacher
+
                 UrgentTask(
-                    id = doc.id,
+                    id = examId,
                     examType = examType,
                     endDate = examDate,
                     examStartTime = examStartTime,
