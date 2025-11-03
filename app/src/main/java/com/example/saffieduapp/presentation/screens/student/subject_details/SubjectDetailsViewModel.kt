@@ -50,6 +50,7 @@ class SubjectDetailsViewModel @Inject constructor(
 
     private val subjectId: String = checkNotNull(savedStateHandle["subjectId"])
 
+    private var pendingPdfReadId: String? = null
 
     init {
         loadSubjectDetails(subjectId)
@@ -64,10 +65,9 @@ class SubjectDetailsViewModel @Inject constructor(
     private fun loadAlerts() {
         viewModelScope.launch {
             try {
-                val snapshot = firestore.collection("alerts")
-                    .whereEqualTo("subjectId", subjectId.trim())
-                    .get()
-                    .await()
+                val snapshot =
+                    firestore.collection("alerts").whereEqualTo("subjectId", subjectId.trim()).get()
+                        .await()
 
                 val dateFormat = SimpleDateFormat("yyyy-MM-dd hh:mm a", Locale.ENGLISH)
                 val now = Calendar.getInstance().time
@@ -87,9 +87,7 @@ class SubjectDetailsViewModel @Inject constructor(
                     if (dateTime.after(now)) return@mapNotNull null
 
                     Alert(
-                        id = doc.id,
-                        message = message,
-                        dateTime = dateTime
+                        id = doc.id, message = message, dateTime = dateTime
                     )
                 }
 
@@ -138,16 +136,13 @@ class SubjectDetailsViewModel @Inject constructor(
 
             try {
                 val email = FirebaseAuth.getInstance().currentUser?.email
-                val querySnapshot = firestore.collection("students")
-                    .whereEqualTo("email", email)
-                    .get()
-                    .await()
+                val querySnapshot =
+                    firestore.collection("students").whereEqualTo("email", email).get().await()
 
                 if (querySnapshot.isEmpty) {
                     _state.update {
                         it.copy(
-                            isLoading = false,
-                            error = "لم يتم العثور على بيانات الطالب"
+                            isLoading = false, error = "لم يتم العثور على بيانات الطالب"
                         )
                     }
                     return@launch
@@ -158,15 +153,13 @@ class SubjectDetailsViewModel @Inject constructor(
                 val studentNationalId = studentDoc2.id // هنا رقم الهوية كـ Document ID
                 val studentDoc = firestore.collection("students")
                     .document(studentNationalId)  // هنا رقم الهوية مباشرة
-                    .get()
-                    .await()
+                    .get().await()
 
                 val grade = studentDoc.getString("grade")?.trim()
                 if (grade.isNullOrEmpty()) {
                     _state.update {
                         it.copy(
-                            isLoading = false,
-                            error = "الصف الخاص بالطالب غير موجود"
+                            isLoading = false, error = "الصف الخاص بالطالب غير موجود"
                         )
                     }
                     return@launch
@@ -176,8 +169,7 @@ class SubjectDetailsViewModel @Inject constructor(
                 val docs = firestore.collection("lessons")
                     .whereEqualTo("subjectId", subjectId) // درس المادة المطلوبة
                     .whereEqualTo("className", grade)     // جلب الدروس للصف الحالي للطالب
-                    .get()
-                    .await()
+                    .get().await()
 
                 val videoLessons = mutableListOf<Lesson>()
                 val pdfLessons = mutableListOf<PdfLesson>()
@@ -237,9 +229,7 @@ class SubjectDetailsViewModel @Inject constructor(
 
                 _state.update {
                     it.copy(
-                        isLoading = false,
-                        videoLessons = videoLessons,
-                        pdfSummaries = pdfLessons
+                        isLoading = false, videoLessons = videoLessons, pdfSummaries = pdfLessons
                     )
                 }
 
@@ -263,31 +253,48 @@ class SubjectDetailsViewModel @Inject constructor(
     fun onPdfCardClick(pdfLesson: PdfLesson) {
         viewModelScope.launch {
             try {
+
+                // ✅ سنقوم فقط بتخزين الـ ID قبل فتح الملف
+                pendingPdfReadId = pdfLesson.id
+
+                // فتح الملف فعليًا
+                val localFile = downloadPdf(pdfLesson.pdfUrl!!, pdfLesson.id)
+                val uri = FileProvider.getUriForFile(
+                    context, "${context.packageName}.provider", localFile
+                )
+                _eventFlow.emit(DetailsUiEvent.OpenPdf(uri))
+            } catch (e: Exception) {
+                _eventFlow.emit(DetailsUiEvent.ShowToast("فشل فتح الملف"))
+                e.printStackTrace()
+            }
+        }
+    }
+
+    fun onScreenResumed() {
+        // التحقق مما إذا كان هناك ملف PDF معلّق تم فتحه
+        pendingPdfReadId?.let { idToMark ->
+            // امسح الـ ID فورًا لمنع تشغيله عدة مرات
+            pendingPdfReadId = null
+
+            // قم بتشغيل التحديث في coroutine
+            setPdfAsRead(idToMark)
+        }
+    }
+
+    private fun setPdfAsRead(pdfId: String) {
+        viewModelScope.launch {
+            try {
                 // ✅ تحديث حالة الملف كمقروء في Firestore
-                firestore.collection("lessons")
-                    .document(pdfLesson.id)
-                    .update("isRead", true)
-                    .await()
+                firestore.collection("lessons").document(pdfId).update("isRead", true).await()
 
                 // ✅ تحديث الـ State محليًا
                 _state.update { currentState ->
                     currentState.copy(
                         pdfSummaries = currentState.pdfSummaries.map {
-                            if (it.id == pdfLesson.id) it.copy(isRead = true) else it
-                        }
-                    )
+                            if (it.id == pdfId) it.copy(isRead = true) else it
+                        })
                 }
-
-                // فتح الملف فعليًا
-                val localFile = downloadPdf(pdfLesson.pdfUrl!!, pdfLesson.id)
-                val uri = FileProvider.getUriForFile(
-                    context,
-                    "${context.packageName}.provider",
-                    localFile
-                )
-                _eventFlow.emit(DetailsUiEvent.OpenPdf(uri))
             } catch (e: Exception) {
-                _eventFlow.emit(DetailsUiEvent.ShowToast("فشل فتح الملف"))
                 e.printStackTrace()
             }
         }
@@ -306,19 +313,6 @@ class SubjectDetailsViewModel @Inject constructor(
             }
         }
         return file
-    }
-
-    fun markPdfAsRead(pdfLesson: PdfLesson) {
-        _state.update { currentState ->
-            val updatedList = currentState.pdfSummaries.map {
-                if (it.id == pdfLesson.id) {
-                    it.copy(isRead = true) // نعدل فقط الملف المضغوط عليه
-                } else {
-                    it
-                }
-            }
-            currentState.copy(pdfSummaries = updatedList)
-        }
     }
 
 }

@@ -7,14 +7,13 @@ data class ExamItem(
     val subjectName: String,
     val imageUrl: String,
     val time: Long,
-    val status: ExamStatus
+    val status: ExamStatus,
+    val showResultsImmediately: Boolean
 )
 
 // ٢. تعريف حالة الاختبار (مكتمل أم لا)
 enum class ExamStatus {
-    COMPLETED,
-    NOT_COMPLETED,
-    IN_PROGRESS
+    COMPLETED, NOT_COMPLETED, IN_PROGRESS
 }
 
 // ٣. تعريف موديل الواجب الواحد

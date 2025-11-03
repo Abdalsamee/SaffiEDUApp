@@ -22,6 +22,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -35,6 +36,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.navigation.NavController
 import com.example.saffieduapp.navigation.navigateToVideoScreen
 import com.example.saffieduapp.presentation.screens.student.components.CommonTopAppBar
@@ -57,6 +61,29 @@ fun SubjectDetailsScreen(
     // بمجرد الدخول للشاشة، اطلب تحميل بيانات المادة
     LaunchedEffect(subjectId) {
         viewModel.loadSubjectDetails(subjectId)
+    }
+
+    // احصل على مالك دورة الحياة الحالي
+    val lifecycleOwner = LocalLifecycleOwner.current
+
+// استخدم DisposableEffect للاستماع إلى أحداث دورة الحياة
+    DisposableEffect(lifecycleOwner) {
+        // أنشئ مراقب
+        val observer = LifecycleEventObserver { _, event ->
+            // تحقق مما إذا كان الحدث هو ON_RESUME
+            if (event == Lifecycle.Event.ON_RESUME) {
+                // أخبر الـ ViewModel أن الشاشة قد استؤنفت
+                viewModel.onScreenResumed()
+            }
+        }
+
+        // أضف المراقب إلى دورة الحياة
+        lifecycleOwner.lifecycle.addObserver(observer)
+
+        // عند إغلاق الشاشة (onDispose)، قم بإزالة المراقب
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
     }
 
     // --- معالج الأحداث ---

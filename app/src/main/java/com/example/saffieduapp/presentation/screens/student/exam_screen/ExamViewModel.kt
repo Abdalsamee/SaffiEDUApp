@@ -357,8 +357,8 @@ class ExamViewModel @Inject constructor(
                         "answers" to answersMap,
                         "savedAt" to System.currentTimeMillis(),
                         "studentId" to studentId,
-                        "examId" to _state.value.examId, // إضافة examId لتسهيل الاستعلام
-                        "isDraft" to true // حقل إضافي للتمييز
+                        "examId" to _state.value.examId,
+                        "isDraft" to true
                     )
                 ).await()
             } catch (_: Exception) {
@@ -401,7 +401,6 @@ class ExamViewModel @Inject constructor(
 
                 // 3. أسئلة الاختيار من متعدد (عدة إجابات)
                 QuestionType.MULTIPLE_CHOICE_MULTIPLE -> {
-                    // ... (المنطق سليم ولا يحتاج لتعديل) ...
                     val correctChoiceIds =
                         question.choices.filter { it.isCorrect }.map { it.id }.toSet()
                     val userChoiceIds =
@@ -414,7 +413,7 @@ class ExamViewModel @Inject constructor(
 
                 // 4. الأسئلة المقالية (تتطلب تصحيحاً يدوياً)
                 QuestionType.ESSAY -> {
-                    // ... (لا تُضاف النقاط هنا) ...
+
                 }
             }
         }
