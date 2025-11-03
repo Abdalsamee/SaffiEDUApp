@@ -41,9 +41,9 @@ class FaceDetectionMonitor(
     val lastDetectionResult: StateFlow<FaceDetectionResult?> = _lastDetectionResult.asStateFlow()
 
     // ───── ضبط الحساسية (يمكن تعديل القيم لاحقًا بسهولة) ─────
-    private val NO_FACE_WINDOW_MS = 8_000L            // لا وجه لمدة ≥ 8 ثوانٍ
-    private val MULTIPLE_FACES_WINDOW_MS = 3_000L     // أكثر من وجه لمدة ≥ 3 ثوانٍ
-    private val LOOKING_AWAY_WINDOW_MS = 5_000L       // النظر بعيدًا لمدة ≥ 5 ثوانٍ
+    private val NO_FACE_WINDOW_MS = 3_000L            // لا وجه لمدة ≥ 8 ثوانٍ
+    private val MULTIPLE_FACES_WINDOW_MS = 2_000L     // أكثر من وجه لمدة ≥ 3 ثوانٍ
+    private val LOOKING_AWAY_WINDOW_MS = 3_000L       // النظر بعيدًا لمدة ≥ 5 ثوانٍ
     private val HEAD_ROTATION_THRESHOLD = 35f         // زاوية الانحراف لاعتبار "ينظر بعيدًا"
 
     // طوابع زمنية لبدء الحالة (بدلاً من العدّ بالإطارات)
