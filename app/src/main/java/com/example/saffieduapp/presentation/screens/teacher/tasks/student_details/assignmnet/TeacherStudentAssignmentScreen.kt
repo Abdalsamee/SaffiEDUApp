@@ -35,7 +35,8 @@ import com.example.saffieduapp.ui.theme.SaffiEDUAppTheme
 @Composable
 fun TeacherStudentAssignmentScreen(
     navController: NavController?,
-    viewModel: TeacherStudentAssignmentViewModel = hiltViewModel()
+    viewModel: TeacherStudentAssignmentViewModel = hiltViewModel(),
+    taskId: String
 ) {
     val state by viewModel.state.collectAsState()
     val context = LocalContext.current
@@ -45,11 +46,8 @@ fun TeacherStudentAssignmentScreen(
     Scaffold(
         topBar = {
             CommonTopAppBar(
-                title = "عرض واجبات الطالب",
-                onNavigateUp = { navController?.popBackStack() }
-            )
-        }
-    ) { innerPadding ->
+                title = "عرض واجبات الطالب", onNavigateUp = { navController?.popBackStack() })
+        }) { innerPadding ->
         TeacherStudentAssignmentContent(
             state = state,
             onGradeChange = viewModel::onGradeChange,
@@ -82,10 +80,8 @@ fun TeacherStudentAssignmentScreen(
                 contentAlignment = Alignment.Center
             ) {
                 AsyncImage(
-                    model = ImageRequest.Builder(LocalContext.current)
-                        .data(expandedImageUrl)
-                        .crossfade(true)
-                        .build(),
+                    model = ImageRequest.Builder(LocalContext.current).data(expandedImageUrl)
+                        .crossfade(true).build(),
                     contentDescription = "عرض الصورة",
                     contentScale = ContentScale.Fit,
                     modifier = Modifier
@@ -228,10 +224,8 @@ private fun SubmittedFileItem(file: SubmittedFile, onClick: () -> Unit) {
         ) {
             if (file.isImage) {
                 AsyncImage(
-                    model = ImageRequest.Builder(LocalContext.current)
-                        .data(file.fileUrl)
-                        .crossfade(true)
-                        .build(),
+                    model = ImageRequest.Builder(LocalContext.current).data(file.fileUrl)
+                        .crossfade(true).build(),
                     contentDescription = "صورة الواجب",
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
@@ -276,8 +270,11 @@ fun PreviewTeacherStudentAssignmentScreen() {
             studentClass = "الصف السادس",
             deliveryStatus = "تم التسليم",
             submittedFiles = listOf(
-                SubmittedFile("واجب اللغة العربية.pdf", "https://www.africau.edu/images/default/sample.pdf", false),
-                SubmittedFile("صورة الواجب 1", "https://picsum.photos/300", true)
+                SubmittedFile(
+                    "واجب اللغة العربية.pdf",
+                    "https://www.africau.edu/images/default/sample.pdf",
+                    false
+                ), SubmittedFile("صورة الواجب 1", "https://picsum.photos/300", true)
             ),
             grade = "95",
             comment = "عمل ممتاز"

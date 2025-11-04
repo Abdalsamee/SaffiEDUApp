@@ -25,20 +25,27 @@ fun NavGraphBuilder.teacherTasksNavGraph(navController: NavHostController) {
             TeacherTasksScreen(navController = navController)
         }
 
-        // 🎯 FIX: تم تحديث المسار ليشمل taskId و taskType
+        // وجهة تفاصيل المهمة (قديمة ومحدثة)
         composable(
             route = "${Routes.TEACHER_TASK_DETAILS_SCREEN}/{taskId}/{taskType}", arguments = listOf(
                 navArgument("taskId") { type = NavType.StringType },
-                // يجب إضافة taskType هنا ليتمكن نظام التنقل من مطابقة المسار
                 navArgument("taskType") { type = NavType.StringType })
         ) {
-            // لا حاجة لاستخراج الـ taskId هنا، الـ ViewModel سيفعل ذلك
             TeacherTaskDetailsScreen(
                 navController = navController
             )
         }
-        composable(Routes.TEACHER_STUDENT_ASSIGNMENT_SCREEN) {
-            TeacherStudentAssignmentScreen(navController = navController)
+
+        // ✅ التعديل الرئيسي: يجب أن يتضمن المسار وسيط taskId
+        composable(
+            route = "${Routes.TEACHER_STUDENT_ASSIGNMENT_SCREEN}/{taskId}",
+            arguments = listOf(
+                navArgument("taskId") { type = NavType.StringType })) { backStackEntry ->
+            val taskId = backStackEntry.arguments?.getString("taskId") ?: ""
+            // استدعاء الشاشة المسؤولة عن عرض قائمة الطلاب
+            TeacherStudentAssignmentScreen(
+                navController = navController, taskId = taskId
+            )
         }
 
         composable(

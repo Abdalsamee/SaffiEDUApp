@@ -1,6 +1,8 @@
 package com.example.saffieduapp.navigation
 
 
+import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.core.tween
@@ -50,6 +52,7 @@ private fun slideDir(from: NavBackStackEntry, to: NavBackStackEntry): Int {
     } else 0
 }
 
+@RequiresApi(Build.VERSION_CODES.Q)
 @Composable
 fun MainNavGraph(
     navController: NavHostController,
