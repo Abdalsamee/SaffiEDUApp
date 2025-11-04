@@ -18,6 +18,7 @@ import androidx.navigation.NavController
 import com.example.saffieduapp.navigation.Routes
 import com.example.saffieduapp.presentation.screens.student.components.CommonTopAppBar
 import com.example.saffieduapp.presentation.screens.teacher.tasks.components.ClassFilterButton
+import com.example.saffieduapp.presentation.screens.teacher.tasks.components.TaskType
 import com.example.saffieduapp.presentation.screens.teacher.tasks.components.TeacherTaskCard
 import com.example.saffieduapp.ui.theme.AppPrimary
 import com.example.saffieduapp.ui.theme.AppTextSecondary
@@ -25,15 +26,13 @@ import com.example.saffieduapp.ui.theme.AppTextSecondary
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun TeacherTasksScreen(
-    navController: NavController,
-    viewModel: TeacherTasksViewModel = hiltViewModel()
+    navController: NavController, viewModel: TeacherTasksViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
     val tabTitles = listOf("الواجبات", "الاختبارات")
 
     Scaffold(
-        topBar = { CommonTopAppBar(title = "المهام") }
-    ) { innerPadding ->
+        topBar = { CommonTopAppBar(title = "المهام") }) { innerPadding ->
         Column(
             modifier = Modifier
                 .padding(innerPadding)
@@ -49,8 +48,7 @@ fun TeacherTasksScreen(
             ) {
                 ClassFilterButton(
                     selectedClass = state.selectedClass,
-                    onClassSelected = { viewModel.onClassSelected(it) }
-                )
+                    onClassSelected = { viewModel.onClassSelected(it) })
             }
 
             // 🔹 التبويبات (الواجبات / الاختبارات)
@@ -61,7 +59,8 @@ fun TeacherTasksScreen(
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
                 tabTitles.forEachIndexed { index, title ->
-                    val textColor = if (state.selectedTabIndex == index) AppPrimary else AppTextSecondary
+                    val textColor =
+                        if (state.selectedTabIndex == index) AppPrimary else AppTextSecondary
                     Text(
                         text = title,
                         color = textColor,
@@ -69,8 +68,7 @@ fun TeacherTasksScreen(
                         fontSize = 18.sp,
                         modifier = Modifier
                             .clickable { viewModel.onTabSelected(index) }
-                            .padding(8.dp)
-                    )
+                            .padding(8.dp))
                 }
             }
 
@@ -97,14 +95,17 @@ fun TeacherTasksScreen(
                             time = task.time,
                             isActive = task.isActive,
                             onDetailsClick = {
-                                navController.navigate("${Routes.TEACHER_TASK_DETAILS_SCREEN}/${task.id}/${task.type.name}")                            },
+                                val route = when (task.type) {
+                                    TaskType.ASSIGNMENT -> "${Routes.TEACHER_TASK_DETAILS_SCREEN}/${task.id}/${task.type.name}"
+                                    TaskType.EXAM -> "${Routes.TEACHER_TASK_DETAILS_SCREEN}/${task.id}/${task.type.name}"
+                                }
+                                navController.navigate(route)
+                            },
                             onDeleteClick = {
                                 viewModel.deleteTask(
-                                    taskId = task.id,
-                                    taskType = task.type
+                                    taskId = task.id, taskType = task.type
                                 )
-                            }
-                        )
+                            })
                     }
                 }
             }

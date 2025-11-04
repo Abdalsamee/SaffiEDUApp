@@ -1,5 +1,7 @@
 package com.example.saffieduapp.navigation
 
+import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.navigation.compose.NavHost
@@ -15,6 +17,7 @@ import com.example.saffieduapp.presentation.screens.teacher.add_lesson.AddLesson
 import com.example.saffieduapp.presentation.screens.teacher.calsses.TeacherClassesScreen
 import com.example.saffieduapp.presentation.screens.teacher.profile.TeacherProfileScreen
 
+@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun TeacherNavHost(
     navController: NavHostController, // ✅ 3. استقبل الكنترولر كبارامتر
