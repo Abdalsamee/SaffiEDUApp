@@ -15,12 +15,11 @@ class TeacherTaskDetailsViewModel(savedStateHandle: SavedStateHandle) : ViewMode
 
     private val db = FirebaseFirestore.getInstance()
 
-    // استخراج معرّف المهمة ونوعها من المسار
     private val taskId: String = checkNotNull(savedStateHandle["taskId"])
-
-    // يجب أن تتأكد أن taskType يتم تمريره كسلسلة قابلة للتحويل إلى TaskType (مثل "ASSIGNMENT" أو "EXAM")
     private val taskTypeString: String = checkNotNull(savedStateHandle["taskType"])
-    private val taskType: TaskType = TaskType.valueOf(taskTypeString)
+
+    private val _taskType: TaskType = TaskType.valueOf(taskTypeString)
+    val taskType: TaskType get() = _taskType  // 👈 getter عام للاستخدام في الشاشة
 
     private val _state = MutableStateFlow(TeacherTaskDetailsState())
     val state: StateFlow<TeacherTaskDetailsState> = _state
@@ -48,10 +47,9 @@ class TeacherTaskDetailsViewModel(savedStateHandle: SavedStateHandle) : ViewMode
             try {
                 // 3. جلب جميع التقديمات للمهمة المحددة
                 // أي مستند يتم جلبه هنا يعتبر تسليماً
-                val submissionsSnapshot = db.collection(submissionCollectionName)
-                    .whereEqualTo(taskIdFieldName, taskId)
-                    .get()
-                    .await()
+                val submissionsSnapshot =
+                    db.collection(submissionCollectionName).whereEqualTo(taskIdFieldName, taskId)
+                        .get().await()
 
                 val studentItems = mutableListOf<StudentTaskItem>()
 
@@ -61,9 +59,7 @@ class TeacherTaskDetailsViewModel(savedStateHandle: SavedStateHandle) : ViewMode
 
                     if (studentId != null) {
                         // 5. جلب بيانات الطالب من مجموعة 'students'
-                        val studentDoc = db.collection("students").document(studentId)
-                            .get()
-                            .await()
+                        val studentDoc = db.collection("students").document(studentId).get().await()
 
                         val studentName = studentDoc.getString("fullName") ?: "اسم غير معروف"
                         val studentImageUrl = studentDoc.getString("profileImageUrl") ?: ""
@@ -102,8 +98,7 @@ class TeacherTaskDetailsViewModel(savedStateHandle: SavedStateHandle) : ViewMode
                 }
 
                 _state.value = _state.value.copy(
-                    isLoading = false,
-                    students = studentItems
+                    isLoading = false, students = studentItems
                 )
 
             } catch (e: Exception) {
