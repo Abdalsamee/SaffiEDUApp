@@ -95,10 +95,9 @@ fun TeacherTasksScreen(
                             time = task.time,
                             isActive = task.isActive,
                             onDetailsClick = {
-                                // 💡 التغيير في منطق التنقل:
                                 val route = when (task.type) {
-                                    TaskType.ASSIGNMENT -> "${Routes.TEACHER_STUDENT_ASSIGNMENT_SCREEN}/${task.id}" // الانتقال لشاشة الطلاب للواجب
-                                    TaskType.EXAM -> "${Routes.TEACHER_TASK_DETAILS_SCREEN}/${task.id}/${task.type.name}" // البقاء على شاشة تفاصيل المهمة للاختبار
+                                    TaskType.ASSIGNMENT -> "${Routes.TEACHER_TASK_DETAILS_SCREEN}/${task.id}/${task.type.name}"
+                                    TaskType.EXAM -> "${Routes.TEACHER_TASK_DETAILS_SCREEN}/${task.id}/${task.type.name}"
                                 }
                                 navController.navigate(route)
                             },
