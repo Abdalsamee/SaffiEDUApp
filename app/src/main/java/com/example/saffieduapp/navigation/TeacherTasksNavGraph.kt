@@ -27,26 +27,38 @@ fun NavGraphBuilder.teacherTasksNavGraph(navController: NavHostController) {
 
         // وجهة تفاصيل المهمة (قديمة ومحدثة)
         composable(
-            route = "${Routes.TEACHER_TASK_DETAILS_SCREEN}/{taskId}/{taskType}", arguments = listOf(
+            route = "${Routes.TEACHER_TASK_DETAILS_SCREEN}/{taskId}/{taskType}",
+            arguments = listOf(
                 navArgument("taskId") { type = NavType.StringType },
-                navArgument("taskType") { type = NavType.StringType })
-        ) {
+                navArgument("taskType") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val taskId = backStackEntry.arguments?.getString("taskId") ?: ""
+            val taskTypeString = backStackEntry.arguments?.getString("taskType") ?: "ASSIGNMENT"
+
             TeacherTaskDetailsScreen(
-                navController = navController
+                navController = navController,
+                taskId = taskId,
+                taskTypeString = taskTypeString // إذا عدّلت الشاشة لتأخذ هذا الوسيط
             )
         }
 
+
         // ✅ التعديل الرئيسي: يجب أن يتضمن المسار وسيط taskId
         composable(
-            route = "${Routes.TEACHER_STUDENT_ASSIGNMENT_SCREEN}/{taskId}",
+            route = "${Routes.TEACHER_STUDENT_ASSIGNMENT_SCREEN}/{studentId}/{assignmentId}",
             arguments = listOf(
-                navArgument("taskId") { type = NavType.StringType })) { backStackEntry ->
-            val taskId = backStackEntry.arguments?.getString("taskId") ?: ""
-            // استدعاء الشاشة المسؤولة عن عرض قائمة الطلاب
+                navArgument("studentId") { type = NavType.StringType },
+                navArgument("assignmentId") { type = NavType.StringType }
+            )
+        ) {
             TeacherStudentAssignmentScreen(
-                navController = navController, taskId = taskId
+                navController = navController,
+                studentId = it.arguments?.getString("studentId") ?: "",
+                assignmentId = it.arguments?.getString("assignmentId") ?: ""
             )
         }
+
 
         composable(
             route = Routes.TEACHER_STUDENT_EXAM_ROUTE, arguments = listOf(

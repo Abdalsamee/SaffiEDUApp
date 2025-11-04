@@ -21,7 +21,9 @@ import com.example.saffieduapp.ui.theme.SaffiEDUAppTheme
 
 @Composable
 fun TeacherTaskDetailsScreen(
-    navController: NavController, viewModel: TeacherTaskDetailsViewModel = hiltViewModel()
+    navController: NavController,
+    taskId: String,
+    viewModel: TeacherTaskDetailsViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
     val taskType = viewModel.taskType // 👈 سنضيف getter صغير للـ taskType
@@ -86,7 +88,7 @@ fun TeacherTaskDetailsScreen(
                                     if (taskType == TaskType.ASSIGNMENT) {
                                         // 🔹 واجب → الانتقال إلى شاشة TeacherStudentAssignmentScreen
                                         navController.navigate(
-                                            "${Routes.TEACHER_STUDENT_ASSIGNMENT_SCREEN}/${student.id}"
+                                            "${Routes.TEACHER_STUDENT_ASSIGNMENT_SCREEN}/${student.id}/${taskId}"
                                         )
                                     } else {
                                         // 🔹 اختبار → الانتقال إلى شاشة TeacherStudentExamScreen

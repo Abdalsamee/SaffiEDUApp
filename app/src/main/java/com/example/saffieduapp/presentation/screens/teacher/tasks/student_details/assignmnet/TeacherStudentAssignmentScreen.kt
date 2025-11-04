@@ -36,12 +36,18 @@ import com.example.saffieduapp.ui.theme.SaffiEDUAppTheme
 fun TeacherStudentAssignmentScreen(
     navController: NavController?,
     viewModel: TeacherStudentAssignmentViewModel = hiltViewModel(),
-    taskId: String
+    studentId: String,
+    assignmentId: String
 ) {
     val state by viewModel.state.collectAsState()
     val context = LocalContext.current
 
     var expandedImageUrl by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(Unit) {
+        // تحميل بيانات الطالب وتسليمه
+        viewModel.loadStudentAssignmentDetails(studentId, assignmentId)
+    }
 
     Scaffold(
         topBar = {
