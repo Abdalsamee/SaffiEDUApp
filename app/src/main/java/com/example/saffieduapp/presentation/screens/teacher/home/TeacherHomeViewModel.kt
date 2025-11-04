@@ -20,7 +20,8 @@ data class TeachData(
     val fullName: String = "",
     val subject: String = "",
     val isSubjectActivated: Boolean = false,
-    val classes: List<String> = emptyList()
+    val classes: List<String> = emptyList(),
+    val profileImageUrl: String = "" // ✅ تم إضافة حقل رابط الصورة
 )
 
 @HiltViewModel
@@ -83,6 +84,8 @@ class TeacherHomeViewModel @Inject constructor(
 
                         val teacherId = doc.id
                         val teacherClasses = teacherData?.classes ?: emptyList()
+                        val profileImageUrl =
+                            teacherData?.profileImageUrl ?: "" // ✅ تم جلب رابط الصورة
 
                         // تحقق من وجود أي مادة للمستخدم في كوليكشن subjects
                         val subjectsSnapshot =
@@ -95,17 +98,24 @@ class TeacherHomeViewModel @Inject constructor(
                             teacherName = formatUserName(teacherData?.fullName ?: "غير معروف"),
                             teacherSubject = teacherData?.subject ?: "غير معروف",
                             isActivated = hasAnySubject,
-                            teacherClasses = teacherClasses // تمرير قائمة الصفوف
+                            teacherClasses = teacherClasses, // تمرير قائمة الصفوف
+                            profileImageUrl = profileImageUrl // ✅ تمرير رابط الصورة
                         )
                         return@launch
                     }
-                    loadInitialData("غير معروف", "غير معروف", false, emptyList())
+                    loadInitialData("غير معروف", "غير معروف", false, emptyList(), "")
 
                 } catch (e: Exception) {
-                    loadInitialData("خطأ", "خطأ", false, emptyList())
+                    loadInitialData("خطأ", "خطأ", false, emptyList(), "")
                 }
             } else {
-                loadInitialData("لم يتم تسجيل الدخول", "لم يتم تسجيل الدخول", false, emptyList())
+                loadInitialData(
+                    "لم يتم تسجيل الدخول",
+                    "لم يتم تسجيل الدخول",
+                    false,
+                    emptyList(),
+                    ""
+                )
             }
         }
     }
@@ -310,7 +320,8 @@ class TeacherHomeViewModel @Inject constructor(
         teacherName: String,
         teacherSubject: String,
         isActivated: Boolean,
-        teacherClasses: List<String>
+        teacherClasses: List<String>,
+        profileImageUrl: String // ✅ تم استقبال رابط الصورة
     ) {
         viewModelScope.launch {
             val topStudentsList = listOf(
@@ -334,7 +345,7 @@ class TeacherHomeViewModel @Inject constructor(
                 isLoading = false,
                 teacherName = teacherName,
                 teacherSub = teacherSubject,
-                profileImageUrl = "",
+                profileImageUrl = profileImageUrl, // ✅ تم حفظ رابط الصورة في State
                 studentUpdates = fetchedUpdates,
                 // 🔄 استخدام بيانات الصفوف المجلوبة هنا بدلاً من classesList الثابتة
                 teacherClasses = fetchedTeacherClasses,

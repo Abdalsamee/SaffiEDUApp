@@ -14,5 +14,6 @@ data class HomeState(
     val urgentTasks: List<UrgentTask> = emptyList(),
     val enrolledSubjects: List<Subject> = emptyList(),
     val featuredLessons: List<FeaturedLesson> = emptyList(),
-    val error: String? = null
+    val error: String = "",
+    val studentId: String = ""
 )
