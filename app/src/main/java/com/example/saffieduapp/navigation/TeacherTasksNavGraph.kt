@@ -39,7 +39,6 @@ fun NavGraphBuilder.teacherTasksNavGraph(navController: NavHostController) {
             TeacherTaskDetailsScreen(
                 navController = navController,
                 taskId = taskId,
-                taskTypeString = taskTypeString // إذا عدّلت الشاشة لتأخذ هذا الوسيط
             )
         }
 

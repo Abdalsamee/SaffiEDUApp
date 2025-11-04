@@ -1,5 +1,6 @@
 package com.example.saffieduapp.presentation.screens.student.tasks
 
+import android.net.Uri
 import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -9,6 +10,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -39,6 +41,7 @@ fun TasksScreen(
 ) {
     val state by viewModel.state.collectAsState()
     val tabTitles = listOf("الواجبات", "الاختبارات")
+    val coroutineScope = rememberCoroutineScope() // use once here
 
     val context = LocalContext.current
 
@@ -73,23 +76,35 @@ fun TasksScreen(
                     AssignmentsList(
                         assignmentsByDate = state.assignmentsByDate,
                         onAssignmentClick = { assignmentId ->
-                            val assignment = viewModel.getAssignmentById(assignmentId)
-                            assignment?.let {
-                                when (it.status) {
-                                    AssignmentStatus.SUBMITTED -> {
-                                        navController.navigate("${Routes.SUBMIT_ASSIGNMENT_SCREEN}/$assignmentId")
-                                    }
+                            // عند الضغط على واجب -> نتحقّق إن كان مُقَيّمًا ثم ننتقل
+                            coroutineScope.launch {
+                                val eval =
+                                    viewModel.getAssignmentEvaluationForCurrentStudent(assignmentId)
+                                if (eval != null) {
+                                    // ترميز النصوص للـ URI ثم التنقل إلى شاشة النتيجة مع grade و notes
+                                    val gradeEncoded = Uri.encode(eval.grade ?: "")
+                                    val notesEncoded = Uri.encode(eval.notes ?: "")
+                                    navController.navigate("${Routes.STUDENT_ASSIGNMENT_RESULT_SCREEN}/$assignmentId?grade=$gradeEncoded&notes=$notesEncoded")
+                                } else {
+                                    // لا يوجد تقييم -> نتصرف كما كان سابقًا (نأخذ معلومات الواجب محلياً)
+                                    val assignment = viewModel.getAssignmentById(assignmentId)
+                                    assignment?.let {
+                                        when (it.status) {
+                                            AssignmentStatus.SUBMITTED -> {
+                                                navController.navigate("${Routes.SUBMIT_ASSIGNMENT_SCREEN}/$assignmentId")
+                                            }
 
-                                    AssignmentStatus.EXPIRED, AssignmentStatus.LATE -> {
-                                        navController.navigate("${Routes.ASSIGNMENT_DETAILS_SCREEN}/$assignmentId")
-                                    }
+                                            AssignmentStatus.EXPIRED, AssignmentStatus.LATE -> {
+                                                navController.navigate("${Routes.ASSIGNMENT_DETAILS_SCREEN}/$assignmentId")
+                                            }
 
-                                    AssignmentStatus.PENDING -> {
-                                        navController.navigate("${Routes.ASSIGNMENT_DETAILS_SCREEN}/$assignmentId")
+                                            AssignmentStatus.PENDING -> {
+                                                navController.navigate("${Routes.ASSIGNMENT_DETAILS_SCREEN}/$assignmentId")
+                                            }
+                                        }
                                     }
                                 }
                             }
-
 
                         })
 
