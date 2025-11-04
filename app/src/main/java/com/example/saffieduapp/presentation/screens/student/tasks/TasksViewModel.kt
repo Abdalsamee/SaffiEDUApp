@@ -18,6 +18,10 @@ import java.util.Date
 import java.util.Locale
 import javax.inject.Inject
 
+data class AssignmentEvaluation(
+    val grade: String?, val notes: String?
+)
+
 @HiltViewModel
 class TasksViewModel @Inject constructor(
     private val assignmentRepository: AssignmentRepository
@@ -261,4 +265,38 @@ class TasksViewModel @Inject constructor(
         }
     }
 
+    // public suspend: يجلب studentId الحالي (حسب الإيميل)
+    suspend fun getCurrentStudentId(): String? {
+        return try {
+            val email = auth.currentUser?.email ?: return null
+            val qs = db.collection("students").whereEqualTo("email", email).limit(1).get().await()
+            if (!qs.isEmpty) qs.documents[0].id else null
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+
+    suspend fun getAssignmentEvaluationForCurrentStudent(assignmentId: String): AssignmentEvaluation? {
+        return try {
+            val studentId = getCurrentStudentId() ?: return null
+
+            val submissionQuery =
+                db.collection("assignment_submissions").whereEqualTo("assignmentId", assignmentId)
+                    .whereEqualTo("studentId", studentId).limit(1).get().await()
+
+            if (submissionQuery.isEmpty) return null
+
+            val doc = submissionQuery.documents[0]
+            val evaluated = doc.getBoolean("evaluated") ?: false
+            if (!evaluated) return null
+
+            val grade = doc.getString("grade")
+            val notes = doc.getString("notes")
+            AssignmentEvaluation(grade = grade, notes = notes)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
 }

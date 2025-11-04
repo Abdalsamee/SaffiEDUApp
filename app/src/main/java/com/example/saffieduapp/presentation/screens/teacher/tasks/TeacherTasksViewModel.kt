@@ -120,8 +120,8 @@ class TeacherTasksViewModel : ViewModel() {
                     id = doc.id,
                     subject = doc.getString("subjectName") ?: "",
                     date = examDate,
-                    time = doc.getString("examStartTime") ?: "N/A", // قد لا يكون لهذا الحقل علاقة بالانتهاء
-                    isActive = isActive, // ⬅️ تم تحديث القيمة هنا
+                    time = doc.getString("examStartTime") ?: "N/A",
+                    isActive = isActive,
                     type = TaskType.EXAM,
                     title = doc.getString("title")
                 )
@@ -142,21 +142,19 @@ class TeacherTasksViewModel : ViewModel() {
 
         _state.value = _state.value.copy(isLoading = true) // عرض مؤشر التحميل
 
-        db.collection(collectionName).document(taskId).delete()
-            .addOnSuccessListener {
-                // بعد الحذف بنجاح، قم بإعادة تحميل المهام المتبقية
-                teacherId?.let { id ->
-                    // لا نحتاج لإعادة جلب معرف المعلم، فقط إعادة تحميل المهام باستخدام الصف المحدد
-                    loadAssignments(id, _state.value.selectedClass)
-                    loadExams(id, _state.value.selectedClass)
-                }
+        db.collection(collectionName).document(taskId).delete().addOnSuccessListener {
+            // بعد الحذف بنجاح، قم بإعادة تحميل المهام المتبقية
+            teacherId?.let { id ->
+                // لا نحتاج لإعادة جلب معرف المعلم، فقط إعادة تحميل المهام باستخدام الصف المحدد
+                loadAssignments(id, _state.value.selectedClass)
+                loadExams(id, _state.value.selectedClass)
             }
-            .addOnFailureListener { e ->
-                // يمكنك هنا إضافة منطق لعرض رسالة خطأ للمستخدم
-                _state.value = _state.value.copy(isLoading = false)
-                // يمكن استخدام Log.e أو أي نظام Logging
-                println("Error deleting task: $e")
-            }
+        }.addOnFailureListener { e ->
+            // يمكنك هنا إضافة منطق لعرض رسالة خطأ للمستخدم
+            _state.value = _state.value.copy(isLoading = false)
+            // يمكن استخدام Log.e أو أي نظام Logging
+            println("Error deleting task: $e")
+        }
     }
 
     // تغيير التبويب (واجبات / اختبارات)

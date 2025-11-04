@@ -29,7 +29,6 @@ fun StudentExamResultScreen(
     viewModel: StudentExamResultViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
-
     // ✅ تحميل البيانات عند فتح الشاشة
     LaunchedEffect(examId) {
         viewModel.loadExamResult(examId)
@@ -94,7 +93,7 @@ private fun StudentExamResultScreenContent(
 
                 val shouldShowScore = state.isGraded && state.showResultsImmediately
                 // ✅ تحقق من حالة التقييم
-                if (shouldShowScore) {
+                if (!shouldShowScore) {
                     // 🔸 في حال لم يتم التقييم بعد
                     Box(
                         modifier = Modifier

@@ -1,5 +1,7 @@
 package com.example.saffieduapp.navigation
 
+import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
@@ -13,6 +15,7 @@ import com.example.saffieduapp.presentation.screens.teacher.tasks.student_detail
 import com.example.saffieduapp.presentation.screens.teacher.tasks.student_details.exam_answers.TeacherStudentExamAnswersScreen
 
 
+@RequiresApi(Build.VERSION_CODES.O)
 fun NavGraphBuilder.teacherTasksNavGraph(navController: NavHostController) {
     navigation(
         startDestination = Routes.TEACHER_TASKS_SCREEN, route = Routes.TEACHER_TASKS_GRAPH
@@ -22,25 +25,44 @@ fun NavGraphBuilder.teacherTasksNavGraph(navController: NavHostController) {
             TeacherTasksScreen(navController = navController)
         }
 
-        // 🎯 FIX: تم تحديث المسار ليشمل taskId و taskType
+        // وجهة تفاصيل المهمة (قديمة ومحدثة)
         composable(
             route = "${Routes.TEACHER_TASK_DETAILS_SCREEN}/{taskId}/{taskType}",
             arguments = listOf(
                 navArgument("taskId") { type = NavType.StringType },
-                // يجب إضافة taskType هنا ليتمكن نظام التنقل من مطابقة المسار
-                navArgument("taskType") { type = NavType.StringType })) {
-            // لا حاجة لاستخراج الـ taskId هنا، الـ ViewModel سيفعل ذلك
+                navArgument("taskType") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val taskId = backStackEntry.arguments?.getString("taskId") ?: ""
+            val taskTypeString = backStackEntry.arguments?.getString("taskType") ?: "ASSIGNMENT"
+
             TeacherTaskDetailsScreen(
-                navController = navController
+                navController = navController,
+                taskId = taskId,
             )
         }
-        composable(Routes.TEACHER_STUDENT_ASSIGNMENT_SCREEN) {
-            TeacherStudentAssignmentScreen(navController = navController)
+
+
+        // ✅ التعديل الرئيسي: يجب أن يتضمن المسار وسيط taskId
+        composable(
+            route = "${Routes.TEACHER_STUDENT_ASSIGNMENT_SCREEN}/{studentId}/{assignmentId}",
+            arguments = listOf(
+                navArgument("studentId") { type = NavType.StringType },
+                navArgument("assignmentId") { type = NavType.StringType }
+            )
+        ) {
+            TeacherStudentAssignmentScreen(
+                navController = navController,
+                studentId = it.arguments?.getString("studentId") ?: "",
+                assignmentId = it.arguments?.getString("assignmentId") ?: ""
+            )
         }
+
 
         composable(
             route = Routes.TEACHER_STUDENT_EXAM_ROUTE, arguments = listOf(
-            navArgument("studentId") { type = NavType.StringType })) { backStackEntry ->
+                navArgument("studentId") { type = NavType.StringType })
+        ) { backStackEntry ->
             val studentId = backStackEntry.arguments?.getString("studentId") ?: ""
             TeacherStudentExamScreen(
                 navController = navController, examId = "demoExam", // يمكنك لاحقاً تمرير معرف حقيقي
@@ -55,6 +77,5 @@ fun NavGraphBuilder.teacherTasksNavGraph(navController: NavHostController) {
             val studentId = backStackEntry.arguments?.getString("studentId") ?: ""
             TeacherStudentExamAnswersScreen()
         }
-
     }
 }

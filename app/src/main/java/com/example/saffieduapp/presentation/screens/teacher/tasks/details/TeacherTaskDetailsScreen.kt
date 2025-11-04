@@ -15,14 +15,18 @@ import androidx.navigation.NavController
 import com.example.saffieduapp.navigation.Routes
 import com.example.saffieduapp.presentation.screens.student.components.CommonTopAppBar
 import com.example.saffieduapp.presentation.screens.student.home.components.SearchBar
+import com.example.saffieduapp.presentation.screens.teacher.tasks.components.TaskType
 import com.example.saffieduapp.presentation.screens.teacher.tasks.details.components.StudentTaskItemCard
 import com.example.saffieduapp.ui.theme.SaffiEDUAppTheme
 
 @Composable
 fun TeacherTaskDetailsScreen(
-    navController: NavController, viewModel: TeacherTaskDetailsViewModel = hiltViewModel()
+    navController: NavController,
+    taskId: String,
+    viewModel: TeacherTaskDetailsViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
+    val taskType = viewModel.taskType // 👈 سنضيف getter صغير للـ taskType
 
     Scaffold(
         topBar = {
@@ -81,9 +85,17 @@ fun TeacherTaskDetailsScreen(
                                 score = student.score,
                                 imageUrl = student.imageUrl,
                                 onDetailsClick = {
-
-                                    navController.navigate("${Routes.TEACHER_STUDENT_EXAM_SCREEN}/${student.id}")
-                                    //navController.navigate(Routes.TEACHER_STUDENT_ASSIGNMENT_SCREEN)
+                                    if (taskType == TaskType.ASSIGNMENT) {
+                                        // 🔹 واجب → الانتقال إلى شاشة TeacherStudentAssignmentScreen
+                                        navController.navigate(
+                                            "${Routes.TEACHER_STUDENT_ASSIGNMENT_SCREEN}/${student.id}/${taskId}"
+                                        )
+                                    } else {
+                                        // 🔹 اختبار → الانتقال إلى شاشة TeacherStudentExamScreen
+                                        navController.navigate(
+                                            "${Routes.TEACHER_STUDENT_EXAM_SCREEN}/${student.id}"
+                                        )
+                                    }
                                 })
                         }
                     }
