@@ -123,13 +123,51 @@ class TeacherStudentExamViewModel(
         _state.update { it.copy(earnedScore = numericValue) }
     }
 
-    /**
-     * 🔹 حفظ تقييم الطالب (لاحقًا سيتم ربطها بـ Firestore)
-     */
     fun onSaveExamEvaluation() {
         viewModelScope.launch {
-            println("✅ تم حفظ تقييم الطالب (${_state.value.studentName}) بنجاح.")
-            // TODO: حفظ في Firestore عبر collection("exam_submissions")
+
+            // 1. تحديد مرجع المستند في مجموعة "exam_submissions"
+            val submissionQuery = db.collection("exam_submissions").whereEqualTo("examId", examId)
+                .whereEqualTo("studentId", studentId).get().await()
+
+            val submissionDocSnapshot = submissionQuery.documents.firstOrNull()
+
+            if (submissionDocSnapshot == null) {
+                _state.update { it.copy(errorMessage = "لم يتم العثور على مستند التسليم للحفظ.") }
+                return@launch
+            }
+
+            val submissionDocRef = submissionDocSnapshot.reference
+
+            // 2. فحص حالة التعديل (هذا فحص إضافي جيد)
+            val isAlreadyEdited = submissionDocSnapshot.getBoolean("scoreEditedByTeacher") == true
+
+            if (isAlreadyEdited) {
+                println("⚠️ تم تعديل العلامة مسبقًا. لا يمكن التعديل مرة أخرى.")
+                _state.update { it.copy(errorMessage = "تم تعديل العلامة مسبقًا ولا يمكن التعديل مرة أخرى.") }
+                return@launch
+            }
+
+            // 3. إنشاء البيانات المراد تحديثها
+            val updates = hashMapOf<String, Any>(
+                "score" to _state.value.earnedScore, // العلامة الجديدة من الـ State
+                "scoreEditedByTeacher" to true,       // تعيين الحقل لمنع التعديلات المستقبلية
+                "lastEditedByTeacherAt" to System.currentTimeMillis() / 1000 // (اختياري) طابع زمني
+            )
+
+            // 4. حفظ التحديث
+            try {
+                submissionDocRef.update(updates).await()
+                println("✅ تم حفظ تقييم الطالب بنجاح وتم تعيين حالة التعديل.")
+                _state.update { it.copy(errorMessage = null) } // مسح أي خطأ سابق
+            } catch (e: Exception) {
+                println("❌ فشل في حفظ التقييم: ${e.message}")
+                _state.update {
+                    it.copy(
+                        errorMessage = "فشل في حفظ التقييم: ${e.message}"
+                    )
+                }
+            }
         }
     }
 
