@@ -26,6 +26,7 @@ class TeacherStudentExamViewModel(
 
     private val db = FirebaseFirestore.getInstance() // ⬅️ إضافة Firestore
 
+    // الأسماء متطابقة مع navArgument في ملف التنقل
     private val examId: String = checkNotNull(savedStateHandle["examId"])
     private val studentId: String = checkNotNull(savedStateHandle["studentId"])
 
@@ -34,8 +35,7 @@ class TeacherStudentExamViewModel(
     }
 
     /**
-     * 🔹 تحميل بيانات الطالب والاختبار (محاكاة Firebase)
-     * لاحقًا: سيتم استبدال هذه الدالة بالاستدعاء الفعلي لـ Firestore.
+     * 🔹 تحميل بيانات الطالب والاختبار من Firestore
      */
     @RequiresApi(Build.VERSION_CODES.O)
     private fun loadExamData() {
@@ -43,7 +43,12 @@ class TeacherStudentExamViewModel(
             _state.update { it.copy(isLoading = true) }
 
             try {
-                // 1. جلب مستند التسليم (Submission)
+                // 1. جلب مستند الاختبار (Exam) للحصول على المدة القصوى
+                val examDoc = db.collection("exams").document(examId).get().await()
+                // نفترض أن مدة الاختبار موجودة في حقل "examTime" كـ String يمثل الدقائق
+                val examDurationMinutes = examDoc.getString("examTime")?.toIntOrNull() ?: 0
+
+                // 2. جلب مستند التسليم (Submission)
                 val submissionQuery =
                     db.collection("exam_submissions").whereEqualTo("examId", examId)
                         .whereEqualTo("studentId", studentId).get().await()
@@ -51,10 +56,10 @@ class TeacherStudentExamViewModel(
                 val submissionDoc = submissionQuery.documents.firstOrNull()
                     ?: throw Exception("لم يتم العثور على تسليم الاختبار.")
 
-                // 2. جلب مستند الطالب (Student)
+                // 3. جلب مستند الطالب (Student)
                 val studentDoc = db.collection("students").document(studentId).get().await()
 
-                // 3. جلب تقرير المراقبة (Monitoring Report)
+                // 4. جلب تقرير المراقبة (Monitoring Report)
                 val reportQuery =
                     db.collection("exam_monitoring_reports").whereEqualTo("examId", examId)
                         .whereEqualTo("studentId", studentId).get().await()
@@ -62,26 +67,27 @@ class TeacherStudentExamViewModel(
                 val reportDoc = reportQuery.documents.firstOrNull()
 
 
-                // 4. معالجة البيانات
+                // 5. معالجة البيانات
 
-                // 4.1. بيانات التسليم والدرجات
+                // 5.1. بيانات التسليم والدرجات
                 val earnedScore = submissionDoc.getLong("score")?.toInt() ?: 0
                 val totalScore = submissionDoc.getLong("maxScore")?.toInt() ?: 0
-                val totalTimeMinutes =
+                // المدة الفعلية التي قضاها الطالب (بالدقائق)
+                val timeSpentMinutes =
                     (submissionDoc.getLong("totalDurationSeconds")?.div(60))?.toInt() ?: 0
                 val status =
                     if (submissionDoc.getBoolean("isCompleted") == true) "مكتملة" else "غير مكتملة"
 
 
-                // 4.2. بيانات التقرير (المراقبة)
+                // 5.2. بيانات التقرير (المراقبة)
                 val (cheatingLogs, imageUrls, videoUrl) = extractMonitoringData(reportDoc)
 
-                // 4.3. بيانات الطالب
+                // 5.3. بيانات الطالب
                 val studentName = studentDoc.getString("fullName") ?: "اسم غير معروف"
                 val studentImageUrl = studentDoc.getString("profileImageUrl")
 
 
-                // 5. تحديث الحالة
+                // 6. تحديث الحالة
                 _state.value = TeacherStudentExamState(
                     isLoading = false,
                     studentName = studentName,
@@ -89,8 +95,8 @@ class TeacherStudentExamViewModel(
                     earnedScore = earnedScore,
                     totalScore = totalScore,
                     answerStatus = status,
-                    totalTimeMinutes = totalTimeMinutes,
-                    examStatus = ExamStatus.COMPLETED, // يمكنك تعيين حالة أكثر دقة بناءً على البيانات
+                    totalTimeMinutes = examDurationMinutes, // ⬅️ الآن يتم تمرير مدة الاختبار القصوى
+                    examStatus = ExamStatus.COMPLETED,
                     cheatingLogs = cheatingLogs,
                     imageUrls = imageUrls,
                     videoUrl = videoUrl
@@ -153,7 +159,6 @@ class TeacherStudentExamViewModel(
 
     /**
      * دالة مساعدة لاستخراج سجلات الغش والوسائط من مستند التقرير.
-     * يجب أن تتطابق مع الهيكل الذي يظهر في لقطات الشاشة.
      */
     @RequiresApi(Build.VERSION_CODES.O)
     private fun extractMonitoringData(reportDoc: com.google.firebase.firestore.DocumentSnapshot?): Triple<List<String>, List<String>?, String?> {
@@ -191,8 +196,7 @@ class TeacherStudentExamViewModel(
             (item as? Map<String, Any>)?.get("imageUrl") as? String
         } ?: emptyList()
 
-        // 2. استخراج عناوين URL للفيديو (نفترض وجود حقل videoUrl مباشر في مكان ما، أو نستخدم الرابط الأخير)
-        // هذا الجزء قد يحتاج إلى تعديل دقيق بناءً على مكان تخزين رابط الفيديو في Firestore
+        // 2. استخراج عناوين URL للفيديو (نفترض وجود حقل videoUrl مباشر في مكان ما)
         val videoUrl = mediaMap?.values?.firstNotNullOfOrNull { item ->
             (item as? Map<String, Any>)?.get("videoUrl") as? String
         }
