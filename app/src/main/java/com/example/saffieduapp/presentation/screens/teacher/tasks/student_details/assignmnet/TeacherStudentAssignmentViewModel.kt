@@ -66,7 +66,7 @@ class TeacherStudentAssignmentViewModel @Inject constructor() : ViewModel() {
                 // 🔹 جلب بيانات الطالب
                 val studentDoc = db.collection("students").document(studentId).get().await()
                 val studentName = studentDoc.getString("fullName") ?: "اسم غير معروف"
-                val studentClass = studentDoc.getString("className") ?: "غير محدد"
+                val studentClass = studentDoc.getString("grade") ?: "غير محدد"
 
                 _state.value = _state.value.copy(
                     isLoading = false,

@@ -26,7 +26,7 @@ fun TeacherTaskDetailsScreen(
     viewModel: TeacherTaskDetailsViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
-    val taskType = viewModel.taskType // 👈 سنضيف getter صغير للـ taskType
+    val taskType = viewModel.taskType
 
     Scaffold(
         topBar = {

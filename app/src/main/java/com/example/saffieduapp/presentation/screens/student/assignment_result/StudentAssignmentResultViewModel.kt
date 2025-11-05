@@ -2,44 +2,81 @@ package com.example.saffieduapp.presentation.screens.student.assignment_result
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.google.firebase.firestore.FirebaseFirestore
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 
 @HiltViewModel
-class StudentAssignmentResultViewModel @Inject constructor() : ViewModel() {
+class StudentAssignmentResultViewModel @Inject constructor(
+    private val firestore: FirebaseFirestore
+) : ViewModel() {
 
     private val _state = MutableStateFlow(StudentAssignmentResultState(isLoading = true))
     val state: StateFlow<StudentAssignmentResultState> = _state
 
     /**
-     * 🔹 هذه الدالة تُستدعى عند التنقل إلى الواجهة مع معرف الواجب
-     * الهدف منها تحميل التقييم من Firebase لاحقاً بناءً على الـ assignmentId
+     * تحميل نتيجة واجب معين بناءً على الـ assignmentId
      */
     fun loadResultData(assignmentId: String) {
         viewModelScope.launch {
-            _state.update { it.copy(isLoading = true) }
+            try {
+                _state.update { it.copy(isLoading = true) }
 
-            delay(1000) // محاكاة تأخير الشبكة (اختياري حالياً)
+                // 🔹 البحث عن الوثيقة التي تحتوي نفس assignmentId
+                val querySnapshot = firestore.collection("assignment_submissions")
+                    .whereEqualTo("assignmentId", assignmentId)
+                    .get()
+                    .await()
 
-            // 🔹 لاحقاً سيتم هنا استبدال البيانات الثابتة بقراءة من Firestore
-            _state.update {
-                it.copy(
-                    isLoading = false,
-                    assignmentTitle = "واجب اللغة العربية",
-                    studentName = "فتح عبد السميع النجار",
-                    files = listOf(
-                        "pdf.120211726 واجب اللغة العربية",
-                        "pdf.123 واجب اللغة العربية"
-                    ),
-                    grade = "10 / 10",
-                    comment = "حل رائع جدًا 🌟",
-                    errorMessage = null
-                )
+                if (querySnapshot.isEmpty) {
+                    _state.update {
+                        it.copy(
+                            isLoading = false,
+                            errorMessage = "لم يتم العثور على النتيجة لهذا الواجب."
+                        )
+                    }
+                    return@launch
+                }
+
+                val doc = querySnapshot.documents.first()
+                val grade = doc.getString("grade") ?: ""
+                val comment = doc.getString("notes") ?: ""
+                val studentId = doc.getString("studentId") ?: ""
+                val submittedFiles = doc.get("submittedFiles") as? List<String> ?: emptyList()
+
+                // ✅ جلب اسم الطالب من مجموعة students
+                val studentDoc = firestore.collection("students")
+                    .document(studentId)
+                    .get()
+                    .await()
+
+                val studentName = studentDoc.getString("fullName") ?: "غير معروف"
+
+                // ✅ تحديث الحالة بالبيانات
+                _state.update {
+                    it.copy(
+                        isLoading = false,
+                        assignmentTitle = "واجب رقم ${assignmentId.takeLast(4)}",
+                        studentName = studentName,
+                        files = submittedFiles,
+                        grade = grade,
+                        comment = comment,
+                        errorMessage = null
+                    )
+                }
+
+            } catch (e: Exception) {
+                _state.update {
+                    it.copy(
+                        isLoading = false,
+                        errorMessage = "حدث خطأ أثناء تحميل البيانات: ${e.localizedMessage}"
+                    )
+                }
             }
         }
     }
