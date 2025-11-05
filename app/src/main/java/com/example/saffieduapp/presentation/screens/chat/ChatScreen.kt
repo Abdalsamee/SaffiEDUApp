@@ -66,7 +66,7 @@ fun ChatScreen(navController: NavHostController) {
             Text(
                 text = "يتم حالياً إعادة تصميم نظام الدردشة لضمان أداء آمن ومستقر. ستتوفر الميزة في تحديثات لاحقة.",
                 style = MaterialTheme.typography.bodyMedium.copy(
-                    color = AppTextPrimary.copy(alpha = 0.7f),
+                    color = AppTextPrimary.copy(alpha = 0.9f),
                     fontSize = 14.sp,
                     lineHeight = 20.sp
                 ),
