@@ -93,7 +93,7 @@ fun TeacherTaskDetailsScreen(
                                     } else {
                                         // 🔹 اختبار → الانتقال إلى شاشة TeacherStudentExamScreen
                                         navController.navigate(
-                                            "${Routes.TEACHER_STUDENT_EXAM_SCREEN}/${student.id}"
+                                            "${Routes.TEACHER_STUDENT_EXAM_SCREEN}/${student.id}/${taskId}"
                                         )
                                     }
                                 })

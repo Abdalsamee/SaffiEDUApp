@@ -1,17 +1,33 @@
 package com.example.saffieduapp.presentation.screens.teacher.tasks.student_details.exam
 
+import android.os.Build
+import androidx.annotation.RequiresApi
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import kotlinx.coroutines.delay
+import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
-class TeacherStudentExamViewModel : ViewModel() {
+@RequiresApi(Build.VERSION_CODES.O)
+class TeacherStudentExamViewModel(
+    savedStateHandle: SavedStateHandle
+) : ViewModel() {
 
     private val _state = MutableStateFlow(TeacherStudentExamState(isLoading = true))
     val state: StateFlow<TeacherStudentExamState> = _state
+
+    private val db = FirebaseFirestore.getInstance() // ⬅️ إضافة Firestore
+
+    private val examId: String = checkNotNull(savedStateHandle["examId"])
+    private val studentId: String = checkNotNull(savedStateHandle["studentId"])
 
     init {
         loadExamData()
@@ -21,35 +37,73 @@ class TeacherStudentExamViewModel : ViewModel() {
      * 🔹 تحميل بيانات الطالب والاختبار (محاكاة Firebase)
      * لاحقًا: سيتم استبدال هذه الدالة بالاستدعاء الفعلي لـ Firestore.
      */
+    @RequiresApi(Build.VERSION_CODES.O)
     private fun loadExamData() {
         viewModelScope.launch {
-            try {
-                delay(1000) // محاكاة تأخير الشبكة أو التحميل
+            _state.update { it.copy(isLoading = true) }
 
+            try {
+                // 1. جلب مستند التسليم (Submission)
+                val submissionQuery =
+                    db.collection("exam_submissions").whereEqualTo("examId", examId)
+                        .whereEqualTo("studentId", studentId).get().await()
+
+                val submissionDoc = submissionQuery.documents.firstOrNull()
+                    ?: throw Exception("لم يتم العثور على تسليم الاختبار.")
+
+                // 2. جلب مستند الطالب (Student)
+                val studentDoc = db.collection("students").document(studentId).get().await()
+
+                // 3. جلب تقرير المراقبة (Monitoring Report)
+                val reportQuery =
+                    db.collection("exam_monitoring_reports").whereEqualTo("examId", examId)
+                        .whereEqualTo("studentId", studentId).get().await()
+
+                val reportDoc = reportQuery.documents.firstOrNull()
+
+
+                // 4. معالجة البيانات
+
+                // 4.1. بيانات التسليم والدرجات
+                val earnedScore = submissionDoc.getLong("score")?.toInt() ?: 0
+                val totalScore = submissionDoc.getLong("maxScore")?.toInt() ?: 0
+                val totalTimeMinutes =
+                    (submissionDoc.getLong("totalDurationSeconds")?.div(60))?.toInt() ?: 0
+                val status =
+                    if (submissionDoc.getBoolean("isCompleted") == true) "مكتملة" else "غير مكتملة"
+
+
+                // 4.2. بيانات التقرير (المراقبة)
+                val (cheatingLogs, imageUrls, videoUrl) = extractMonitoringData(reportDoc)
+
+                // 4.3. بيانات الطالب
+                val studentName = studentDoc.getString("fullName") ?: "اسم غير معروف"
+                val studentImageUrl = studentDoc.getString("profileImageUrl")
+
+
+                // 5. تحديث الحالة
                 _state.value = TeacherStudentExamState(
                     isLoading = false,
-                    studentName = "يزن عادل ظهير",
-                    studentImageUrl = "https://randomuser.me/api/portraits/men/60.jpg",
-                    earnedScore = 15,
-                    totalScore = 20,
-                    answerStatus = "مكتملة",
-                    totalTimeMinutes = 45,
-                    examStatus = ExamStatus.EXCLUDED,
-                    cheatingLogs = listOf(
-                        "10:05 ص → خرج من التطبيق (تنبيه)",
-                        "10:15 ص → أوقف الكاميرا",
-                        "10:20 ص → عودة للامتحان"
-                    ),
-                    imageUrls = listOf(
-                        "https://picsum.photos/200/300",
-                        "https://picsum.photos/200/301",
-                        "https://picsum.photos/200/302"
-                    ),
-                    videoUrl = "https://sample-videos.com/video123/mp4/720/big_buck_bunny_720p_1mb.mp4"
+                    studentName = studentName,
+                    studentImageUrl = studentImageUrl,
+                    earnedScore = earnedScore,
+                    totalScore = totalScore,
+                    answerStatus = status,
+                    totalTimeMinutes = totalTimeMinutes,
+                    examStatus = ExamStatus.COMPLETED, // يمكنك تعيين حالة أكثر دقة بناءً على البيانات
+                    cheatingLogs = cheatingLogs,
+                    imageUrls = imageUrls,
+                    videoUrl = videoUrl
                 )
 
             } catch (e: Exception) {
-                _state.update { it.copy(isLoading = false, errorMessage = e.message ?: "حدث خطأ أثناء تحميل البيانات") }
+                println("Error loading exam data: ${e.message}")
+                _state.update {
+                    it.copy(
+                        isLoading = false,
+                        errorMessage = e.message ?: "فشل في تحميل بيانات الاختبار"
+                    )
+                }
             }
         }
     }
@@ -95,5 +149,54 @@ class TeacherStudentExamViewModel : ViewModel() {
     fun onVideoClick() {
         println("🎥 تشغيل الفيديو من الرابط: ${_state.value.videoUrl}")
         // TODO: تشغيل الفيديو باستخدام ExoPlayer أو External Viewer
+    }
+
+    /**
+     * دالة مساعدة لاستخراج سجلات الغش والوسائط من مستند التقرير.
+     * يجب أن تتطابق مع الهيكل الذي يظهر في لقطات الشاشة.
+     */
+    @RequiresApi(Build.VERSION_CODES.O)
+    private fun extractMonitoringData(reportDoc: com.google.firebase.firestore.DocumentSnapshot?): Triple<List<String>, List<String>?, String?> {
+
+        // سجلات الأحداث (Events)
+        val eventsList =
+            reportDoc?.get("report.json.events") as? List<Map<String, Any>> ?: emptyList()
+        val formattedLogs = eventsList.mapNotNull { event ->
+            val type = event["type"] as? String
+            val timestampSec = event["timestamp"] as? Long // يُفترض أنه UNIX timestamp بالثواني
+
+            if (type != null && timestampSec != null) {
+                // تحويل UNIX timestamp إلى تنسيق وقت
+                val time = Instant.ofEpochSecond(timestampSec).atZone(ZoneId.systemDefault())
+                    .format(DateTimeFormatter.ofPattern("hh:mm a", Locale("ar")))
+
+                // تحويل أنواع الأحداث إلى نصوص عربية مناسبة للعرض
+                val logText = when (type) {
+                    "EXAM_PAUSED" -> "أوقف الاختبار"
+                    "EXAM_RESUMED" -> "استأنف الاختبار"
+                    "EXAM_SUBMITTED" -> "سلم الاختبار"
+                    "MULTIPLE_FACES" -> "تم الكشف عن وجوه متعددة (تنبيه)"
+                    else -> type
+                }
+                return@mapNotNull "$time → $logText"
+            }
+            null
+        }
+
+        // سجلات الوسائط (Media Logs)
+        val mediaMap = reportDoc?.get("media") as? Map<String, Any>
+
+        // 1. استخراج عناوين URL للصور
+        val imagesList = mediaMap?.values?.mapNotNull { item ->
+            (item as? Map<String, Any>)?.get("imageUrl") as? String
+        } ?: emptyList()
+
+        // 2. استخراج عناوين URL للفيديو (نفترض وجود حقل videoUrl مباشر في مكان ما، أو نستخدم الرابط الأخير)
+        // هذا الجزء قد يحتاج إلى تعديل دقيق بناءً على مكان تخزين رابط الفيديو في Firestore
+        val videoUrl = mediaMap?.values?.firstNotNullOfOrNull { item ->
+            (item as? Map<String, Any>)?.get("videoUrl") as? String
+        }
+
+        return Triple(formattedLogs, imagesList, videoUrl)
     }
 }

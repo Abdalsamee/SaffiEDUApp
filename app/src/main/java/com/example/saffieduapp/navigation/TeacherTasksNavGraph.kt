@@ -25,16 +25,15 @@ fun NavGraphBuilder.teacherTasksNavGraph(navController: NavHostController) {
             TeacherTasksScreen(navController = navController)
         }
 
-        // وجهة تفاصيل المهمة (قديمة ومحدثة)
+        // وجهة تفاصيل المهمة
         composable(
-            route = "${Routes.TEACHER_TASK_DETAILS_SCREEN}/{taskId}/{taskType}",
-            arguments = listOf(
+            route = "${Routes.TEACHER_TASK_DETAILS_SCREEN}/{taskId}/{taskType}", arguments = listOf(
                 navArgument("taskId") { type = NavType.StringType },
-                navArgument("taskType") { type = NavType.StringType }
-            )
+                navArgument("taskType") { type = NavType.StringType })
         ) { backStackEntry ->
             val taskId = backStackEntry.arguments?.getString("taskId") ?: ""
-            val taskTypeString = backStackEntry.arguments?.getString("taskType") ?: "ASSIGNMENT"
+            // taskTypeString يتم استخدامه فقط في ViewModel
+            // val taskTypeString = backStackEntry.arguments?.getString("taskType") ?: "ASSIGNMENT"
 
             TeacherTaskDetailsScreen(
                 navController = navController,
@@ -43,13 +42,12 @@ fun NavGraphBuilder.teacherTasksNavGraph(navController: NavHostController) {
         }
 
 
-        // ✅ التعديل الرئيسي: يجب أن يتضمن المسار وسيط taskId
+        // وجهة تفاصيل واجب الطالب (ASSIGNMENT)
         composable(
             route = "${Routes.TEACHER_STUDENT_ASSIGNMENT_SCREEN}/{studentId}/{assignmentId}",
             arguments = listOf(
                 navArgument("studentId") { type = NavType.StringType },
-                navArgument("assignmentId") { type = NavType.StringType }
-            )
+                navArgument("assignmentId") { type = NavType.StringType })
         ) {
             TeacherStudentAssignmentScreen(
                 navController = navController,
@@ -58,24 +56,37 @@ fun NavGraphBuilder.teacherTasksNavGraph(navController: NavHostController) {
             )
         }
 
-
+        // 🟢 الوجهة الصحيحة لتفاصيل اختبار الطالب (EXAM)
+        // يتم استخدام هذا المسار من شاشة تفاصيل المهمة
         composable(
-            route = Routes.TEACHER_STUDENT_EXAM_ROUTE, arguments = listOf(
-                navArgument("studentId") { type = NavType.StringType })
+            route = "${Routes.TEACHER_STUDENT_EXAM_SCREEN}/{studentId}/{examId}",
+            arguments = listOf(
+                navArgument("studentId") { type = NavType.StringType },
+                navArgument("examId") {
+                    type = NavType.StringType
+                })
         ) { backStackEntry ->
-            val studentId = backStackEntry.arguments?.getString("studentId") ?: ""
             TeacherStudentExamScreen(
-                navController = navController, examId = "demoExam", // يمكنك لاحقاً تمرير معرف حقيقي
-                studentId = studentId
+                navController = navController,
+                studentId = backStackEntry.arguments?.getString("studentId") ?: "",
+                examId = backStackEntry.arguments?.getString("examId") ?: ""
             )
         }
 
+        // 🟢 الوجهة الصحيحة لشاشة إجابات اختبار الطالب (Exam Answers)
         composable(
-            route = Routes.TEACHER_STUDENT_EXAM_ANSWERS_SCREEN_WITH_ARGS,
-            arguments = listOf(navArgument("studentId") { type = NavType.StringType })
+            route = "${Routes.TEACHER_STUDENT_EXAM_ANSWERS_SCREEN_WITH_ARGS}/{studentId}/{examId}",
+            arguments = listOf(
+                navArgument("studentId") { type = NavType.StringType },
+                navArgument("examId") {
+                    type = NavType.StringType
+                })
         ) { backStackEntry ->
-            val studentId = backStackEntry.arguments?.getString("studentId") ?: ""
-            TeacherStudentExamAnswersScreen()
+            TeacherStudentExamAnswersScreen(
+                navController = navController,
+                studentId = backStackEntry.arguments?.getString("studentId") ?: "",
+                examId = backStackEntry.arguments?.getString("examId") ?: ""
+            )
         }
     }
 }
