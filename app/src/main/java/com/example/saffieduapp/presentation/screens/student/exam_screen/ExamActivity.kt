@@ -12,6 +12,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.RequiresApi
 import androidx.compose.runtime.*
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModelProvider
@@ -20,8 +21,11 @@ import com.example.saffieduapp.presentation.screens.student.exam_screen.componen
 import com.example.saffieduapp.presentation.screens.student.exam_screen.security.*
 import com.example.saffieduapp.ui.theme.SaffiEDUAppTheme
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.tasks.await
 
 @AndroidEntryPoint
 class ExamActivity : ComponentActivity() {
@@ -36,6 +40,10 @@ class ExamActivity : ComponentActivity() {
 
     private var examId: String = ""
     private var sessionId: String? = null
+
+    // المتغيرات التي سيتم تحديثها بالبيانات الصحيحة من Firestore
+    private var correctStudentId: String = ""
+    private var studentEmail: String = ""
 
     private var showCameraCheck = mutableStateOf(true)
     private var cameraCheckPassed = mutableStateOf(false)
@@ -57,6 +65,7 @@ class ExamActivity : ComponentActivity() {
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.O)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -79,23 +88,35 @@ class ExamActivity : ComponentActivity() {
             securityManager.enableSecurityFeatures()
             setupSecureScreen()
 
-            val studentId = FirebaseAuth.getInstance().currentUser?.uid ?: ""
-            if (studentId.isEmpty()) {
-                Toast.makeText(this, "لم يتم العثور على معرف الطالب", Toast.LENGTH_LONG).show()
+            // 🛑 الخطوة الجديدة والحاسمة: جلب بيانات الطالب الصحيحة باستخدام الإيميل
+            val currentUser = FirebaseAuth.getInstance().currentUser
+            val currentAuthEmail = currentUser?.email
+
+            if (currentAuthEmail.isNullOrEmpty()) {
+                Toast.makeText(
+                    this, "خطأ: لم يتم العثور على بريد الطالب في نظام الدخول.", Toast.LENGTH_LONG
+                ).show()
                 finish(); return
             }
+            // ⬅️ نبحث عن الطالب في Firestore باستخدام الإيميل،
+            // ونقوم بتشغيل هذا الجزء بشكل متزامن لأن ViewModel يعتمد على النتيجة
+            val success = runBlocking {
+                getStudentDetailsFromFirestore(currentAuthEmail)
+            }
 
+            if (!success || correctStudentId.isEmpty()) {
+                Toast.makeText(
+                    this, "خطأ: فشل العثور على سجل الطالب في Firestore.", Toast.LENGTH_LONG
+                ).show()
+                finish(); return
+            }
             // ViewModel الكاميرا
             val factory = CameraMonitorViewModelFactory(
-                application = application,
-                onViolationDetected = { violationType ->
+                application = application, onViolationDetected = { violationType ->
                     if (::securityManager.isInitialized) {
                         securityManager.logViolation(violationType)
                     }
-                },
-                examId = examId,
-                studentId = studentId,
-                existingSessionId = sessionId
+                }, examId = examId, studentId = correctStudentId, existingSessionId = sessionId
             )
             cameraViewModel = ViewModelProvider(this, factory)[CameraMonitorViewModel::class.java]
 
@@ -155,23 +176,22 @@ class ExamActivity : ComponentActivity() {
                 val checkPassed by cameraCheckPassed
 
                 if (showCameraCheckScreen && !checkPassed && ::cameraViewModel.isInitialized) {
-                    PreExamCameraCheckScreen(
-                        viewModel = cameraViewModel,
-                        onCheckPassed = {
-                            cameraCheckPassed.value = true
-                            showCameraCheck.value = false
-                        },
-                        onCheckFailed = { reason ->
-                            Toast.makeText(this@ExamActivity, "فشل فحص الكاميرا: $reason", Toast.LENGTH_LONG).show()
-                            finish()
-                        }
-                    )
+                    PreExamCameraCheckScreen(viewModel = cameraViewModel, onCheckPassed = {
+                        cameraCheckPassed.value = true
+                        showCameraCheck.value = false
+                    }, onCheckFailed = { reason ->
+                        Toast.makeText(
+                            this@ExamActivity, "فشل فحص الكاميرا: $reason", Toast.LENGTH_LONG
+                        ).show()
+                        finish()
+                    })
                 } else if (checkPassed) {
                     ExamActivityContent()
                 }
             }
         }
     }
+
     @Composable
     private fun SuppressOverlayWhileShown(tag: String, content: @Composable () -> Unit) {
         DisposableEffect(tag) {
@@ -189,7 +209,6 @@ class ExamActivity : ComponentActivity() {
         }
         content()
     }
-
 
 
     @Composable
@@ -234,7 +253,9 @@ class ExamActivity : ComponentActivity() {
             if (autoSubmit) {
                 val token = securityManager.markInternalOperationStart("AutoSubmitExam")
                 try {
-                    Toast.makeText(this@ExamActivity, "تم إنهاء الاختبار تلقائيًا.", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(
+                        this@ExamActivity, "تم إنهاء الاختبار تلقائيًا.", Toast.LENGTH_SHORT
+                    ).show()
                     finishExam()
                 } finally {
                     securityManager.markInternalOperationEnd(token)
@@ -291,29 +312,23 @@ class ExamActivity : ComponentActivity() {
         // شاشة الامتحان
         ExamScreen(
             onNavigateUp = {
-                if (!showExitDialog && !showRoomScanOverlay) {
-                    securityManager.logViolation("NAVIGATE_UP_PRESSED")
-                    securityManager.registerInternalDialog(ExamSecurityManager.DIALOG_EXIT_WARNING)
-                    showExitDialog = true
-                }
-            },
-            onExamComplete = { finishExam() },
-            examId = examId // متغير الذي حصلت عليه من Intent
-                  ,  onFinalDialogOpen = {
-                securityManager.registerInternalDialog("DIALOG_FINAL_SUBMIT")
-            },
-            onFinalDialogClose = {
-                securityManager.unregisterInternalDialog("DIALOG_FINAL_SUBMIT")
+            if (!showExitDialog && !showRoomScanOverlay) {
+                securityManager.logViolation("NAVIGATE_UP_PRESSED")
+                securityManager.registerInternalDialog(ExamSecurityManager.DIALOG_EXIT_WARNING)
+                showExitDialog = true
             }
-        )
+        }, onExamComplete = { finishExam() }, examId = examId // متغير الذي حصلت عليه من Intent
+            , onFinalDialogOpen = {
+                securityManager.registerInternalDialog("DIALOG_FINAL_SUBMIT")
+            }, onFinalDialogClose = {
+                securityManager.unregisterInternalDialog("DIALOG_FINAL_SUBMIT")
+            })
 
         // Overlay للمسح أثناء الامتحان
         if (showRoomScanOverlay) {
             InExamRoomScanOverlay(
                 state = InExamScanUiState(
-                    visible = true,
-                    durationMs = currentScanElapsedMs,
-                    coverage = coverage
+                    visible = true, durationMs = currentScanElapsedMs, coverage = coverage
                 )
             )
         }
@@ -321,17 +336,14 @@ class ExamActivity : ComponentActivity() {
         // الحوارات
         if (showExitDialog) {
             SuppressOverlayWhileShown(ExamSecurityManager.DIALOG_EXIT_WARNING) {
-                ExamExitWarningDialog(
-                    onDismiss = {
-                        showExitDialog = false
-                        securityManager.unregisterInternalDialog(ExamSecurityManager.DIALOG_EXIT_WARNING)
-                    },
-                    onConfirmExit = {
-                        securityManager.logViolation("USER_FORCED_EXIT")
-                        securityManager.unregisterInternalDialog(ExamSecurityManager.DIALOG_EXIT_WARNING)
-                        finishExam()
-                    }
-                )
+                ExamExitWarningDialog(onDismiss = {
+                    showExitDialog = false
+                    securityManager.unregisterInternalDialog(ExamSecurityManager.DIALOG_EXIT_WARNING)
+                }, onConfirmExit = {
+                    securityManager.logViolation("USER_FORCED_EXIT")
+                    securityManager.unregisterInternalDialog(ExamSecurityManager.DIALOG_EXIT_WARNING)
+                    finishExam()
+                })
             }
         }
 
@@ -342,8 +354,7 @@ class ExamActivity : ComponentActivity() {
                     violationCount = securityManager.getNoFaceViolationCount(),
                     remainingWarnings = securityManager.getRemainingNoFaceWarnings(),
                     isPaused = isPaused,
-                    onDismiss = { securityManager.dismissNoFaceWarning() }
-                )
+                    onDismiss = { securityManager.dismissNoFaceWarning() })
             }
         }
 
@@ -351,8 +362,7 @@ class ExamActivity : ComponentActivity() {
         if (showMultipleFacesWarning) {
             SuppressOverlayWhileShown(ExamSecurityManager.DIALOG_MULTIPLE_FACES) {
                 MultipleFacesWarningDialog(
-                    onDismiss = { securityManager.dismissMultipleFacesWarning() }
-                )
+                    onDismiss = { securityManager.dismissMultipleFacesWarning() })
             }
         }
 
@@ -363,8 +373,7 @@ class ExamActivity : ComponentActivity() {
                 ExamReturnWarningDialog(
                     exitAttempts = exitCount,
                     remainingAttempts = securityManager.getRemainingAttempts(),
-                    onContinue = { securityManager.dismissExitWarning() }
-                )
+                    onContinue = { securityManager.dismissExitWarning() })
             }
         }
 
@@ -372,12 +381,10 @@ class ExamActivity : ComponentActivity() {
         // تحذير الـ Overlay (حالات حرجة)
         if (showOverlayWarning) {
             OverlayDetectedDialog(
-                violationType = "OVERLAY_DETECTED",
-                onDismiss = {
+                violationType = "OVERLAY_DETECTED", onDismiss = {
                     securityManager.dismissWarning()
                     finishExam()
-                }
-            )
+                })
         }
     }
 
@@ -385,11 +392,8 @@ class ExamActivity : ComponentActivity() {
         window.apply {
             setFlags(WindowManager.LayoutParams.FLAG_SECURE, WindowManager.LayoutParams.FLAG_SECURE)
             addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-            decorView.systemUiVisibility = (
-                    View.SYSTEM_UI_FLAG_FULLSCREEN or
-                            View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or
-                            View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
-                    )
+            decorView.systemUiVisibility =
+                (View.SYSTEM_UI_FLAG_FULLSCREEN or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY)
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             window.attributes.layoutInDisplayCutoutMode =
@@ -406,22 +410,29 @@ class ExamActivity : ComponentActivity() {
         }
     }
 
-    override fun onMultiWindowModeChanged(isInMultiWindowMode: Boolean, newConfig: android.content.res.Configuration) {
+    override fun onMultiWindowModeChanged(
+        isInMultiWindowMode: Boolean, newConfig: android.content.res.Configuration
+    ) {
         super.onMultiWindowModeChanged(isInMultiWindowMode, newConfig)
         if (isInMultiWindowMode) {
             Log.e("ExamActivity", "Multi-window mode activated during exam!")
             if (::securityManager.isInitialized) securityManager.logViolation("MULTI_WINDOW_DETECTED")
-            Toast.makeText(this, "تم إنهاء الاختبار: تم اكتشاف وضع تقسيم الشاشة", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, "تم إنهاء الاختبار: تم اكتشاف وضع تقسيم الشاشة", Toast.LENGTH_LONG)
+                .show()
             finishExam()
         }
     }
 
-    override fun onPictureInPictureModeChanged(isInPictureInPictureMode: Boolean, newConfig: android.content.res.Configuration) {
+    override fun onPictureInPictureModeChanged(
+        isInPictureInPictureMode: Boolean, newConfig: android.content.res.Configuration
+    ) {
         super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
         if (isInPictureInPictureMode) {
             Log.e("ExamActivity", "PIP mode detected!")
             if (::securityManager.isInitialized) securityManager.logViolation("PIP_MODE_DETECTED")
-            Toast.makeText(this, "تم إنهاء الاختبار: لا يسمح بوضع Picture-in-Picture", Toast.LENGTH_LONG).show()
+            Toast.makeText(
+                this, "تم إنهاء الاختبار: لا يسمح بوضع Picture-in-Picture", Toast.LENGTH_LONG
+            ).show()
             finishExam()
         }
     }
@@ -472,12 +483,14 @@ class ExamActivity : ComponentActivity() {
 
             if (::securityManager.isInitialized) {
                 val report = securityManager.generateReport()
-                Log.d("ExamActivity", """
+                Log.d(
+                    "ExamActivity", """
                 🔐 SECURITY REPORT
                 Total Violations: ${report.violations.size}
                 Exit Attempts: ${report.totalExitAttempts}
                 Time Out: ${report.totalTimeOutOfApp}ms
-            """.trimIndent())
+            """.trimIndent()
+                )
             }
 
             if (::cameraViewModel.isInitialized) cameraViewModel.stopMonitoring()
@@ -494,33 +507,31 @@ class ExamActivity : ComponentActivity() {
                     val session = sessionManager.getCurrentSession()
 
                     if (session != null) {
-                        val studentId = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: "unknown"
+                        val studentIdForUpload = this.correctStudentId
                         val mediaFiles = sessionManager.getLocalMediaFiles()
                         val sessionJson = sessionManager.exportSessionForUpload()
 
                         // تجهيز البيانات لـ WorkManager
                         val mediaPaths = mediaFiles.map { it.absolutePath }
-                        val inputData = androidx.work.Data.Builder()
-                            .putString("examId", session.examId)
-                            .putString("studentId", studentId)
-                            .putString("sessionId", session.sessionId)
-                            .putString("sessionJson", sessionJson)
-                            .putString("mediaPaths", com.google.gson.Gson().toJson(mediaPaths))
-                            .build()
+                        val inputData =
+                            androidx.work.Data.Builder().putString("examId", session.examId)
+                                .putString("studentId", studentIdForUpload)
+                                .putString("sessionId", session.sessionId)
+                                .putString("sessionJson", sessionJson)
+                                .putString("mediaPaths", com.google.gson.Gson().toJson(mediaPaths))
+                                .build()
 
                         // إنشاء مهمة WorkManager
-                        val uploadRequest = androidx.work.OneTimeWorkRequestBuilder<ExamUploadWorker>()
-                            .setInputData(inputData)
-                            .setConstraints(
-                                androidx.work.Constraints.Builder()
-                                    .setRequiredNetworkType(androidx.work.NetworkType.CONNECTED)
-                                    .build()
-                            )
-                            .build()
+                        val uploadRequest =
+                            androidx.work.OneTimeWorkRequestBuilder<ExamUploadWorker>()
+                                .setInputData(inputData).setConstraints(
+                                    androidx.work.Constraints.Builder()
+                                        .setRequiredNetworkType(androidx.work.NetworkType.CONNECTED)
+                                        .build()
+                                ).build()
 
                         // جدولة الرفع في الخلفية
-                        androidx.work.WorkManager.getInstance(this)
-                            .enqueue(uploadRequest)
+                        androidx.work.WorkManager.getInstance(this).enqueue(uploadRequest)
 
                         Log.d("ExamUploadWorker", "📤 Upload task scheduled in background")
                     }
@@ -548,6 +559,36 @@ class ExamActivity : ComponentActivity() {
             if (::cameraViewModel.isInitialized) cameraViewModel.cleanup()
         } catch (e: Exception) {
             Log.e("ExamActivity", "Error in onDestroy", e)
+        }
+    }
+
+    /**
+     * دالة مساعدة لجلب UID الطالب من Firestore باستخدام البريد الإلكتروني
+     */
+    @RequiresApi(Build.VERSION_CODES.O)
+    private suspend fun getStudentDetailsFromFirestore(email: String): Boolean {
+        return try {
+            val db = FirebaseFirestore.getInstance()
+            // يجب أن يكون حقل "email" في Firestore مُفهرساً (indexed)
+            val querySnapshot =
+                db.collection("students").whereEqualTo("email", email).limit(1).get().await()
+
+            val studentDoc = querySnapshot.documents.firstOrNull()
+
+            if (studentDoc != null) {
+                // 🛑 المفتاح الصحيح: ID المستند (الذي يجب أن يكون الـ UID) هو studentDoc.id
+                correctStudentId = studentDoc.id
+                studentEmail = email
+                Log.d(
+                    "ExamActivity", "✅ Student Found. UID: $correctStudentId, Email: $studentEmail"
+                )
+                true
+            } else {
+                false
+            }
+        } catch (e: Exception) {
+            Log.e("ExamActivity", "Firestore lookup error: ${e.message}", e)
+            false
         }
     }
 }
