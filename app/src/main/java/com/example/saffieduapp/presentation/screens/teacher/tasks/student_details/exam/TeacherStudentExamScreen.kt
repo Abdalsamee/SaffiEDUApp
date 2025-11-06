@@ -1,5 +1,7 @@
 package com.example.saffieduapp.presentation.screens.teacher.tasks.student_details.exam
 
+import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -15,6 +17,7 @@ import com.example.saffieduapp.presentation.screens.student.components.CommonTop
 import com.example.saffieduapp.presentation.screens.teacher.tasks.student_details.exam.components.*
 import com.example.saffieduapp.ui.theme.SaffiEDUAppTheme
 
+@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun TeacherStudentExamScreen(
     navController: NavController? = null,

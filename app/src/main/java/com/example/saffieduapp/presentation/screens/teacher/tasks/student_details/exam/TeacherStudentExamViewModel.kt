@@ -1,14 +1,19 @@
 package com.example.saffieduapp.presentation.screens.teacher.tasks.student_details.exam
 
 import android.os.Build
+import android.util.Log
 import androidx.annotation.RequiresApi
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.saffieduapp.presentation.screens.student.exam_screen.session.EncryptionHelper // ⬅️ استيراد مُساعد التشفير
 import com.google.common.reflect.TypeToken
+import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.gson.Gson
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -23,11 +28,18 @@ class TeacherStudentExamViewModel(
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
+    private val TAG = "TeacherExamViewModel"
+
     private val _state = MutableStateFlow(TeacherStudentExamState(isLoading = true))
     val state: StateFlow<TeacherStudentExamState> = _state
 
-    private val db = FirebaseFirestore.getInstance() // ⬅️ إضافة Firestore
-    private val gson = Gson() // ⬅️ إنشاء مثيل Gson
+    // ⬅️ إضافة SharedFlow للأحداث أحادية التنفيذ (مثل فتح Dialog)
+    private val _events = MutableSharedFlow<TeacherStudentExamEvent>()
+    val events: SharedFlow<TeacherStudentExamEvent> = _events
+
+
+    private val db = FirebaseFirestore.getInstance()
+    private val gson = Gson()
 
     // الأسماء متطابقة مع navArgument في ملف التنقل
     private val examId: String = checkNotNull(savedStateHandle["examId"])
@@ -59,6 +71,7 @@ class TeacherStudentExamViewModel(
                     ?: throw Exception("لم يتم العثور على تسليم الاختبار.")
 
                 // 3. جلب مستند الطالب (Student)
+                // (نفترض أن studentId هو المعرّف الصحيح لمفتاح المستند في students)
                 val studentDoc = db.collection("students").document(studentId).get().await()
 
                 // 4. جلب تقرير المراقبة (Monitoring Report)
@@ -68,6 +81,43 @@ class TeacherStudentExamViewModel(
 
                 val reportDoc = reportQuery.documents.firstOrNull()
 
+
+                // 🛑 الخطوة 4.5: فك تشفير البيانات
+                val finalReportDoc: DocumentSnapshot?
+                var decryptedReportJson: String? = null
+
+                if (reportDoc != null) {
+                    val encryptedReportJson = reportDoc.getString("reportJson")
+                    // ⬅️ افتراض: مفتاح التشفير مخزن في حقل 'sessionKey' في نفس التقرير
+                    val sessionKeyString = reportDoc.getString("sessionKey")
+
+                    if (!encryptedReportJson.isNullOrEmpty() && !sessionKeyString.isNullOrEmpty()) {
+                        try {
+                            // تحويل المفتاح وفك تشفير البيانات
+                            val secretKey = EncryptionHelper.stringToKey(sessionKeyString)
+                            decryptedReportJson =
+                                EncryptionHelper.decryptString(encryptedReportJson, secretKey)
+
+                            if (decryptedReportJson == null) {
+                                Log.w(
+                                    TAG, "Failed to decrypt reportJson. Using raw encrypted string."
+                                )
+                            } else {
+                                Log.d(TAG, "Successfully decrypted reportJson.")
+                            }
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Error during decryption process: ${e.message}")
+                            decryptedReportJson = null // تأكيد أن الفك فشل
+                        }
+                    } else {
+                        Log.d(TAG, "Report or Session Key missing. Skipping decryption.")
+                        // إذا لم يكن هناك مفتاح، نستخدم القيمة الأصلية (قد تكون غير مشفرة)
+                        decryptedReportJson = encryptedReportJson
+                    }
+                    finalReportDoc = reportDoc // نحتفظ بالمرجع الأصلي لاستخراج حقل 'media'
+                } else {
+                    finalReportDoc = null
+                }
 
                 // 5. معالجة البيانات
 
@@ -82,8 +132,11 @@ class TeacherStudentExamViewModel(
 
 
                 // 5.2. بيانات التقرير (المراقبة)
-                // ⬅️ تم تصحيح منطق الاستخراج هنا
-                val (cheatingLogs, imageUrls, videoUrl) = extractMonitoringData(reportDoc)
+                // ⬅️ نمرر التقرير الأصلي (لاستخراج Media) والسلسلة المفكوكة (لاستخراج Logs)
+                val (cheatingLogs, imageUrls, videoUrl) = extractMonitoringData(
+                    finalReportDoc, decryptedReportJson
+                )
+
 
                 // 5.3. بيانات الطالب
                 val studentName = studentDoc.getString("fullName") ?: "اسم غير معروف"
@@ -106,7 +159,7 @@ class TeacherStudentExamViewModel(
                 )
 
             } catch (e: Exception) {
-                println("Error loading exam data: ${e.message}")
+                Log.e(TAG, "Error loading exam data: ${e.message}", e)
                 _state.update {
                     it.copy(
                         isLoading = false,
@@ -183,11 +236,13 @@ class TeacherStudentExamViewModel(
     }
 
     /**
-     * 🔹 عند النقر على صورة مراقبة
+     * 🔹 عند النقر على صورة مراقبة (مُعدَّل لإرسال حدث)
      */
     fun onImageClick(url: String) {
-        println("🖼️ عرض الصورة: $url")
-        // TODO: فتح Dialog أو شاشة لعرض الصورة بالحجم الكامل
+        viewModelScope.launch {
+            _events.emit(TeacherStudentExamEvent.ShowFullImage(url))
+            Log.d(TAG, "🖼️ Emitted event to show image: $url")
+        }
     }
 
     /**
@@ -200,22 +255,27 @@ class TeacherStudentExamViewModel(
 
     /**
      * دالة مساعدة لاستخراج سجلات الغش والوسائط من مستند التقرير.
+     * تستقبل الآن السلسلة النصية المفكوكة لـ reportJson.
      */
     @RequiresApi(Build.VERSION_CODES.O)
-    private fun extractMonitoringData(reportDoc: com.google.firebase.firestore.DocumentSnapshot?): Triple<List<String>, List<String>, String?> {
+    private fun extractMonitoringData(
+        reportDoc: com.google.firebase.firestore.DocumentSnapshot?,
+        decryptedReportJson: String? // ⬅️ استقبال السلسلة المفكوكة
+    ): Triple<List<String>, List<String>, String?> {
 
-        // 1. استخراج سجلات الأحداث (Security Events) من حقل reportJson
-        val reportJsonString = reportDoc?.getString("reportJson")
+        // 1. استخراج سجلات الأحداث (Security Events) من حقل reportJson المفكوك
+        val reportJsonString = decryptedReportJson
+
         val securityEvents = if (reportJsonString != null) {
             try {
-                // نقوم بتحليل السلسلة النصية reportJson إلى خريطة Map
+                // نقوم بتحليل السلسلة النصية reportJson المفكوكة إلى خريطة Map
                 val reportMap = gson.fromJson<Map<String, Any>>(
                     reportJsonString, object : TypeToken<Map<String, Any>>() {}.type
                 )
                 // نستخرج مصفوفة "securityEvents"
                 reportMap["securityEvents"] as? List<Map<String, Any>> ?: emptyList()
             } catch (e: Exception) {
-                println("Error parsing reportJson: ${e.message}")
+                Log.e(TAG, "Error parsing decrypted reportJson: ${e.message}")
                 emptyList()
             }
         } else {
@@ -224,8 +284,6 @@ class TeacherStudentExamViewModel(
 
         val formattedLogs = securityEvents.mapNotNull { event ->
             val type = event["type"] as? String
-            // طابع الوقت في JSON المرفق هو بالثواني/الملي ثانية (قد تحتاج لتعديله حسب نظامك)
-            // بناءً على بياناتك المرفقة، يبدو أنه بالمللي ثانية، لذا نستخدم Instant.ofEpochMilli
             val timestampMilli = (event["timestamp"] as? Number)?.toLong()
 
             if (type != null && timestampMilli != null) {
@@ -251,20 +309,25 @@ class TeacherStudentExamViewModel(
         }
 
         // 2. استخراج روابط الوسائط (Media URLs)
-        // 💡 الحقل "media" هو مصفوفة (List) وليس خريطة (Map)
+        // نفترض أن حقل "media" نفسه غير مشفر ويتم استخراجه مباشرة من المستند الأصلي
         val mediaList = reportDoc?.get("media") as? List<Map<String, Any>> ?: emptyList()
 
         // 2.1. استخراج عناوين URL للصور (يجب أن يكون نوعها "image")
         val imageUrls = mediaList.filter { it["type"] == "image" }.mapNotNull {
-            it["downloadUrl"] as? String // ⬅️ المفتاح الصحيح هو "downloadUrl"
+            it["downloadUrl"] as? String
         }
 
         // 2.2. استخراج عنوان URL للفيديو (يجب أن يكون نوعها "video")
         val videoUrl = mediaList.firstOrNull { it["type"] == "video" }?.let {
-            it["downloadUrl"] as? String // ⬅️ المفتاح الصحيح هو "downloadUrl"
+            it["downloadUrl"] as? String
         }
 
         return Triple(formattedLogs, imageUrls, videoUrl)
     }
 
+}
+
+sealed class TeacherStudentExamEvent {
+    // حدث لعرض صورة المراقبة بالحجم الكامل
+    data class ShowFullImage(val url: String) : TeacherStudentExamEvent()
 }
