@@ -312,12 +312,12 @@ class ExamActivity : ComponentActivity() {
         // شاشة الامتحان
         ExamScreen(
             onNavigateUp = {
-            if (!showExitDialog && !showRoomScanOverlay) {
-                securityManager.logViolation("NAVIGATE_UP_PRESSED")
-                securityManager.registerInternalDialog(ExamSecurityManager.DIALOG_EXIT_WARNING)
-                showExitDialog = true
-            }
-        }, onExamComplete = { finishExam() }, examId = examId // متغير الذي حصلت عليه من Intent
+                if (!showExitDialog && !showRoomScanOverlay) {
+                    securityManager.logViolation("NAVIGATE_UP_PRESSED")
+                    securityManager.registerInternalDialog(ExamSecurityManager.DIALOG_EXIT_WARNING)
+                    showExitDialog = true
+                }
+            }, onExamComplete = { finishExam() }, examId = examId // متغير الذي حصلت عليه من Intent
             , onFinalDialogOpen = {
                 securityManager.registerInternalDialog("DIALOG_FINAL_SUBMIT")
             }, onFinalDialogClose = {
@@ -508,6 +508,8 @@ class ExamActivity : ComponentActivity() {
 
                     if (session != null) {
                         val studentIdForUpload = this.correctStudentId
+                        val studentEmailForUpload = this.studentEmail
+
                         val mediaFiles = sessionManager.getLocalMediaFiles()
                         val sessionJson = sessionManager.exportSessionForUpload()
 
@@ -517,6 +519,7 @@ class ExamActivity : ComponentActivity() {
                             androidx.work.Data.Builder().putString("examId", session.examId)
                                 .putString("studentId", studentIdForUpload)
                                 .putString("sessionId", session.sessionId)
+                                .putString("studentEmail", studentEmailForUpload)
                                 .putString("sessionJson", sessionJson)
                                 .putString("mediaPaths", com.google.gson.Gson().toJson(mediaPaths))
                                 .build()
