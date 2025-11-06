@@ -5,7 +5,9 @@ import androidx.annotation.RequiresApi
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.google.common.reflect.TypeToken
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.gson.Gson
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
@@ -25,6 +27,7 @@ class TeacherStudentExamViewModel(
     val state: StateFlow<TeacherStudentExamState> = _state
 
     private val db = FirebaseFirestore.getInstance() // ⬅️ إضافة Firestore
+    private val gson = Gson() // ⬅️ إنشاء مثيل Gson
 
     // الأسماء متطابقة مع navArgument في ملف التنقل
     private val examId: String = checkNotNull(savedStateHandle["examId"])
@@ -45,7 +48,6 @@ class TeacherStudentExamViewModel(
             try {
                 // 1. جلب مستند الاختبار (Exam) للحصول على المدة القصوى
                 val examDoc = db.collection("exams").document(examId).get().await()
-                // نفترض أن مدة الاختبار موجودة في حقل "examTime" كـ String يمثل الدقائق
                 val examDurationMinutes = examDoc.getString("examTime")?.toIntOrNull() ?: 0
 
                 // 2. جلب مستند التسليم (Submission)
@@ -80,6 +82,7 @@ class TeacherStudentExamViewModel(
 
 
                 // 5.2. بيانات التقرير (المراقبة)
+                // ⬅️ تم تصحيح منطق الاستخراج هنا
                 val (cheatingLogs, imageUrls, videoUrl) = extractMonitoringData(reportDoc)
 
                 // 5.3. بيانات الطالب
@@ -95,7 +98,7 @@ class TeacherStudentExamViewModel(
                     earnedScore = earnedScore,
                     totalScore = totalScore,
                     answerStatus = status,
-                    totalTimeMinutes = examDurationMinutes, // ⬅️ الآن يتم تمرير مدة الاختبار القصوى
+                    totalTimeMinutes = examDurationMinutes,
                     examStatus = ExamStatus.COMPLETED,
                     cheatingLogs = cheatingLogs,
                     imageUrls = imageUrls,
@@ -125,7 +128,7 @@ class TeacherStudentExamViewModel(
 
     fun onSaveExamEvaluation() {
         viewModelScope.launch {
-
+            // ... (منطق الحفظ لم يتغير وهو صحيح)
             // 1. تحديد مرجع المستند في مجموعة "exam_submissions"
             val submissionQuery = db.collection("exam_submissions").whereEqualTo("examId", examId)
                 .whereEqualTo("studentId", studentId).get().await()
@@ -139,7 +142,7 @@ class TeacherStudentExamViewModel(
 
             val submissionDocRef = submissionDocSnapshot.reference
 
-            // 2. فحص حالة التعديل (هذا فحص إضافي جيد)
+            // 2. فحص حالة التعديل
             val isAlreadyEdited = submissionDocSnapshot.getBoolean("scoreEditedByTeacher") == true
 
             if (isAlreadyEdited) {
@@ -199,26 +202,47 @@ class TeacherStudentExamViewModel(
      * دالة مساعدة لاستخراج سجلات الغش والوسائط من مستند التقرير.
      */
     @RequiresApi(Build.VERSION_CODES.O)
-    private fun extractMonitoringData(reportDoc: com.google.firebase.firestore.DocumentSnapshot?): Triple<List<String>, List<String>?, String?> {
+    private fun extractMonitoringData(reportDoc: com.google.firebase.firestore.DocumentSnapshot?): Triple<List<String>, List<String>, String?> {
 
-        // سجلات الأحداث (Events)
-        val eventsList =
-            reportDoc?.get("report.json.events") as? List<Map<String, Any>> ?: emptyList()
-        val formattedLogs = eventsList.mapNotNull { event ->
+        // 1. استخراج سجلات الأحداث (Security Events) من حقل reportJson
+        val reportJsonString = reportDoc?.getString("reportJson")
+        val securityEvents = if (reportJsonString != null) {
+            try {
+                // نقوم بتحليل السلسلة النصية reportJson إلى خريطة Map
+                val reportMap = gson.fromJson<Map<String, Any>>(
+                    reportJsonString, object : TypeToken<Map<String, Any>>() {}.type
+                )
+                // نستخرج مصفوفة "securityEvents"
+                reportMap["securityEvents"] as? List<Map<String, Any>> ?: emptyList()
+            } catch (e: Exception) {
+                println("Error parsing reportJson: ${e.message}")
+                emptyList()
+            }
+        } else {
+            emptyList()
+        }
+
+        val formattedLogs = securityEvents.mapNotNull { event ->
             val type = event["type"] as? String
-            val timestampSec = event["timestamp"] as? Long // يُفترض أنه UNIX timestamp بالثواني
+            // طابع الوقت في JSON المرفق هو بالثواني/الملي ثانية (قد تحتاج لتعديله حسب نظامك)
+            // بناءً على بياناتك المرفقة، يبدو أنه بالمللي ثانية، لذا نستخدم Instant.ofEpochMilli
+            val timestampMilli = (event["timestamp"] as? Number)?.toLong()
 
-            if (type != null && timestampSec != null) {
-                // تحويل UNIX timestamp إلى تنسيق وقت
-                val time = Instant.ofEpochSecond(timestampSec).atZone(ZoneId.systemDefault())
+            if (type != null && timestampMilli != null) {
+                // تحويل UNIX timestamp (مللي ثانية) إلى تنسيق وقت
+                val time = Instant.ofEpochMilli(timestampMilli).atZone(ZoneId.systemDefault())
                     .format(DateTimeFormatter.ofPattern("hh:mm a", Locale("ar")))
 
                 // تحويل أنواع الأحداث إلى نصوص عربية مناسبة للعرض
                 val logText = when (type) {
+                    "EXAM_STARTED" -> "بدأ الاختبار"
                     "EXAM_PAUSED" -> "أوقف الاختبار"
                     "EXAM_RESUMED" -> "استأنف الاختبار"
                     "EXAM_SUBMITTED" -> "سلم الاختبار"
+                    "SNAPSHOT_CAPTURED" -> "تم التقاط صورة"
+                    "NO_FACE_DETECTED" -> "لم يتم الكشف عن وجه (تنبيه)"
                     "MULTIPLE_FACES" -> "تم الكشف عن وجوه متعددة (تنبيه)"
+                    "ROOM_SCAN_COMPLETED" -> "اكتمل مسح الغرفة (فيديو)"
                     else -> type
                 }
                 return@mapNotNull "$time → $logText"
@@ -226,19 +250,21 @@ class TeacherStudentExamViewModel(
             null
         }
 
-        // سجلات الوسائط (Media Logs)
-        val mediaMap = reportDoc?.get("media") as? Map<String, Any>
+        // 2. استخراج روابط الوسائط (Media URLs)
+        // 💡 الحقل "media" هو مصفوفة (List) وليس خريطة (Map)
+        val mediaList = reportDoc?.get("media") as? List<Map<String, Any>> ?: emptyList()
 
-        // 1. استخراج عناوين URL للصور
-        val imagesList = mediaMap?.values?.mapNotNull { item ->
-            (item as? Map<String, Any>)?.get("imageUrl") as? String
-        } ?: emptyList()
-
-        // 2. استخراج عناوين URL للفيديو (نفترض وجود حقل videoUrl مباشر في مكان ما)
-        val videoUrl = mediaMap?.values?.firstNotNullOfOrNull { item ->
-            (item as? Map<String, Any>)?.get("videoUrl") as? String
+        // 2.1. استخراج عناوين URL للصور (يجب أن يكون نوعها "image")
+        val imageUrls = mediaList.filter { it["type"] == "image" }.mapNotNull {
+            it["downloadUrl"] as? String // ⬅️ المفتاح الصحيح هو "downloadUrl"
         }
 
-        return Triple(formattedLogs, imagesList, videoUrl)
+        // 2.2. استخراج عنوان URL للفيديو (يجب أن يكون نوعها "video")
+        val videoUrl = mediaList.firstOrNull { it["type"] == "video" }?.let {
+            it["downloadUrl"] as? String // ⬅️ المفتاح الصحيح هو "downloadUrl"
+        }
+
+        return Triple(formattedLogs, imageUrls, videoUrl)
     }
+
 }
