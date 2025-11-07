@@ -1,4 +1,4 @@
-package com.example.saffieduapp.data.firebase
+package com.example.saffieduapp.data.FireBase
 
 import android.net.Uri
 import android.util.Log
