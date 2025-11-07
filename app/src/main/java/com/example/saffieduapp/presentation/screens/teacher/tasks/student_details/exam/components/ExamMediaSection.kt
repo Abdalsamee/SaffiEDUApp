@@ -10,10 +10,15 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
@@ -34,6 +39,7 @@ fun ExamMediaSection(
     onImageClick: (String) -> Unit = {},
     onVideoClick: (() -> Unit)? = null
 ) {
+    var selectedImage by remember { mutableStateOf<String?>(null) }
     val context = LocalContext.current
 
     Column(
@@ -61,12 +67,43 @@ fun ExamMediaSection(
                         .size(90.dp)
                         .clip(RoundedCornerShape(10.dp))
                         .background(Color(0xFFDDE9FF))
-                        .clickable { onImageClick(url) },
+                        .graphicsLayer(   rotationZ = 90f,   // لتدويرها رأسياً
+                            rotationX = 180f )
+                        .clickable {
+                            selectedImage = url
+                            onImageClick(url)
+                                   },
                     alignment = Alignment.Center
                 )
             }
         }
-
+        if (selectedImage != null) {
+            androidx.compose.ui.window.Dialog(
+                onDismissRequest = { selectedImage = null }
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.9f))
+                        .clickable { selectedImage = null },
+                    contentAlignment = Alignment.Center
+                ) {
+                    AsyncImage(
+                        model = selectedImage,
+                        contentDescription = "معاينة الصورة",
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .fillMaxHeight(0.8f)
+                            .clip(RoundedCornerShape(16.dp))
+                            .graphicsLayer(
+                                rotationZ = 90f,   // لتدويرها رأسياً
+                                rotationX = 180f   // لعكسها أفقيًا (Mirror)
+                            ), // نفس الاتجاه
+                        alignment = Alignment.Center
+                    )
+                }
+            }
+        }
         Spacer(modifier = Modifier.height(8.dp))
 
         // 🔹 القسم الثاني: الفيديو
