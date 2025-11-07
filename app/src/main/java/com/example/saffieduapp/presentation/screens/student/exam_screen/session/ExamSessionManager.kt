@@ -453,8 +453,10 @@ class ExamSessionManager(
                         "timestamp" to it.timestamp,
                         "details" to it.details
                     )
-                }
-            )
+                },
+                "encryptionKey" to getEncryptionKeyString(),
+
+                )
 
             gson.toJson(reportMap)
         } catch (e: Exception) {

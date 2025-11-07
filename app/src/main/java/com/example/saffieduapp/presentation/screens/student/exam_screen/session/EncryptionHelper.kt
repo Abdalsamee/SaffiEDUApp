@@ -38,14 +38,6 @@ object EncryptionHelper {
     }
 
     /**
-     * تحويل String إلى مفتاح
-     */
-    fun stringToKey(keyString: String): SecretKey {
-        val decodedKey = Base64.decode(keyString, Base64.NO_WRAP)
-        return SecretKeySpec(decodedKey, 0, decodedKey.size, ALGORITHM)
-    }
-
-    /**
      * تشفير String
      */
     fun encryptString(data: String, key: SecretKey): String? {
@@ -102,5 +94,12 @@ object EncryptionHelper {
             Log.e(TAG, "Error decrypting bytes", e)
             null
         }
+    }
+    /**
+     * تحويل String (Base64) إلى المفتاح (SecretKey)
+     */
+    fun stringToKey(keyStr: String): SecretKey {
+        val decodedKey = Base64.decode(keyStr, Base64.NO_WRAP)
+        return SecretKeySpec(decodedKey, 0, decodedKey.size, ALGORITHM)
     }
 }
