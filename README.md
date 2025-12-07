@@ -195,7 +195,7 @@ Automated report generation (images + video)
 
 1- Clone the repository:
 
-git clone https://github.com/your-repo/SaffiEDUApp.git
+git clone https://github.com/Abdalsamee/SaffiEDUApp.git
 
 
 2- Open project in Android Studio (Giraffe or later).
