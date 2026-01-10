@@ -161,8 +161,8 @@ fun ChatItemRow(chat: ChatMessage) {
         // خط فاصل رفيع
         HorizontalDivider(
             modifier = Modifier.padding(horizontal = 16.dp),
-            thickness = 0.5.dp,
-            color = Color.LightGray.copy(alpha = 0.5f)
+            thickness = 0.7.dp,
+            color = Color.LightGray.copy(alpha = 0.5f) // اللون رمادي فاتح جداً قد لا يظهر بوضوح
         )
     }
 }
