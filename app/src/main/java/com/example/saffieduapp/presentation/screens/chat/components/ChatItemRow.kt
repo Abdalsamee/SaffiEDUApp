@@ -30,8 +30,7 @@ import com.example.saffieduapp.presentation.screens.chat.model.MessageStatus
 
 @Composable
 fun ChatScreen(
-    navController: NavController,
-    viewModel: ChatViewModel = viewModel()
+    navController: NavController, viewModel: ChatViewModel = viewModel()
 ) {
     val chats by viewModel.chatList.collectAsState()
 
@@ -41,11 +40,8 @@ fun ChatScreen(
             topBar = {
                 // استخدام المكون المشترك الخاص بك
                 CommonTopAppBar(
-                    title = "الدردشة",
-                    onNavigateUp = { navController.popBackStack() }
-                )
-            },
-            containerColor = Color.White
+                    title = "الدردشة", onNavigateUp = { navController.popBackStack() })
+            }, containerColor = Color.White
         ) { innerPadding ->
             Column(
                 modifier = Modifier
@@ -112,9 +108,7 @@ fun ChatItemRow(chat: ChatMessage) {
         ) {
             // 1. الصورة الشخصية (تظهر على اليمين بسبب RTL)
             Surface(
-                shape = CircleShape,
-                modifier = Modifier.size(52.dp),
-                color = Color(0xFFE0E0E0)
+                shape = CircleShape, modifier = Modifier.size(52.dp), color = Color(0xFFE0E0E0)
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
@@ -137,10 +131,7 @@ fun ChatItemRow(chat: ChatMessage) {
                     color = Color.Black
                 )
                 Text(
-                    text = chat.lastMessage,
-                    color = Color.Gray,
-                    fontSize = 14.sp,
-                    maxLines = 1
+                    text = chat.lastMessage, color = Color.Gray, fontSize = 14.sp, maxLines = 1
                 )
             }
 
@@ -189,9 +180,9 @@ fun ChatItemRow(chat: ChatMessage) {
         HorizontalDivider(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(start = 16.dp, end = 80.dp), // إزاحة 80dp لتجنب الوصول لتحت الصورة
-            thickness = 1.2.dp,
-            color = Color(0xFF4A90E2) // نفس اللون الأزرق الموجود في الصورة
+                .padding(start = 16.dp, end = 80.dp), // الإزاحة لتجنب الوصول لتحت الصورة
+            thickness = 1.5.dp, // زيادة السمك ليصبح واضحاً مثل الصورة
+            color = Color(0xFF4A90E2) // هذا هو كود اللون الأزرق السماوي الموجود في التصميم العلوي
         )
     }
 }
