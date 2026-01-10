@@ -64,7 +64,7 @@ fun ChatHeader(onBackClick: () -> Unit) {
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .height(130.dp), // الارتفاع المطلوب للون الأزرق
+            .height(200.dp), // الارتفاع المطلوب للون الأزرق
         color = Color(0xFF4A90E2),
         shape = RoundedCornerShape(bottomStart = 30.dp, bottomEnd = 30.dp)
     ) {
