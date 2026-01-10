@@ -1,114 +1,82 @@
 package com.example.saffieduapp.presentation.screens.chat
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBackIos
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
-import com.example.saffieduapp.R
-import com.example.saffieduapp.ui.theme.AppAlert
-import com.example.saffieduapp.ui.theme.AppBackground
-import com.example.saffieduapp.ui.theme.AppPrimary
-import com.example.saffieduapp.ui.theme.AppTextPrimary
+import com.example.saffieduapp.presentation.screens.chat.ViewModel.ChatViewModel
+import com.example.saffieduapp.presentation.screens.chat.components.ChatItemRow
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ChatScreen(navController: NavHostController) {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(AppBackground),
-        contentAlignment = Alignment.Center
-    ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(20.dp),
-            modifier = Modifier.padding(24.dp)
-        ) {
+fun ChatScreen(
+    navController: NavHostController, viewModel: ChatViewModel = viewModel()
+) {
+    val chats by viewModel.chatList.collectAsState()
 
-            // أيقونة كبيرة وواضحة
-            Box(
-                modifier = Modifier
-                    .size(100.dp)
-                    .clip(CircleShape)
-                    .background(AppPrimary.copy(alpha = 0.1f)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    painter = painterResource(id = R.drawable.chat),
-                    contentDescription = "Chat",
-                    tint = AppPrimary,
-                    modifier = Modifier.size(50.dp)
-                )
-            }
-
-            // العنوان
-            Text(
-                text = "ميزة الدردشة غير متاحة حالياً",
-                style = MaterialTheme.typography.headlineSmall.copy(
-                    color = AppTextPrimary,
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold
-                ),
-                textAlign = TextAlign.Center
+    Scaffold(
+        topBar = {
+            CenterAlignedTopAppBar(
+                title = {
+                Text("الدردشة", style = TextStyle(fontWeight = FontWeight.Bold))
+            }, navigationIcon = {
+                IconButton(onClick = { /* Handle back */ }) {
+                    Icon(Icons.Default.ArrowBackIos, contentDescription = null)
+                }
+            }, colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                containerColor = Color(0xFF4A90E2),
+                titleContentColor = Color.White,
+                navigationIconContentColor = Color.White
             )
-
-            // النص المختصر
-            Text(
-                text = "يتم حالياً إعادة تصميم نظام الدردشة لضمان أداء آمن ومستقر. ستتوفر الميزة في تحديثات لاحقة.",
-                style = MaterialTheme.typography.bodyMedium.copy(
-                    color = AppTextPrimary.copy(alpha = 0.9f),
-                    fontSize = 14.sp,
-                    lineHeight = 20.sp
-                ),
-                textAlign = TextAlign.Center
             )
+        }) { padding ->
+        Column(modifier = Modifier.padding(padding)) {
+            SearchTextField()
 
-            // ملاحظة حول الزر
-            Surface(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(12.dp)),
-                color = AppAlert.copy(alpha = 0.08f)
-            ) {
-                Text(
-                    text = "زر الدردشة سيبقى ضمن التطبيق كعنصر أساسي، وسيتم تفعيله لاحقاً.",
-                    modifier = Modifier.padding(12.dp),
-                    style = MaterialTheme.typography.bodySmall.copy(
-                        color = AppTextPrimary,
-                        fontSize = 12.sp
-                    ),
-                    textAlign = TextAlign.Center
-                )
-            }
-
-            // زر الرجوع
-            Button(
-                onClick = { navController.popBackStack() },
-                colors = ButtonDefaults.buttonColors(containerColor = AppPrimary),
-                shape = RoundedCornerShape(10.dp),
-                modifier = Modifier
-                    .padding(top = 10.dp)
-                    .width(180.dp)
-                    .height(45.dp)
-            ) {
-                Text(
-                    text = "عودة",
-                    style = MaterialTheme.typography.labelLarge.copy(
-                        color = AppBackground,
-                        fontWeight = FontWeight.Bold
-                    )
-                )
+            LazyColumn {
+                items(chats) { chat ->
+                    ChatItemRow(chat)
+                }
             }
         }
     }
+}
+
+@Composable
+fun SearchTextField() {
+    TextField(
+        value = "",
+        onValueChange = {},
+        placeholder = {
+            Text("البحث", modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.End)
+        },
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp)
+            .height(56.dp),
+        shape = RoundedCornerShape(12.dp),
+        trailingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = Color.Gray) },
+        colors = TextFieldDefaults.colors(
+            focusedContainerColor = Color(0xFFF2F2F2),
+            unfocusedContainerColor = Color(0xFFF2F2F2),
+            disabledContainerColor = Color(0xFFF2F2F2),
+            focusedIndicatorColor = Color.Transparent,
+            unfocusedIndicatorColor = Color.Transparent,
+        )
+    )
 }
