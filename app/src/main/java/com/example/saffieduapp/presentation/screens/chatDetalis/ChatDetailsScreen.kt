@@ -1,5 +1,9 @@
 package com.example.saffieduapp.presentation.screens.chatDetalis
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
@@ -9,6 +13,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -30,6 +35,7 @@ import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -58,33 +64,60 @@ fun ChatDetailScreen(
     val uiState by viewModel.uiState.collectAsState()
     var currentMessage by remember { mutableStateOf("") }
 
-    CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
-        Scaffold(topBar = {
-            CustomChatDetailHeader(
-                title = senderName, onBackClick = { navController.popBackStack() })
-        }, bottomBar = {
-            ChatInputBar(
-                textValue = currentMessage,
-                onValueChange = { currentMessage = it },
-                onSendClick = {
-                    viewModel.sendMessage(currentMessage)
-                    currentMessage = "" // مسح الحقل بعد الإرسال
-                })
-        }) { padding ->
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding)
-                    .background(Color.White),
-                contentPadding = PaddingValues(16.dp)
-            ) {
-                item { DateDivider("اليوم") }
+    // حالة للتحكم في بدء الأنميشن عند دخول الشاشة
+    var isVisible by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        isVisible = true // تفعيل الأنميشن بمجرد بناء الشاشة
+    }
 
-                // عرض الرسائل من الـ State
-                items(uiState.messages) { message ->
-                    ChatBubble(
-                        text = message.text, isMe = message.isMe, time = message.time
+    CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
+        Scaffold(bottomBar = {
+            // أنميشن بسيط لشريط الإدخال أيضاً من الأسفل للأعلى
+            AnimatedVisibility(
+                visible = isVisible,
+                enter = slideInVertically(initialOffsetY = { it }) + fadeIn()
+            ) {
+                ChatInputBar(
+                    textValue = currentMessage,
+                    onValueChange = { currentMessage = it },
+                    onSendClick = {
+                        viewModel.sendMessage(currentMessage)
+                        currentMessage = ""
+                    }
+                )
+            }
+        }
+        ) { padding ->
+            Column(modifier = Modifier.fillMaxSize().padding(padding)) {
+
+                // --- الجزء الخاص بالأنميشن للبار العلوي ---
+                AnimatedVisibility(
+                    visible = isVisible,
+                    enter = slideInVertically(
+                        initialOffsetY = { -it }, // يبدأ من خارج الشاشة (أعلى)
+                        animationSpec = tween(durationMillis = 600, easing = FastOutSlowInEasing)
+                    ) + fadeIn()
+                ) {
+                    CustomChatDetailHeader(
+                        title = senderName,
+                        onBackClick = { navController.popBackStack() }
                     )
+                }
+
+                // الرسائل تظهر بـ Fade (تلاشي) جميل بعد ظهور البار
+                AnimatedVisibility(
+                    visible = isVisible,
+                    enter = fadeIn(animationSpec = tween(delayMillis = 400, durationMillis = 500))
+                ) {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize().background(Color.White),
+                        contentPadding = PaddingValues(16.dp)
+                    ) {
+                        item { DateDivider("اليوم") }
+                        items(uiState.messages) { message ->
+                            ChatBubble(text = message.text, isMe = message.isMe, time = message.time)
+                        }
+                    }
                 }
             }
         }
