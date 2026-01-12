@@ -48,7 +48,7 @@ fun TeacherNavHost(
         }
         composable(route = Routes.CHAT_DETAILS_SCREEN) {
             ChatDetailScreen(
-                navController = navController, chatId = "1", senderName = "محادثة"
+                navController = navController, senderName = "محادثة"
             )
         }
         composable(Routes.TEACHER_PROFILE_SCREEN) {

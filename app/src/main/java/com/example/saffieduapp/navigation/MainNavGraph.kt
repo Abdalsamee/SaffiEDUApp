@@ -104,8 +104,7 @@ fun MainNavGraph(
         }
         composable(route = Routes.CHAT_DETAILS_SCREEN) {
             ChatDetailScreen(
-                navController = navController, chatId = "1",      // قيمة وهمية ثابتة
-                senderName = "مستخدم" // قيمة وهمية ثابتة
+                navController = navController, senderName = "مستخدم" // قيمة وهمية ثابتة
             )
         }
 
