@@ -14,9 +14,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.navArgument
 import com.example.saffieduapp.presentation.screens.chat.ChatScreen
+import com.example.saffieduapp.presentation.screens.chatDetalis.ChatDetailScreen
 import com.example.saffieduapp.presentation.screens.student.home.HomeScreen
 import com.example.saffieduapp.presentation.screens.student.profile.StudentProfileScreen
 
@@ -86,13 +89,11 @@ fun MainNavGraph(
 
                 else -> fadeOut(animationSpec = tween(220))
             }
-        }
-    ) {
+        }) {
         composable(Routes.HOME_SCREEN) {
             HomeScreen(
                 navController = navController,
-                onNavigateToSubjects = { navController.navigate(Routes.SUBJECTS_SCREEN) }
-            )
+                onNavigateToSubjects = { navController.navigate(Routes.SUBJECTS_SCREEN) })
         }
 
         subjectsNavGraph(navController, onFullscreenChange)
@@ -100,6 +101,12 @@ fun MainNavGraph(
 
         composable(Routes.CHAT_SCREEN) {
             ChatScreen(navController = navController)
+        }
+        composable(route = Routes.CHAT_DETAILS_SCREEN) {
+            ChatDetailScreen(
+                navController = navController, chatId = "1",      // قيمة وهمية ثابتة
+                senderName = "مستخدم" // قيمة وهمية ثابتة
+            )
         }
 
         composable(Routes.PROFILE_SCREEN) {

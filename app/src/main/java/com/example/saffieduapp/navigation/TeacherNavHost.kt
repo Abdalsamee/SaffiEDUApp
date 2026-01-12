@@ -10,6 +10,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.compose.runtime.getValue
 import androidx.navigation.NavHostController
 import com.example.saffieduapp.presentation.screens.chat.ChatScreen
+import com.example.saffieduapp.presentation.screens.chatDetalis.ChatDetailScreen
 import com.example.saffieduapp.presentation.screens.teacher.home.TeacherHomeScreen
 import com.example.saffieduapp.presentation.screens.teacher.add_alert.AddAlertScreen
 import com.example.saffieduapp.presentation.screens.teacher.add_assignment.AddAssignmentScreen
@@ -21,8 +22,7 @@ import com.example.saffieduapp.presentation.screens.teacher.profile.TeacherProfi
 @Composable
 fun TeacherNavHost(
     navController: NavHostController, // ✅ 3. استقبل الكنترولر كبارامتر
-    modifier: Modifier = Modifier,
-    onLogoutNavigate: () -> Unit
+    modifier: Modifier = Modifier, onLogoutNavigate: () -> Unit
 ) {
 
 
@@ -45,6 +45,12 @@ fun TeacherNavHost(
         teacherTasksNavGraph(navController)
         composable(Routes.CHAT_SCREEN) {
             ChatScreen(navController = navController)
+        }
+        // ✅ أضف هذا الجزء هنا لإصلاح الكراش نهائياً
+        composable(route = Routes.CHAT_DETAILS_SCREEN) {
+            ChatDetailScreen(
+                navController = navController, chatId = "1", senderName = "محادثة"
+            )
         }
         composable(Routes.TEACHER_PROFILE_SCREEN) {
             TeacherProfileScreen(

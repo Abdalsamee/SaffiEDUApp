@@ -1,6 +1,7 @@
 package com.example.saffieduapp.presentation.screens.chat
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -24,6 +25,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import com.example.saffieduapp.navigation.Routes
 import com.example.saffieduapp.presentation.screens.chat.ViewModel.ChatViewModel
 import com.example.saffieduapp.presentation.screens.student.components.CommonTopAppBar
 import com.example.saffieduapp.presentation.screens.chat.model.ChatMessage
@@ -31,8 +33,7 @@ import com.example.saffieduapp.presentation.screens.chat.model.MessageStatus
 
 @Composable
 fun ChatScreen(
-    navController: NavController,
-    viewModel: ChatViewModel = viewModel()
+    navController: NavController, viewModel: ChatViewModel = viewModel()
 ) {
     val chats by viewModel.chatList.collectAsState()
 
@@ -42,11 +43,8 @@ fun ChatScreen(
             topBar = {
                 // استخدام الـ Component الموحد الذي أرسلته
                 CommonTopAppBar(
-                    title = "الدردشة",
-                    onNavigateUp = { navController.popBackStack() }
-                )
-            },
-            containerColor = Color.White
+                    title = "الدردشة", onNavigateUp = { navController.popBackStack() })
+            }, containerColor = Color.White
         ) { innerPadding ->
             Column(
                 modifier = Modifier
@@ -61,8 +59,13 @@ fun ChatScreen(
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(bottom = 16.dp)
                 ) {
+                    // داخل LazyColumn في ChatScreen
                     items(chats) { chat ->
-                        ChatItemRow(chat)
+                        Box(modifier = Modifier.clickable {
+                            navController.navigate(Routes.CHAT_DETAILS_SCREEN)
+                        }) {
+                            ChatItemRow(chat)
+                        }
                     }
                 }
             }
@@ -77,7 +80,12 @@ fun SearchTextField() {
         value = text,
         onValueChange = { text = it },
         placeholder = {
-            Text("البحث", color = Color.Gray, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Start)
+            Text(
+                "البحث",
+                color = Color.Gray,
+                modifier = Modifier.fillMaxWidth(),
+                textAlign = TextAlign.Start
+            )
         },
         modifier = Modifier
             .fillMaxWidth()
@@ -106,12 +114,15 @@ fun ChatItemRow(chat: ChatMessage) {
         ) {
             // الصورة الشخصية على اليمين (بسبب RTL)
             Surface(
-                shape = CircleShape,
-                modifier = Modifier.size(52.dp),
-                color = Color(0xFFE0E0E0)
+                shape = CircleShape, modifier = Modifier.size(52.dp), color = Color(0xFFE0E0E0)
             ) {
                 Box(contentAlignment = Alignment.Center) {
-                    Icon(Icons.Default.Person, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(30.dp))
+                    Icon(
+                        Icons.Default.Person,
+                        contentDescription = null,
+                        tint = Color.Gray,
+                        modifier = Modifier.size(30.dp)
+                    )
                 }
             }
 
@@ -126,10 +137,7 @@ fun ChatItemRow(chat: ChatMessage) {
                     color = Color.Black
                 )
                 Text(
-                    text = chat.lastMessage,
-                    color = Color.Gray,
-                    fontSize = 14.sp,
-                    maxLines = 1
+                    text = chat.lastMessage, color = Color.Gray, fontSize = 14.sp, maxLines = 1
                 )
             }
 
@@ -149,11 +157,23 @@ fun ChatItemRow(chat: ChatMessage) {
                             )
                         }
                     }
+
                     chat.status == MessageStatus.READ -> {
-                        Icon(Icons.Default.DoneAll, null, tint = Color(0xFF2196F3), modifier = Modifier.size(18.dp))
+                        Icon(
+                            Icons.Default.DoneAll,
+                            null,
+                            tint = Color(0xFF2196F3),
+                            modifier = Modifier.size(18.dp)
+                        )
                     }
+
                     chat.status == MessageStatus.SENT -> {
-                        Icon(Icons.Default.Check, null, tint = Color.Gray, modifier = Modifier.size(18.dp))
+                        Icon(
+                            Icons.Default.Check,
+                            null,
+                            tint = Color.Gray,
+                            modifier = Modifier.size(18.dp)
+                        )
                     }
                 }
             }
