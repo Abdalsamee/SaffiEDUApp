@@ -46,7 +46,6 @@ fun TeacherNavHost(
         composable(Routes.CHAT_SCREEN) {
             ChatScreen(navController = navController)
         }
-        // ✅ أضف هذا الجزء هنا لإصلاح الكراش نهائياً
         composable(route = Routes.CHAT_DETAILS_SCREEN) {
             ChatDetailScreen(
                 navController = navController, chatId = "1", senderName = "محادثة"
@@ -54,8 +53,7 @@ fun TeacherNavHost(
         }
         composable(Routes.TEACHER_PROFILE_SCREEN) {
             TeacherProfileScreen(
-                onLogoutNavigate = onLogoutNavigate, // مرّره (إذا كانت الشاشة تحتاجه للتنقل الداخلي)
-                navController = navController // ✅ مرّر دالة الخروج
+                onLogoutNavigate = onLogoutNavigate, navController = navController
             )
         }
 
