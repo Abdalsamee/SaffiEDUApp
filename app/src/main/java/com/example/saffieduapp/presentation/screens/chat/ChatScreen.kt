@@ -1,5 +1,9 @@
 package com.example.saffieduapp.presentation.screens.chat
 
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -16,6 +20,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -29,37 +34,102 @@ import com.example.saffieduapp.presentation.screens.chat.ViewModel.ChatViewModel
 import com.example.saffieduapp.presentation.screens.student.components.CommonTopAppBar
 import com.example.saffieduapp.presentation.screens.chat.model.ChatMessage
 import com.example.saffieduapp.presentation.screens.chat.model.MessageStatus
+import com.example.saffieduapp.presentation.screens.chatDetalis.ChatBubble
+import com.example.saffieduapp.presentation.screens.chatDetalis.ChatInputBar
+import com.example.saffieduapp.presentation.screens.chatDetalis.DateDivider
+import com.example.saffieduapp.presentation.screens.chatDetalis.DetailHeaderContent
+import com.example.saffieduapp.presentation.screens.chatDetalis.ViewModel.ChatDetailViewModel
 
 @Composable
 fun ChatScreen(
-    navController: NavController, viewModel: ChatViewModel = viewModel()
+    navController: NavController,
+    chatViewModel: ChatViewModel = viewModel(),
+    detailViewModel: ChatDetailViewModel = viewModel()
 ) {
-    val chats by viewModel.chatList.collectAsState()
+    val chats by chatViewModel.chatList.collectAsState()
+    val detailUiState by detailViewModel.uiState.collectAsState()
+
+    // حالة للتحكم هل نحن في وضع القائمة أم وضع التفاصيل
+    var selectedChatName by remember { mutableStateOf<String?>(null) }
+    val isDetailMode = selectedChatName != null
+
+    // أنميشن الارتفاع (يتزامن مع الضغط)
+    val headerHeight by animateDpAsState(
+        targetValue = if (isDetailMode) 240.dp else 100.dp,
+        animationSpec = tween(500, easing = FastOutSlowInEasing),
+        label = "headerHeight"
+    )
+    val cornerSize by animateDpAsState(
+        targetValue = if (isDetailMode) 40.dp else 20.dp, animationSpec = tween(500)
+    )
+
+    // التعامل مع زر الرجوع الفعلي في الجهاز
+    BackHandler(enabled = isDetailMode) {
+        selectedChatName = null
+    }
 
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
-        Scaffold(
-            topBar = {
-                // يستخدم القيم الافتراضية (100dp ارتفاع و 20dp حواف)
-                CommonTopAppBar(
-                    title = "الدردشة", onNavigateUp = { navController.popBackStack() })
-            }, containerColor = Color.White
-        ) { innerPadding ->
-            Column(
+        Scaffold(topBar = {
+            CommonTopAppBar(
+                title = if (isDetailMode) "" else "الدردشة",
+                height = headerHeight,
+                bottomCorner = cornerSize,
+                onNavigateUp = {
+                    if (isDetailMode) selectedChatName = null else navController.popBackStack()
+                },
+                expandableContent = {
+                    if (headerHeight > 160.dp && selectedChatName != null) {
+                        DetailHeaderContent(selectedChatName!!)
+                    }
+                })
+        }, containerColor = Color.White, bottomBar = {
+            if (isDetailMode) ChatInputBar() // شريط الإرسال يظهر فقط في التفاصيل
+        }) { innerPadding ->
+            Box(
                 modifier = Modifier
-                    .padding(innerPadding)
                     .fillMaxSize()
+                    .padding(innerPadding)
             ) {
-                SearchTextField()
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(bottom = 16.dp)
-                ) {
-                    items(chats) { chat ->
-                        Box(modifier = Modifier.clickable {
-                            // نمرر اسم المرسل كباراميتر للتفاصيل
-                            navController.navigate("${Routes.CHAT_DETAILS_SCREEN}/${chat.senderName}")
+
+                // ١. واجهة قائمة المحادثات (تختفي تدريجياً)
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .graphicsLayer {
+                            // تختفي القائمة كلما زاد ارتفاع البار
+                            alpha =
+                                (1f - ((headerHeight.toPx() - 100.dp.toPx()) / 140.dp.toPx())).coerceIn(
+                                    0f, 1f
+                                )
                         }) {
-                            ChatItemRow(chat)
+                    SearchTextField()
+                    LazyColumn(modifier = Modifier.fillMaxSize()) {
+                        items(chats) { chat ->
+                            Box(modifier = Modifier.clickable {
+                                selectedChatName = chat.senderName
+                            }) {
+                                ChatItemRow(chat)
+                            }
+                        }
+                    }
+                }
+
+                // ٢. واجهة تفاصيل الرسائل (تظهر تدريجياً فوق القائمة)
+                if (isDetailMode) {
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .graphicsLayer {
+                                // تظهر الرسائل كلما اقترب البار من 240dp
+                                alpha =
+                                    ((headerHeight.toPx() - 100.dp.toPx()) / 140.dp.toPx()).coerceIn(
+                                        0f, 1f
+                                    )
+                            }, contentPadding = PaddingValues(16.dp)
+                    ) {
+                        item { DateDivider("اليوم") }
+                        items(detailUiState.messages) { message ->
+                            ChatBubble(message.text, message.isMe, message.time)
                         }
                     }
                 }
