@@ -19,9 +19,9 @@ class ChatDetailViewModel : ViewModel() {
     private fun loadFakeMessages() {
         // محاكاة تحميل بيانات من قاعدة بيانات أو API
         val fakeMessages = listOf(
-            MessageModel(1, "أهلاً ديل، لا يوجد مناقشة لك", false, "01:22 am"),
-            MessageModel(2, "مرحباً أنا الطالب ديلفراسو، أريد أن أناقش", true, "02:22 am"),
-            MessageModel(3, "أهلاً ديل، لا يوجد مناقشة لك", false, "01:22 am")
+            MessageModel(1, "أهلاً احمد، لا يوجد مناقشة لك", false, "01:22 am"),
+            MessageModel(2, "مرحباً أنا الطالب احمد ، أريد أن أناقش", true, "02:22 am"),
+            MessageModel(3, "أهلاً احمد، لا يوجد مناقشة لك", false, "01:22 am")
         )
         _uiState.value = _uiState.value.copy(messages = fakeMessages)
     }

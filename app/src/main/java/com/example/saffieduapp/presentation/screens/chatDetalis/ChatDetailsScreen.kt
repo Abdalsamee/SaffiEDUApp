@@ -1,10 +1,10 @@
 package com.example.saffieduapp.presentation.screens.chatDetalis
 
+import android.R.attr.alpha
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
-import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
@@ -28,11 +28,9 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -49,6 +47,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -58,6 +57,8 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.example.saffieduapp.presentation.screens.chatDetalis.ViewModel.ChatDetailViewModel
 import com.example.saffieduapp.presentation.screens.chatDetalis.component.ChatInputBar
+import com.example.saffieduapp.presentation.screens.student.components.CommonTopAppBar
+import com.example.saffieduapp.ui.theme.Cairo
 
 @Composable
 fun ChatDetailScreen(
@@ -67,165 +68,59 @@ fun ChatDetailScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var currentMessage by remember { mutableStateOf("") }
-
-    // حالة التحكم في التوسع
     var isExpanded by remember { mutableStateOf(false) }
 
-    // دالة الرجوع المخصصة التي تبدأ أنميشن التصغير أولاً
-    val onBackAction = {
-        isExpanded = false
-    }
-
-    // مراقبة انتهاء الأنميشن للرجوع الفعلي للشاشة السابقة
+    // يبدأ من 100dp (نفس الشاشة السابقة) ويتمدد لـ 240dp
     val headerHeight by animateDpAsState(
-        targetValue = if (isExpanded) 220.dp else 65.dp,
+        targetValue = if (isExpanded) 240.dp else 100.dp,
         animationSpec = tween(durationMillis = 600, easing = FastOutSlowInEasing),
-        label = "HeaderHeight",
-        finishedListener = { finalValue ->
-            // إذا كان الهدف هو التصغير (65dp) واكتمل الأنميشن، نخرج من الشاشة
-            if (finalValue == 65.dp) {
-                navController.popBackStack()
-            }
-        })
+        finishedListener = { if (it == 100.dp) navController.popBackStack() })
 
+    // يبدأ من 20dp (نفس الشاشة السابقة) وينتهي بـ 40dp
     val cornerSize by animateDpAsState(
-        targetValue = if (isExpanded) 40.dp else 0.dp,
-        animationSpec = tween(durationMillis = 600),
-        label = "CornerSize"
+        targetValue = if (isExpanded) 40.dp else 20.dp, animationSpec = tween(durationMillis = 600)
     )
 
-    // تفعيل التوسع عند الدخول
-    LaunchedEffect(Unit) {
-        isExpanded = true
-    }
+    LaunchedEffect(Unit) { isExpanded = true }
 
-    // التعامل مع زر الرجوع الخاص بالنظام
-    BackHandler(enabled = isExpanded) {
-        onBackAction()
-    }
+    BackHandler(enabled = isExpanded) { isExpanded = false }
 
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
         Scaffold(
-            bottomBar = {
-                // شريط الإدخال يختفي بسلاسة عند البدء بالرجوع
-                AnimatedVisibility(
-                    visible = isExpanded,
-                    enter = fadeIn(tween(800)),
-                    exit = fadeOut(tween(300)) + slideOutVertically { it }) {
-                    ChatInputBar(
-                        textValue = currentMessage,
-                        onValueChange = { currentMessage = it },
-                        onSendClick = {
-                            if (currentMessage.isNotBlank()) {
-                                viewModel.sendMessage(currentMessage)
-                                currentMessage = ""
-                            }
-                        })
-                }
+            topBar = {
+                CommonTopAppBar(
+                    title = if (headerHeight > 160.dp) "" else "الدردشة",
+                    height = headerHeight,
+                    bottomCorner = cornerSize,
+                    onNavigateUp = { isExpanded = false },
+                    expandableContent = {
+                        // محتوى الصورة والاسم
+                        if (headerHeight > 160.dp) {
+                            DetailHeaderContent(senderName)
+                        }
+                    })
             }) { padding ->
+            // التعديل هنا: نستخدم Column بسيط بدون AnimatedVisibility معقدة
             Column(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(padding)
+                    .background(Color.White)
             ) {
-
-                // البار الذي سيتوسع ويصغر
-                CustomExpandingHeader(
-                    title = senderName,
-                    height = headerHeight,
-                    cornerRadius = cornerSize,
-                    isContentVisible = headerHeight > 160.dp,
-                    onBackClick = { onBackAction() } // استدعاء الأكشن المخصص
-                )
-
-                // الرسائل تختفي بتلاشي عند الرجوع
-                AnimatedVisibility(
-                    visible = isExpanded,
-                    enter = fadeIn(tween(delayMillis = 400)),
-                    exit = fadeOut(tween(300))
-                ) {
-                    LazyColumn(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(Color.White),
-                        contentPadding = PaddingValues(16.dp)
-                    ) {
-                        item { DateDivider("اليوم") }
-                        items(uiState.messages) { message ->
-                            ChatBubble(
-                                text = message.text, isMe = message.isMe, time = message.time
+                // القائمة تظل موجودة لكن شفافيتها مرتبطة بحجم البار
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize().graphicsLayer {
+                        // الشفافية تقل كلما صغر البار (عندما يقترب من 100dp)
+                        alpha =
+                            ((headerHeight.toPx() - 100.dp.toPx()) / 140.dp.toPx()).coerceIn(
+                                0f, 1F
                             )
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun CustomExpandingHeader(
-    title: String,
-    height: androidx.compose.ui.unit.Dp,
-    cornerRadius: androidx.compose.ui.unit.Dp,
-    isContentVisible: Boolean,
-    onBackClick: () -> Unit
-) {
-    Surface(
-        color = Color(0xFF4A90E2),
-        shape = RoundedCornerShape(bottomStart = cornerRadius, bottomEnd = cornerRadius),
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(height)
-    ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp)
-                    .height(35.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButton(onClick = onBackClick) {
-                    Icon(
-                        Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = null,
-                        tint = Color.White
-                    )
-                }
-                Spacer(modifier = Modifier.weight(1f))
-                Text(
-                    "الدردشة", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Medium
-                )
-                Spacer(modifier = Modifier.weight(1.2f))
-            }
-
-            AnimatedVisibility(
-                visible = isContentVisible, enter = fadeIn() + expandVertically(), exit = fadeOut()
-            ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.padding(top = 10.dp)
+                    }, contentPadding = PaddingValues(16.dp)
                 ) {
-                    Surface(
-                        shape = CircleShape,
-                        modifier = Modifier.size(85.dp),
-                        border = BorderStroke(2.dp, Color.White)
-                    ) {
-                        Icon(
-                            Icons.Default.Person,
-                            contentDescription = null,
-                            modifier = Modifier.padding(10.dp),
-                            tint = Color.Gray
-                        )
+                    item { DateDivider("اليوم") }
+                    items(uiState.messages) { message ->
+                        ChatBubble(message.text, message.isMe, message.time)
                     }
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = title,
-                        color = Color.White,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 18.sp
-                    )
                 }
             }
         }
@@ -309,6 +204,39 @@ fun ChatInputBar() {
                 focusedIndicatorColor = Color.Transparent,
                 unfocusedIndicatorColor = Color.Transparent
             )
+        )
+    }
+}
+@Composable
+fun DetailHeaderContent(senderName: String) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier.padding(top = 10.dp)
+    ) {
+        // دائرة الصورة الشخصية
+        Surface(
+            shape = CircleShape,
+            modifier = Modifier.size(80.dp),
+            border = BorderStroke(2.dp, Color.White),
+            color = Color.White.copy(alpha = 0.2f)
+        ) {
+            Icon(
+                imageVector = Icons.Default.Person,
+                contentDescription = null,
+                modifier = Modifier.padding(12.dp),
+                tint = Color.White
+            )
+        }
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        // اسم المرسل
+        Text(
+            text = senderName,
+            color = Color.White,
+            fontWeight = FontWeight.Bold,
+            fontSize = 20.sp,
+            fontFamily = Cairo // تأكد من أن Cairo معرفة لديك أو استبدلها بـ FontFamily.Default
         )
     }
 }

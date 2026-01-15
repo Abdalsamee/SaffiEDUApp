@@ -14,13 +14,13 @@ class ChatViewModel : ViewModel() {
         // بيانات تجريبية لمحاكاة الصورة
         _chatList.value = listOf(
             ChatMessage(
-                1, "ديل فراسو", "يا استاذ افهمني حبيبك", "15:00 pm", 3, MessageStatus.UNREAD, 0
+                1, "احمد", "يا استاذ افهمني حبيبك", "15:00 pm", 3, MessageStatus.UNREAD, 0
             ),
             ChatMessage(
-                2, "ديل فراسو", "يا استاذ افهمني حبيبك", "15:00 pm", 0, MessageStatus.SENT, 0
+                2, "احمد", "يا استاذ افهمني حبيبك", "15:00 pm", 0, MessageStatus.SENT, 0
             ),
-            ChatMessage(3, "ديل فراسو", "يا استاذ افهمني حبيبك", "أمس", 0, MessageStatus.READ, 0),
-            ChatMessage(4, "ديل فراسو", "أنت: فش مناقشة يا ديل", "اليوم", 0, MessageStatus.READ, 0)
+            ChatMessage(3, "احمد", "يا استاذ افهمني حبيبك", "أمس", 0, MessageStatus.READ, 0),
+            ChatMessage(4, "احمد", "أنت: فش مناقشة يا احمد", "اليوم", 0, MessageStatus.READ, 0)
         )
     }
 }

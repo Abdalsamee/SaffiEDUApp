@@ -1,6 +1,5 @@
 package com.example.saffieduapp.presentation.screens.chat
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -37,11 +36,10 @@ fun ChatScreen(
 ) {
     val chats by viewModel.chatList.collectAsState()
 
-    // فرض اتجاه اليمين لليسار (RTL) لأن التطبيق باللغة العربية
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
         Scaffold(
             topBar = {
-                // استخدام الـ Component الموحد الذي أرسلته
+                // يستخدم القيم الافتراضية (100dp ارتفاع و 20dp حواف)
                 CommonTopAppBar(
                     title = "الدردشة", onNavigateUp = { navController.popBackStack() })
             }, containerColor = Color.White
@@ -51,18 +49,15 @@ fun ChatScreen(
                     .padding(innerPadding)
                     .fillMaxSize()
             ) {
-                // ١. شريط البحث (Search Bar) أسفل الـ TopAppBar
                 SearchTextField()
-
-                // ٢. قائمة المحادثات
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(bottom = 16.dp)
                 ) {
-                    // داخل LazyColumn في ChatScreen
                     items(chats) { chat ->
                         Box(modifier = Modifier.clickable {
-                            navController.navigate(Routes.CHAT_DETAILS_SCREEN)
+                            // نمرر اسم المرسل كباراميتر للتفاصيل
+                            navController.navigate("${Routes.CHAT_DETAILS_SCREEN}/${chat.senderName}")
                         }) {
                             ChatItemRow(chat)
                         }

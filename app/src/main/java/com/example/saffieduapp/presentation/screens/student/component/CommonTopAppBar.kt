@@ -2,6 +2,7 @@ package com.example.saffieduapp.presentation.screens.student.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -28,23 +29,25 @@ import com.example.saffieduapp.ui.theme.Cairo
 fun CommonTopAppBar(
     title: String,
     modifier: Modifier = Modifier,
-    onNavigateUp: (() -> Unit)? = null // جعلناه اختياريًا (nullable)
+    onNavigateUp: (() -> Unit)? = null,
+    // أضفنا هذه الأسطر بقيم افتراضية لضمان عدم تأثر الشاشات الأخرى
+    height: androidx.compose.ui.unit.Dp = 100.dp,
+    bottomCorner: androidx.compose.ui.unit.Dp = 20.dp,
+    expandableContent: @Composable (() -> Unit)? = null
 ) {
-    // ١. استخدام Box للحصول على الشكل المطلوب مع الحواف الدائرية
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .height(100.dp) // يمكنك تعديل الارتفاع حسب الحاجة
-            .clip(RoundedCornerShape(bottomStart = 20.dp, bottomEnd = 20.dp))
-            .background(AppPrimary),
-        contentAlignment = Alignment.BottomCenter // لتوسيط العنوان تلقائيًا
+            .height(height) // سيأخذ 100dp في كل التطبيق إلا لو حددنا غير ذلك
+            .clip(RoundedCornerShape(bottomStart = bottomCorner, bottomEnd = bottomCorner))
+            .background(AppPrimary), contentAlignment = Alignment.TopCenter
     ) {
-        // ٢. زر الرجوع يظهر فقط إذا تم تمرير دالة onNavigateUp
         if (onNavigateUp != null) {
             IconButton(
                 onClick = onNavigateUp,
-                modifier = Modifier.align(Alignment.BottomStart) // أسفل يسار
-                    .padding(start = 8.dp, bottom = 18.dp) // محاذاة لليسار
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .padding(start = 8.dp, top = 40.dp)
             ) {
                 Icon(
                     painter = painterResource(id = R.drawable.arrow_left),
@@ -54,14 +57,20 @@ fun CommonTopAppBar(
             }
         }
 
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.padding(top = 45.dp)
+        ) {
+            Text(
+                text = title,
+                color = Color.White,
+                fontSize = 20.sp,
+                fontWeight = FontWeight.SemiBold,
+                fontFamily = Cairo
+            )
 
-        Text(
-            text = title,
-            color = Color.White,
-            fontSize = 20.sp,
-            fontWeight = FontWeight.SemiBold,
-            fontFamily = Cairo,
-            modifier = Modifier.padding(bottom = 24.dp)
-        )
+            // هذا الجزء سيظهر فقط في شاشة الدردشة عندما نمرر له محتوى
+            expandableContent?.invoke()
+        }
     }
 }

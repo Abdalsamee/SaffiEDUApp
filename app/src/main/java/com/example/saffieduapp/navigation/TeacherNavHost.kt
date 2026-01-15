@@ -9,6 +9,8 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.compose.runtime.getValue
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
+import androidx.navigation.navArgument
 import com.example.saffieduapp.presentation.screens.chat.ChatScreen
 import com.example.saffieduapp.presentation.screens.chatDetalis.ChatDetailScreen
 import com.example.saffieduapp.presentation.screens.teacher.home.TeacherHomeScreen
@@ -46,9 +48,14 @@ fun TeacherNavHost(
         composable(Routes.CHAT_SCREEN) {
             ChatScreen(navController = navController)
         }
-        composable(route = Routes.CHAT_DETAILS_SCREEN) {
+        composable(
+            route = "${Routes.CHAT_DETAILS_SCREEN}/{senderName}", arguments = listOf(
+                navArgument("senderName") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val senderName = backStackEntry.arguments?.getString("senderName") ?: "محادثة"
+
             ChatDetailScreen(
-                navController = navController, senderName = "محادثة"
+                navController = navController, senderName = senderName
             )
         }
         composable(Routes.TEACHER_PROFILE_SCREEN) {

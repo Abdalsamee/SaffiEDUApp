@@ -102,9 +102,16 @@ fun MainNavGraph(
         composable(Routes.CHAT_SCREEN) {
             ChatScreen(navController = navController)
         }
-        composable(route = Routes.CHAT_DETAILS_SCREEN) {
+        composable(
+            route = "${Routes.CHAT_DETAILS_SCREEN}/{senderName}", // إضافة المتغير للمسار
+            arguments = listOf(
+                navArgument("senderName") { type = NavType.StringType })
+        ) { backStackEntry ->
+            // استخراج الاسم الممرر من الـ Arguments
+            val senderName = backStackEntry.arguments?.getString("senderName") ?: "مستخدم"
+
             ChatDetailScreen(
-                navController = navController, senderName = "مستخدم" // قيمة وهمية ثابتة
+                navController = navController, senderName = senderName
             )
         }
 
